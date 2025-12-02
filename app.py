@@ -9,7 +9,7 @@ import base64
 from datetime import datetime
 import google.generativeai as genai
 import time
-import streamlit.components.v1 as components # Wajib untuk print js
+import locale
 
 # ===========================
 # 1. KONFIGURASI
@@ -27,7 +27,7 @@ CREDENTIALS = {
 SHEET_URL = "https://docs.google.com/spreadsheets/d/13GG3dJ41H2c_62vG0Tc1Ere8FOLScZSdRcgfaVNxVxo/edit?usp=sharing"
 AUTH_FILE = "service-account.json"
 GEMINI_KEY = "AIzaSyBNkFkikC60JLG9T21V4_0eHXPBbcErnkI" 
-LOGO_FILE = "logo.png"
+LOGO_FILE = "logo.png" # Pastikan file ini ada di folder
 
 try:
     with open("gambar_bg.txt", "r") as f:
@@ -45,11 +45,7 @@ def connect_google_sheet():
     if "gcp_service_account" in st.secrets:
         creds = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["gcp_service_account"], scope)
     else:
-        try:
-            creds = ServiceAccountCredentials.from_json_keyfile_name(AUTH_FILE, scope)
-        except:
-            st.error("File JSON tidak ditemukan.")
-            st.stop()
+        creds = ServiceAccountCredentials.from_json_keyfile_name(AUTH_FILE, scope)
     client = gspread.authorize(creds)
     sheet = client.open_by_url(SHEET_URL)
     return sheet
@@ -97,6 +93,7 @@ def ask_gemini(prompt):
     except Exception as e:
         return f"AI Error: {e}"
 
+# --- FUNGSI BANTUAN TANGGAL INDONESIA & TERBILANG ---
 def get_hari_indo(dt):
     days = {0: "Senin", 1: "Selasa", 2: "Rabu", 3: "Kamis", 4: "Jumat", 5: "Sabtu", 6: "Minggu"}
     return days[dt.weekday()]
@@ -106,20 +103,23 @@ def get_bulan_indo(dt):
     return months[dt.month]
 
 def angka_terbilang(n):
+    # Fungsi sederhana angka ke teks (0-100) untuk tanggal/tahun
     satuan = ["", "Satu", "Dua", "Tiga", "Empat", "Lima", "Enam", "Tujuh", "Delapan", "Sembilan", "Sepuluh", "Sebelas"]
     n = int(n)
     if n < 12: return satuan[n]
     elif n < 20: return satuan[n-10] + " Belas"
     elif n < 100: return satuan[n//10] + " Puluh " + satuan[n%10]
+    elif n >= 2000: return str(n) # Sederhana saja untuk tahun
     return str(n)
 
+# --- FUNGSI LOAD LOGO KE BASE64 (AGAR BISA DI PRINT) ---
 def get_img_as_base64(file_path):
     try:
         with open(file_path, "rb") as f:
             data = f.read()
         return base64.b64encode(data).decode()
     except:
-        return "" 
+        return "" # Jika logo tidak ada, return kosong
 
 def dashboard_card(title, value, color, icon):
     colors = {
@@ -144,14 +144,15 @@ def dashboard_card(title, value, color, icon):
     """
     st.markdown(html, unsafe_allow_html=True)
 
-# --- FUNGSI PRINT BARU (SOLUSI V70) ---
-def generate_html_document(html_content):
-    return f"""
+def create_print_link(html_content, button_text):
+    full_html = f"""
     <html>
     <head>
-        <title>Sistem Sarpras Print</title>
+        <title>Print Document</title>
         <style>
             body {{ font-family: 'Times New Roman', serif; padding: 40px; -webkit-print-color-adjust: exact; }}
+            
+            /* LABEL STYLES */
             .batch-container {{ display: flex; flex-wrap: wrap; gap: 15px; justify-content: flex-start; font-family: Arial, sans-serif; }}
             .label-card {{
                 width: 320px; height: 150px; border: 3px solid black; display: flex; align-items: center;
@@ -164,7 +165,7 @@ def generate_html_document(html_content):
             .lbl-code {{ font-family: 'Courier New'; font-weight: 900; background: #eee; padding: 2px; display:inline-block; margin: 3px 0; border: 1px solid #999; }}
             .lbl-meta {{ font-size: 11px; font-weight: bold; }}
             
-            /* BAST CSS */
+            /* BAST STYLES (SESUAI TEMPLATE) */
             .kop-surat {{ text-align: center; margin-bottom: 20px; border-bottom: 3px double black; padding-bottom: 10px; }}
             .kop-img {{ width: 80px; height: auto; position: absolute; left: 40px; top: 30px; }}
             .bast-title {{ text-align: center; font-weight: bold; font-size: 16px; text-decoration: underline; margin-bottom: 20px; }}
@@ -173,6 +174,7 @@ def generate_html_document(html_content):
             .bast-table th, .bast-table td {{ border: 1px solid black; padding: 5px; text-align: center; }}
             .bast-signature-table {{ width: 100%; margin-top: 30px; text-align: center; font-size: 12pt; border: none; }}
             .bast-signature-table td {{ padding: 5px; border: none; vertical-align: top; }}
+            .sign-space {{ height: 70px; }}
         </style>
     </head>
     <body>
@@ -183,6 +185,11 @@ def generate_html_document(html_content):
     </body>
     </html>
     """
+    b64 = base64.b64encode(full_html.encode()).decode()
+    href = f'<a href="data:text/html;base64,{b64}" target="_blank" style="text-decoration:none;">' \
+           f'<div style="background-color:#FF4B4B; color:white; padding:12px; border-radius:8px; text-align:center; font-weight:bold; cursor:pointer; margin-top:10px;">' \
+           f'🖨️ {button_text} (KLIK UNTUK PRINT)</div></a>'
+    return href
 
 def local_css():
     st.markdown("""
@@ -200,10 +207,7 @@ def local_css():
         .lbl-name { font-weight: bold; font-size: 13px; margin-top: 3px; }
         .lbl-code { font-family: 'Courier New'; font-weight: 900; background: #eee; padding: 2px; display:inline-block; margin: 3px 0; border: 1px solid #999; }
         .lbl-meta { font-size: 11px; font-weight: bold; }
-        .bast-page { width: 100%; font-family: 'Times New Roman', serif; color: black; padding: 20px; background: white; border: 1px solid #ddd; }
-        .bast-header { text-align: center; font-weight: bold; font-size: 18px; text-decoration: underline; margin-bottom: 20px; }
-        .bast-table { width: 100%; border-collapse: collapse; margin: 15px 0; }
-        .bast-table th, .bast-table td { border: 1px solid black; padding: 8px; text-align: center; font-size: 12px; }
+        .bast-title { text-align: center; font-weight: bold; font-size: 16px; text-decoration: underline; margin-bottom: 20px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -310,17 +314,25 @@ def main_app():
                         rows = [[f"{base}.{last+i:03d}", nama, merk, "Aset Tetap", pj, lokasi, "BOS", tahun, "-", foto_name] for i in range(1, volume+1)]
                         if save_to_sheet("Aset", rows): st.success(f"Sukses simpan {volume} aset!"); time.sleep(1); st.rerun()
 
-    # --- DATA ASET, LABEL & BAST (METODE DOWNLOAD) ---
+    # --- DATA ASET, LABEL & BAST ---
     elif menu == "Data Aset, Label & BAST":
         st.title("🖨️ Data Aset, Label & BAST")
         df = load_data("Aset")
-        event = st.dataframe(df, use_container_width=True, on_select="rerun", selection_mode="multi-row",
-            column_config={"Link_Foto": st.column_config.LinkColumn("Foto Aset", display_text="📸 Lihat Foto")})
+        event = st.dataframe(
+            df, 
+            use_container_width=True, 
+            on_select="rerun", 
+            selection_mode="multi-row",
+            column_config={
+                "Link_Foto": st.column_config.LinkColumn("Foto Aset", display_text="📸 Lihat Foto")
+            }
+        )
         rows = event.selection.rows
         
         if rows:
             st.divider()
             st.success(f"✅ Terpilih {len(rows)} Item")
+            
             tab1, tab2 = st.tabs(["🏷️ LABEL ASET", "📄 SURAT BAST"])
             
             # --- TAB 1: CETAK LABEL ---
@@ -332,42 +344,60 @@ def main_app():
                     html_labels_content += f"""<div class='label-card'><img src='{qr}' class='qr-img'><div class='label-info'><div class='lbl-title'>SMKN 6 JEMBER</div><div class='lbl-name'>{r['Nama_Barang']}</div><div class='lbl-code'>{r['Kode_Aset']}</div><div class='lbl-meta'>Lokasi: {r['Posisi']} | Th: {r['Tahun']}</div></div></div>"""
                 html_labels_content += "</div>"
                 
-                # Preview
-                st.subheader("Preview:")
+                st.subheader("Preview Tampilan:")
                 st.markdown(html_labels_content, unsafe_allow_html=True)
-                
-                # GENERATE FILE PRINT
-                full_html = generate_html_document(html_labels_content)
-                st.download_button("🖨️ DOWNLOAD FILE LABEL (Lalu Print Manual)", data=full_html, file_name="Label_Aset.html", mime="text/html")
+                st.divider()
+                print_link = create_print_link(html_labels_content, "CETAK LABEL SEKARANG")
+                st.markdown(print_link, unsafe_allow_html=True)
 
-            # --- TAB 2: CETAK BAST ---
+            # --- TAB 2: CETAK BAST (FORMAT BARU) ---
             with tab2:
+                st.subheader("Data Berita Acara")
                 with st.form("bast_form"):
                     col_a, col_b = st.columns(2)
-                    pihak1 = col_a.text_input("Nama Pihak 1 (Menyerahkan)", "Waka Sarpras")
-                    nip1 = col_b.text_input("NIP Pihak 1", "-")
-                    pihak2 = col_a.text_input("Nama Pihak 2 (Menerima)")
-                    nip2 = col_b.text_input("NIP Pihak 2", "-")
+                    
+                    # PIHAK KESATU (Waka Sarpras)
+                    st.markdown("**PIHAK KESATU (Yang Menyerahkan):**")
+                    p1_nama = st.text_input("Nama Waka Sarpras", ".............................................")
+                    p1_nip = st.text_input("NIP Waka Sarpras", ".............................................")
+                    
+                    # PIHAK KEDUA (Penerima)
+                    st.markdown("**PIHAK KEDUA (Yang Menerima):**")
+                    p2_nama = st.text_input("Nama Penerima", "Muhammad Nur Hamid, S.Kom.")
+                    p2_nip = st.text_input("NIP Penerima", "19830216 202221 1 013")
+                    p2_jabatan = st.text_input("Jabatan Penerima", "Ketua Kompetensi Program Keahlian RPL")
+                    
+                    # KEPALA SEKOLAH & SAKSI
+                    st.markdown("**MENGETAHUI:**")
+                    ks_nama = st.text_input("Nama Kepala Sekolah", ".............................................")
+                    ks_nip = st.text_input("NIP Kepala Sekolah", ".............................................")
+                    
+                    saksi_nama = st.text_input("Nama Saksi (Sekretaris Sarpras)", ".............................................")
+                    
                     tgl_bast = st.date_input("Tanggal BAST")
                     gen_bast = st.form_submit_button("Preview Surat")
                 
                 if gen_bast:
-                    tgl_indo = tgl_bast.strftime("%d-%m-%Y")
-                    hari_indo = get_hari_indo(tgl_bast)
-                    bln_indo = get_bulan_indo(tgl_bast)
+                    # Logic Tanggal & Terbilang
+                    hari_ini_indo = get_hari_indo(tgl_bast)
                     tgl_terbilang = angka_terbilang(tgl_bast.day)
+                    bln_indo = get_bulan_indo(tgl_bast)
                     thn_terbilang = angka_terbilang(tgl_bast.year)
-                    
+                    tgl_full = tgl_bast.strftime("%d-%m-%Y")
+
+                    # Tabel Barang
                     rows_html = ""
                     df_selected = df.iloc[rows]
-                    no = 1
+                    no_urut = 1
                     for idx, row in df_selected.iterrows():
-                        rows_html += f"<tr><td>{no}</td><td>{row['Nama_Barang']} ({row['Merk']})</td><td>1 Unit</td><td>-</td><td>{row.get('Keterangan', '-')}</td><td>{row['Sumber_Dana']}</td></tr>"
-                        no += 1
+                        rows_html += f"<tr><td>{no_urut}.</td><td>{row['Nama_Barang']}</td><td>1 Unit</td><td>-</td><td>{row.get('Keterangan', '-')}</td><td>{row['Sumber_Dana']}</td></tr>"
+                        no_urut += 1
 
+                    # Load Logo Base64
                     logo_base64 = get_img_as_base64(LOGO_FILE)
                     img_tag = f'<img src="data:image/png;base64,{logo_base64}" class="kop-img">' if logo_base64 else ""
 
+                    # HTML BAST TEMPLATE (SESUAI DOCX)
                     html_bast_content = f"""
                     <div class='bast-page'>
                         <div class='kop-surat'>
@@ -379,20 +409,20 @@ def main_app():
                         <div class='bast-title'>BERITA ACARA SERAH TERIMA BARANG</div>
                         
                         <p class='bast-text'>
-                            Pada hari ini, <b>{hari_indo}</b> tanggal <b>{tgl_terbilang}</b> Bulan <b>{bln_indo}</b> Tahun <b>{thn_terbilang}</b>, yang bertandatangan di bawah ini :
+                            Pada hari ini, <b>{hari_ini_indo}</b> tanggal <b>{tgl_terbilang}</b> Bulan <b>{bln_indo}</b> Tahun <b>{thn_terbilang}</b>, yang bertandatangan di bawah ini :
                         </p>
                         
                         <table style='width:100%; border:none; margin-bottom:10px;'>
-                            <tr><td style='width:80px;'>Nama</td><td>: {pihak1}</td></tr>
-                            <tr><td>NIP.</td><td>: {nip1}</td></tr>
+                            <tr><td style='width:80px;'>Nama</td><td>: {p1_nama}</td></tr>
+                            <tr><td>NIP.</td><td>: {p1_nip}</td></tr>
                             <tr><td>Jabatan</td><td>: Waka Sarpras</td></tr>
                         </table>
                         <p class='bast-text'>Dalam hal ini bertindak untuk dan atas nama jabatan, selanjutnya disebut <b>PIHAK KESATU</b></p>
                         
                         <table style='width:100%; border:none; margin-bottom:10px;'>
-                            <tr><td style='width:80px;'>Nama</td><td>: {pihak2}</td></tr>
-                            <tr><td>NIP.</td><td>: {nip2}</td></tr>
-                            <tr><td>Jabatan</td><td>: {pihak2}</td></tr>
+                            <tr><td style='width:80px;'>Nama</td><td>: {p2_nama}</td></tr>
+                            <tr><td>NIP.</td><td>: {p2_nip}</td></tr>
+                            <tr><td>Jabatan</td><td>: {p2_jabatan}</td></tr>
                         </table>
                         <p class='bast-text'>Dalam hal ini bertindak untuk dan atas nama jabatan, selanjutnya disebut <b>PIHAK KEDUA</b></p>
                         
@@ -401,7 +431,7 @@ def main_app():
                         </p>
                         
                         <table class='bast-table'>
-                            <thead><tr><th>No</th><th>Nama Barang</th><th>Jml</th><th>Harga</th><th>Ket</th><th>Sumber</th></tr></thead>
+                            <thead><tr><th>No</th><th>Nama Barang</th><th>Jumlah</th><th>Harga</th><th>Keterangan</th><th>Sumber Dana</th></tr></thead>
                             <tbody>{rows_html}</tbody>
                         </table>
                         
@@ -412,15 +442,15 @@ def main_app():
                         
                         <table class='bast-signature-table'>
                             <tr>
-                                <td width='50%'>PIHAK KEDUA<br><br><br><br><br><b><u>{pihak2}</u></b><br>NIP. {nip2}</td>
-                                <td width='50%'>PIHAK KESATU<br>Waka Sarpras<br><br><br><br><b><u>{pihak1}</u></b><br>NIP. {nip1}</td>
+                                <td width='50%'>PIHAK KEDUA<br><br><br><br><br><b><u>{p2_nama}</u></b><br>NIP. {p2_nip}</td>
+                                <td width='50%'>PIHAK KESATU<br>Waka Sarpras<br><br><br><br><b><u>{p1_nama}</u></b><br>NIP. {p1_nip}</td>
                             </tr>
                             <tr>
                                 <td colspan='2'><br>Mengetahui,</td>
                             </tr>
                             <tr>
-                                <td>Kepala SMKN 6 Jember<br><br><br><br><br><b><u>.............................</u></b><br>NIP. .............................</td>
-                                <td>Saksi-saksi<br><br><br><br><br><b><u>.............................</u></b><br>NIP. .........................</td>
+                                <td>Kepala SMKN 6 Jember<br><br><br><br><br><b><u>{ks_nama}</u></b><br>NIP. {ks_nip}</td>
+                                <td>Saksi-saksi<br><br><br><br><br><b><u>{saksi_nama}</u></b><br>NIP. .........................</td>
                             </tr>
                         </table>
                     </div>
@@ -428,10 +458,9 @@ def main_app():
                     
                     st.subheader("Preview Surat:")
                     st.markdown(html_bast_content, unsafe_allow_html=True)
-                    
-                    # GENERATE FILE PRINT
-                    full_html_bast = generate_html_document(html_bast_content)
-                    st.download_button("📄 DOWNLOAD SURAT BAST (Lalu Print Manual)", data=full_html_bast, file_name="Surat_BAST.html", mime="text/html")
+                    st.divider()
+                    print_link_bast = create_print_link(html_bast_content, "CETAK SURAT BAST")
+                    st.markdown(print_link_bast, unsafe_allow_html=True)
 
     # --- GUDANG (STOK) ---
     elif menu == "Gudang (Stok)":
