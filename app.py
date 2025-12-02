@@ -38,24 +38,15 @@ except:
 # 2. FUNGSI BANTUAN
 # ===========================
 
-# Koneksi Google Sheet (Support Local & Cloud)
 @st.cache_resource
 def connect_google_sheet():
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    
-    # LOGIKA PINTAR: Cek apakah jalan di Cloud (Secrets) atau di Laptop (File JSON)
+    # Logika Dual Mode: Cloud (Secrets) / Laptop (JSON)
     if "gcp_service_account" in st.secrets:
-        # Jika di Cloud, baca dari Secrets
-        creds_dict = st.secrets["gcp_service_account"]
-        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["gcp_service_account"], scope)
     else:
-        # Jika di Laptop, baca dari File JSON
-        try:
-            creds = ServiceAccountCredentials.from_json_keyfile_name(AUTH_FILE, scope)
-        except Exception as e:
-            st.error(f"File {AUTH_FILE} tidak ditemukan. Pastikan file ada atau setting Secrets di Cloud.")
-            st.stop()
-            
+        creds = ServiceAccountCredentials.from_json_keyfile_name(AUTH_FILE, scope)
+        
     client = gspread.authorize(creds)
     sheet = client.open_by_url(SHEET_URL)
     return sheet
@@ -85,14 +76,10 @@ def save_to_sheet(sheet_name, new_row_list):
         return False
 
 def generate_qr_base64(text):
-    qr = qrcode.QRCode(version=1, box_size=10, border=1)
-    qr.add_data(text)
-    qr.make(fit=True)
-    img = qr.make_image(fill_color="black", back_color="white")
-    buffer = io.BytesIO()
-    img.save(buffer, format="PNG")
-    img_str = base64.b64encode(buffer.getvalue()).decode()
-    return f"data:image/png;base64,{img_str}"
+    # Menggunakan API agar ringan & tidak perlu install library grafis berat
+    if is.null(text) or text == "": return ""
+    safe_text = str(text).replace(" ", "%20").replace("\n", "%0A")
+    return f"https://api.qrserver.com/v1/create-qr-code/?size=300x300&data={safe_text}"
 
 def handle_image_upload(uploaded_file):
     if uploaded_file is not None:
@@ -108,7 +95,6 @@ def ask_gemini(prompt):
     except Exception as e:
         return f"AI Error: {e}"
 
-# --- KARTU DASHBOARD WARNA-WARNI ---
 def dashboard_card(title, value, color, icon):
     colors = {
         "blue": "linear-gradient(135deg, #007bff, #0056b3)",
@@ -118,10 +104,7 @@ def dashboard_card(title, value, color, icon):
         "orange": "linear-gradient(135deg, #fd7e14, #d96203)"
     }
     bg = colors.get(color, "#6c757d")
-    
-    # CSS agar teks value menyesuaikan jika panjang
     font_size = "32px" if len(str(value)) < 15 else "20px"
-    
     html = f"""
     <div style="background: {bg}; padding: 20px; border-radius: 15px; color: white; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); height: 120px;">
         <div style="display: flex; justify-content: space-between; align-items: center; height: 100%;">
@@ -139,6 +122,9 @@ def local_css():
     st.markdown("""
     <style>
         .stDataFrame { border: 1px solid #ddd; border-radius: 5px; }
+        /* Tabel Scroll di HP */
+        .stDataFrame div[data-testid="stTable"] { overflow-x: auto; }
+        
         @media print {
             body * { visibility: hidden; }
             #print-area, #print-area * { visibility: visible; }
@@ -163,7 +149,6 @@ def local_css():
 # 3. LOGIN & MAIN APP
 # ===========================
 def login_page():
-    # CSS Background Login
     st.markdown(
         f"""
         <style>
@@ -183,18 +168,14 @@ def login_page():
         """,
         unsafe_allow_html=True
     )
-
     st.markdown("<br><br><br>", unsafe_allow_html=True)
     c1, c2, c3 = st.columns([1, 1.5, 1])
     with c2:
-        # PERBAIKAN: Judul dimasukkan ke dalam FORM agar background putihnya kena
         with st.form("login_form"):
             st.markdown("<h2 style='text-align: center; color: #333; margin-bottom: 0px;'>🔐 Sistem Sarpras</h2>", unsafe_allow_html=True)
             st.markdown("<p style='text-align: center; color: #555; margin-bottom: 20px;'>SMKN 6 JEMBER</p>", unsafe_allow_html=True)
-            
             user = st.text_input("Username")
             password = st.text_input("Password", type="password")
-            
             if st.form_submit_button("MASUK SISTEM", type="primary", use_container_width=True):
                 if user in CREDENTIALS and CREDENTIALS[user]["pass"] == password:
                     st.session_state['logged_in'] = True
@@ -208,82 +189,60 @@ def main_app():
     local_css()
     with st.sidebar:
         st.title(f"👤 {st.session_state['username'].upper()}")
-        menu = st.radio("Menu", ["Dashboard", "Input Aset", "Data Aset & Label", "Gudang (Stok)", "Jadwal Aula", "Tanya AI"])
+        menu = st.radio("Menu", ["Dashboard", "Input Aset (Masal)", "Data Aset & Label", "Gudang (Stok)", "Jadwal Aula", "Tanya AI"])
         if st.button("Logout", use_container_width=True):
             st.session_state['logged_in'] = False
             st.rerun()
 
-    # --- DASHBOARD (DIPERBAIKI) ---
+    # --- DASHBOARD ---
     if menu == "Dashboard":
         st.title("📊 Dashboard Utama")
-        
-        # Load Data
         df_aset = load_data("Aset")
         df_stok = load_data("Stok")
         df_jadwal = load_data("Jadwal")
         
-        # --- PERHITUNGAN CARD ---
-        
-        # 1. Total Aset
         total_aset = len(df_aset)
         
-        # 2. Stok Menipis
         stok_alert = 0
         df_saldo_menipis = pd.DataFrame()
         if not df_stok.empty:
             saldo_df = df_stok.groupby('Nama_Barang')['Jumlah'].apply(lambda x: x[df_stok['Jenis_Transaksi'] == 'Masuk'].sum() - x[df_stok['Jenis_Transaksi'] == 'Keluar'].sum()).reset_index(name='Sisa')
-            df_saldo_menipis = saldo_df[saldo_df['Sisa'] <= 5].sort_values('Sisa') # Filter <= 5
+            df_saldo_menipis = saldo_df[saldo_df['Sisa'] <= 5].sort_values('Sisa')
             stok_alert = len(df_saldo_menipis)
             
-        # 3. Agenda Terdekat (Logic Baru)
         agenda_info = "Tidak ada"
         if not df_jadwal.empty:
             df_jadwal['Tanggal'] = pd.to_datetime(df_jadwal['Tanggal'])
-            # Filter hanya tanggal hari ini atau masa depan
             upcoming = df_jadwal[df_jadwal['Tanggal'].dt.date >= datetime.now().date()].sort_values('Tanggal')
-            
             if not upcoming.empty:
-                # Ambil yang paling dekat (row pertama)
                 next_event = upcoming.iloc[0]
                 tgl_str = next_event['Tanggal'].strftime('%d/%m')
                 kegiatan = next_event['Kegiatan']
-                # Batasi panjang teks agar kartu tidak jebol
                 if len(kegiatan) > 15: kegiatan = kegiatan[:15] + "..."
                 agenda_info = f"{kegiatan} ({tgl_str})"
-            else:
-                agenda_info = "Tidak ada jadwal"
 
-        # --- TAMPILAN KARTU ---
         c1, c2, c3 = st.columns(3)
         with c1: dashboard_card("Total Aset", f"{total_aset} Unit", "blue", "🏫")
         with c2: dashboard_card("Stok Menipis", f"{stok_alert} Item", "red", "📉")
-        with c3: dashboard_card("Agenda Terdekat", agenda_info, "purple", "📅") # Menampilkan nama agenda
+        with c3: dashboard_card("Agenda Terdekat", agenda_info, "purple", "📅")
 
         st.divider()
-        
-        # --- TAMPILAN TABEL BAWAH (SPLIT 2 KOLOM) ---
         col_kiri, col_kanan = st.columns(2)
-        
         with col_kiri:
             st.subheader("📋 Aset Terbaru Masuk")
             if not df_aset.empty:
-                # Ambil 5 terakhir, tampilkan kolom penting saja
                 cols_show = ['Kode_Aset', 'Nama_Barang', 'Posisi']
-                # Cek dulu apakah kolom ada (untuk menghindari error jika sheet kosong)
                 valid_cols = [c for c in cols_show if c in df_aset.columns]
                 st.dataframe(df_aset[valid_cols].tail(5), use_container_width=True, hide_index=True)
-            else:
-                st.info("Data aset kosong.")
-
+            else: st.info("Data aset kosong.")
         with col_kanan:
             st.subheader("⚠️ Stok Perlu Restock (<=5)")
             if not df_saldo_menipis.empty:
                 st.dataframe(df_saldo_menipis.head(5), use_container_width=True, hide_index=True)
-            else:
-                st.success("Stok aman terkendali.")
+            else: st.success("Stok aman terkendali.")
 
-    # --- INPUT ASET ---
-    elif menu == "Input Aset":
+    # --- INPUT ASET (TANPA KAMERA LIVE, PAKE UPLOADER) ---
+    elif menu == "Input Aset (Masal)":
         if st.session_state['role'] == 'view': st.warning("Akses View Only"); st.stop()
         st.title("📦 Input Aset Massal")
         with st.form("input_aset"):
@@ -298,11 +257,9 @@ def main_app():
             tahun = st.number_input("Tahun", value=2025)
             
             st.write("---")
-            st.write("**Foto Aset (Pilih Salah Satu):**")
-            cols_foto = st.columns(2)
-            with cols_foto[0]: cam_pic = st.camera_input("📸 Ambil Foto (Kamera)")
-            with cols_foto[1]: file_pic = st.file_uploader("📂 Upload File (Galeri)", type=['jpg','png','jpeg'])
-            final_pic = cam_pic if cam_pic is not None else file_pic
+            # --- UPDATED: HANYA FILE UPLOADER (HP akan menawarkan Kamera/Galeri) ---
+            final_pic = st.file_uploader("📸 Foto Aset (Klik Browse -> Pilih Kamera di HP)", type=['jpg','png','jpeg'])
+            # -----------------------------------------------------------------------
 
             submit = st.form_submit_button("Simpan", type="primary")
             
