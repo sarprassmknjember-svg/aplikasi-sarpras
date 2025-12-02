@@ -74,10 +74,7 @@ def save_to_sheet(sheet_name, new_row_list):
         return False
 
 def generate_qr_base64(text):
-    # PERBAIKAN DI SINI (Sebelumnya error karena pakai syntax R)
-    if text is None or str(text).strip() == "": 
-        return ""
-    
+    if text is None or str(text).strip() == "": return ""
     safe_text = str(text).replace(" ", "%20").replace("\n", "%0A")
     return f"https://api.qrserver.com/v1/create-qr-code/?size=300x300&data={safe_text}"
 
@@ -118,17 +115,31 @@ def dashboard_card(title, value, color, icon):
     """
     st.markdown(html, unsafe_allow_html=True)
 
+# CSS KHUSUS PRINT & LABEL
 def local_css():
     st.markdown("""
     <style>
         .stDataFrame { border: 1px solid #ddd; border-radius: 5px; }
         .stDataFrame div[data-testid="stTable"] { overflow-x: auto; }
+        
+        /* TOMBOL PRINT HTML KHUSUS */
+        .print-btn {
+            background-color: #007bff; color: white; padding: 10px 20px; 
+            border: none; border-radius: 5px; cursor: pointer; font-weight: bold;
+            text-decoration: none; display: inline-block; margin-top: 10px;
+        }
+        .print-btn:hover { background-color: #0056b3; }
+
+        /* PRINT STYLE: HANYA TAMPILKAN AREA PRINT */
         @media print {
             body * { visibility: hidden; }
             #print-area, #print-area * { visibility: visible; }
             #print-area { position: absolute; left: 0; top: 0; width: 100%; }
-            .stSidebar, header, footer, .stButton { display: none !important; }
+            /* Sembunyikan UI Streamlit */
+            .stSidebar, header, footer, .stButton, .stForm, div[data-testid="stToolbar"] { display: none !important; }
         }
+        
+        /* LABEL STYLE */
         .batch-container { display: flex; flex-wrap: wrap; gap: 15px; justify-content: flex-start; }
         .label-card {
             width: 320px; height: 150px; border: 3px solid black; display: flex; align-items: center;
@@ -140,6 +151,14 @@ def local_css():
         .lbl-name { font-weight: bold; font-size: 13px; margin-top: 3px; }
         .lbl-code { font-family: 'Courier New'; font-weight: 900; background: #eee; padding: 2px; display:inline-block; margin: 3px 0; border: 1px solid #999; }
         .lbl-meta { font-size: 11px; font-weight: bold; }
+
+        /* BAST STYLE */
+        .bast-page { width: 100%; font-family: 'Times New Roman', serif; color: black; padding: 20px; }
+        .bast-header { text-align: center; font-weight: bold; font-size: 18px; text-decoration: underline; margin-bottom: 20px; }
+        .bast-table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+        .bast-table th, .bast-table td { border: 1px solid black; padding: 8px; text-align: center; font-size: 12px; }
+        .bast-sig { display: flex; justify-content: space-between; margin-top: 50px; text-align: center; }
+        .sig-box { width: 40%; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -148,22 +167,7 @@ def local_css():
 # ===========================
 def login_page():
     st.markdown(
-        f"""
-        <style>
-        [data-testid="stAppViewContainer"] {{
-            background-image: url("{BG_IMAGE_URL}");
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-        }}
-        [data-testid="stForm"] {{
-            background-color: rgba(255, 255, 255, 0.95);
-            padding: 30px;
-            border-radius: 15px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-        }}
-        </style>
-        """,
+        f"""<style>[data-testid="stAppViewContainer"] {{ background-image: url("{BG_IMAGE_URL}"); background-size: cover; }} [data-testid="stForm"] {{ background-color: rgba(255,255,255,0.95); padding: 30px; border-radius: 15px; }}</style>""",
         unsafe_allow_html=True
     )
     st.markdown("<br><br><br>", unsafe_allow_html=True)
@@ -187,7 +191,7 @@ def main_app():
     local_css()
     with st.sidebar:
         st.title(f"👤 {st.session_state['username'].upper()}")
-        menu = st.radio("Menu", ["Dashboard", "Input Aset", "Data Aset & Label", "Gudang (Stok)", "Jadwal Aula", "Tanya AI"])
+        menu = st.radio("Menu", ["Dashboard", "Input Aset", "Data Aset, Label & BAST", "Gudang (Stok)", "Jadwal Aula", "Tanya AI"])
         if st.button("Logout", use_container_width=True):
             st.session_state['logged_in'] = False
             st.rerun()
@@ -200,7 +204,6 @@ def main_app():
         df_jadwal = load_data("Jadwal")
         
         total_aset = len(df_aset)
-        
         stok_alert = 0
         df_saldo_menipis = pd.DataFrame()
         if not df_stok.empty:
@@ -214,10 +217,7 @@ def main_app():
             upcoming = df_jadwal[df_jadwal['Tanggal'].dt.date >= datetime.now().date()].sort_values('Tanggal')
             if not upcoming.empty:
                 next_event = upcoming.iloc[0]
-                tgl_str = next_event['Tanggal'].strftime('%d/%m')
-                kegiatan = next_event['Kegiatan']
-                if len(kegiatan) > 15: kegiatan = kegiatan[:15] + "..."
-                agenda_info = f"{kegiatan} ({tgl_str})"
+                agenda_info = f"{next_event['Kegiatan']} ({next_event['Tanggal'].strftime('%d/%m')})"
 
         c1, c2, c3 = st.columns(3)
         with c1: dashboard_card("Total Aset", f"{total_aset} Unit", "blue", "🏫")
@@ -225,19 +225,15 @@ def main_app():
         with c3: dashboard_card("Agenda Terdekat", agenda_info, "purple", "📅")
 
         st.divider()
-        col_kiri, col_kanan = st.columns(2)
-        with col_kiri:
-            st.subheader("📋 Aset Terbaru Masuk")
+        c_kiri, c_kanan = st.columns(2)
+        with c_kiri:
+            st.subheader("📋 Aset Terbaru")
             if not df_aset.empty:
-                cols_show = ['Kode_Aset', 'Nama_Barang', 'Posisi']
-                valid_cols = [c for c in cols_show if c in df_aset.columns]
-                st.dataframe(df_aset[valid_cols].tail(5), use_container_width=True, hide_index=True)
-            else: st.info("Data aset kosong.")
-        with col_kanan:
-            st.subheader("⚠️ Stok Perlu Restock (<=5)")
-            if not df_saldo_menipis.empty:
-                st.dataframe(df_saldo_menipis.head(5), use_container_width=True, hide_index=True)
-            else: st.success("Stok aman terkendali.")
+                cols = [c for c in ['Kode_Aset', 'Nama_Barang', 'Posisi'] if c in df_aset.columns]
+                st.dataframe(df_aset[cols].tail(5), use_container_width=True, hide_index=True)
+        with c_kanan:
+            st.subheader("⚠️ Stok Perlu Restock")
+            if not df_saldo_menipis.empty: st.dataframe(df_saldo_menipis.head(5), use_container_width=True, hide_index=True)
 
     # --- INPUT ASET ---
     elif menu == "Input Aset":
@@ -245,7 +241,7 @@ def main_app():
         st.title("📦 Input Aset")
         with st.form("input_aset"):
             c1, c2 = st.columns(2)
-            prefix = c1.text_input("Kode Prefix", placeholder="LPT / MEJA").upper()
+            prefix = c1.text_input("Kode Prefix", placeholder="MEJA").upper()
             volume = c2.number_input("Volume", 1, 1000, 1)
             nama = st.text_input("Nama Barang")
             merk = st.text_input("Merk")
@@ -253,48 +249,106 @@ def main_app():
             lokasi = c3.text_input("Lokasi")
             pj = c4.text_input("PJ")
             tahun = st.number_input("Tahun", value=2025)
-            
             st.write("---")
-            final_pic = st.file_uploader("📸 Foto Aset (Klik Browse -> Pilih Kamera di HP)", type=['jpg','png','jpeg'])
+            final_pic = st.file_uploader("📸 Foto Aset", type=['jpg','png','jpeg'])
+            if st.form_submit_button("Simpan", type="primary"):
+                if prefix and nama:
+                    with st.spinner("Menyimpan..."):
+                        df = load_data("Aset")
+                        base = f"{prefix}.{tahun}"
+                        existing = df[df['Kode_Aset'].astype(str).str.startswith(base)]
+                        last = 0
+                        if not existing.empty:
+                            try: last = existing['Kode_Aset'].str.split('.').str[-1].astype(int).max()
+                            except: pass
+                        foto_name = handle_image_upload(final_pic)
+                        rows = [[f"{base}.{last+i:03d}", nama, merk, "Aset Tetap", pj, lokasi, "BOS", tahun, "-", foto_name] for i in range(1, volume+1)]
+                        if save_to_sheet("Aset", rows): st.success(f"Sukses simpan {volume} aset!"); time.sleep(1); st.rerun()
 
-            submit = st.form_submit_button("Simpan", type="primary")
-            
-            if submit and prefix and nama:
-                with st.spinner("Menyimpan..."):
-                    df = load_data("Aset")
-                    base = f"{prefix}.{tahun}"
-                    existing = df[df['Kode_Aset'].astype(str).str.startswith(base)]
-                    last = 0
-                    if not existing.empty:
-                        try: last = existing['Kode_Aset'].str.split('.').str[-1].astype(int).max()
-                        except: pass
-                    
-                    foto_name = handle_image_upload(final_pic)
-                    rows = []
-                    for i in range(1, volume+1):
-                        code = f"{base}.{last+i:03d}"
-                        rows.append([code, nama, merk, "Aset Tetap", pj, lokasi, "BOS", tahun, "-", foto_name])
-                    
-                    if save_to_sheet("Aset", rows):
-                        st.success(f"Sukses simpan {volume} aset!"); time.sleep(1); st.rerun()
-
-    # --- DATA ASET ---
-    elif menu == "Data Aset & Label":
-        st.title("🖨️ Data Aset")
+    # --- DATA ASET, LABEL & BAST (DIPERBAIKI) ---
+    elif menu == "Data Aset, Label & BAST":
+        st.title("🖨️ Data Aset, Label & BAST")
         df = load_data("Aset")
         event = st.dataframe(df, use_container_width=True, on_select="rerun", selection_mode="multi-row")
         rows = event.selection.rows
+        
         if rows:
             st.divider()
-            st.subheader(f"Preview Cetak ({len(rows)} Item)")
-            html = "<div id='print-area'><div class='batch-container'>"
-            for i in rows:
-                r = df.iloc[i]
-                qr = generate_qr_base64(f"SMKN 6 JEMBER\n{r['Kode_Aset']}\n{r['Nama_Barang']}\n{r['Posisi']}")
-                html += f"""<div class='label-card'><img src='{qr}' class='qr-img'><div class='label-info'><div class='lbl-title'>SMKN 6 JEMBER</div><div class='lbl-name'>{r['Nama_Barang']}</div><div class='lbl-code'>{r['Kode_Aset']}</div><div class='lbl-meta'>Lokasi: {r['Posisi']} | Th: {r['Tahun']}</div></div></div>"""
-            html += "</div></div>"
-            st.markdown(html, unsafe_allow_html=True)
-            st.button("🖨️ Print Label", type="primary")
+            st.info(f"Terpilih {len(rows)} Item. Silakan pilih menu di bawah:")
+            
+            tab1, tab2 = st.tabs(["🏷️ CETAK LABEL", "📄 CETAK BAST"])
+            
+            # --- TAB 1: CETAK LABEL ---
+            with tab1:
+                html = "<div id='print-area'><div class='batch-container'>"
+                for i in rows:
+                    r = df.iloc[i]
+                    qr = generate_qr_base64(f"SMKN 6 JEMBER\n{r['Kode_Aset']}\n{r['Nama_Barang']}\n{r['Posisi']}")
+                    html += f"""<div class='label-card'><img src='{qr}' class='qr-img'><div class='label-info'><div class='lbl-title'>SMKN 6 JEMBER</div><div class='lbl-name'>{r['Nama_Barang']}</div><div class='lbl-code'>{r['Kode_Aset']}</div><div class='lbl-meta'>Lokasi: {r['Posisi']} | Th: {r['Tahun']}</div></div></div>"""
+                html += "</div></div>"
+                st.markdown(html, unsafe_allow_html=True)
+                # Tombol HTML Khusus Print
+                st.markdown('<button onclick="window.print()" class="print-btn">🖨️ CETAK LABEL SEKARANG</button>', unsafe_allow_html=True)
+
+            # --- TAB 2: CETAK BAST ---
+            with tab2:
+                with st.form("bast_form"):
+                    col_a, col_b = st.columns(2)
+                    pihak1 = col_a.text_input("Nama Pihak 1 (Menyerahkan)", "Waka Sarpras")
+                    nip1 = col_b.text_input("NIP Pihak 1", "-")
+                    pihak2 = col_a.text_input("Nama Pihak 2 (Menerima)")
+                    nip2 = col_b.text_input("NIP Pihak 2", "-")
+                    tgl_bast = st.date_input("Tanggal BAST")
+                    
+                    # Generate Button inside form just to refresh state
+                    gen_bast = st.form_submit_button("Generate Surat BAST")
+                
+                if gen_bast:
+                    # Buat HTML BAST
+                    tgl_indo = tgl_bast.strftime("%d-%m-%Y")
+                    # Tabel Barang BAST
+                    rows_html = ""
+                    df_selected = df.iloc[rows]
+                    for idx, row in df_selected.iterrows():
+                        rows_html += f"<tr><td>{row['Kode_Aset']}</td><td>{row['Nama_Barang']} ({row['Merk']})</td><td>1 Unit</td><td>Baik</td><td>{row['Posisi']}</td></tr>"
+
+                    html_bast = f"""
+                    <div id='print-area'>
+                        <div class='bast-page'>
+                            <div class='bast-header'>BERITA ACARA SERAH TERIMA BARANG<br>SMKN 6 JEMBER</div>
+                            <p>Pada hari ini tanggal <b>{tgl_indo}</b>, kami yang bertanda tangan di bawah ini:</p>
+                            <table style='width:100%'>
+                                <tr><td style='width:100px'>Nama</td><td>: {pihak1}</td></tr>
+                                <tr><td>NIP</td><td>: {nip1}</td></tr>
+                                <tr><td>Jabatan</td><td>: PIHAK PERTAMA (Yang Menyerahkan)</td></tr>
+                            </table>
+                            <br>
+                            <table style='width:100%'>
+                                <tr><td style='width:100px'>Nama</td><td>: {pihak2}</td></tr>
+                                <tr><td>NIP</td><td>: {nip2}</td></tr>
+                                <tr><td>Jabatan</td><td>: PIHAK KEDUA (Yang Menerima)</td></tr>
+                            </table>
+                            <br>
+                            <p>PIHAK PERTAMA menyerahkan barang inventaris kepada PIHAK KEDUA dengan rincian sebagai berikut:</p>
+                            <table class='bast-table'>
+                                <thead><tr><th>Kode Aset</th><th>Nama Barang</th><th>Jumlah</th><th>Kondisi</th><th>Lokasi</th></tr></thead>
+                                <tbody>{rows_html}</tbody>
+                            </table>
+                            <p>Barang tersebut telah diterima dalam keadaan baik dan menjadi tanggung jawab PIHAK KEDUA.</p>
+                            
+                            <div class='bast-sig'>
+                                <div class='sig-box'><p>PIHAK KEDUA</p><br><br><br><p><b>{pihak2}</b></p><p>NIP. {nip2}</p></div>
+                                <div class='sig-box'><p>PIHAK PERTAMA</p><br><br><br><p><b>{pihak1}</b></p><p>NIP. {nip1}</p></div>
+                            </div>
+                            <br><br>
+                            <div style='text-align:center'>
+                                <p>Mengetahui,<br>Kepala SMKN 6 Jember</p><br><br><br><p><b>...................................</b></p><p>NIP. .........................</p>
+                            </div>
+                        </div>
+                    </div>
+                    """
+                    st.markdown(html_bast, unsafe_allow_html=True)
+                    st.markdown('<button onclick="window.print()" class="print-btn">📄 CETAK SURAT BAST</button>', unsafe_allow_html=True)
 
     # --- GUDANG (STOK) ---
     elif menu == "Gudang (Stok)":
@@ -318,10 +372,7 @@ def main_app():
         st.subheader("📊 Saldo Stok")
         df = load_data("Stok")
         if not df.empty:
-            def hitung_saldo(x):
-                masuk = x[x['Jenis_Transaksi'] == 'Masuk']['Jumlah'].sum()
-                keluar = x[x['Jenis_Transaksi'] == 'Keluar']['Jumlah'].sum()
-                return masuk - keluar
+            def hitung_saldo(x): return x[x['Jenis_Transaksi']=='Masuk']['Jumlah'].sum() - x[x['Jenis_Transaksi']=='Keluar']['Jumlah'].sum()
             df_saldo = df.groupby(['Nama_Barang', 'Satuan']).apply(hitung_saldo).reset_index(name='Sisa_Stok')
             try: st.dataframe(df_saldo.style.background_gradient(subset=['Sisa_Stok'], cmap="RdYlGn"), use_container_width=True)
             except: st.dataframe(df_saldo, use_container_width=True)
