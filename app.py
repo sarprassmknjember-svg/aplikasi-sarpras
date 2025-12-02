@@ -9,6 +9,7 @@ import base64
 from datetime import datetime
 import google.generativeai as genai
 import time
+import streamlit.components.v1 as components # Modul Wajib untuk Print
 
 # ===========================
 # 1. KONFIGURASI
@@ -40,17 +41,10 @@ except:
 @st.cache_resource
 def connect_google_sheet():
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    # Cek apakah jalan di Cloud (Secrets) atau Lokal (JSON)
     if "gcp_service_account" in st.secrets:
         creds = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["gcp_service_account"], scope)
     else:
-        # Cek keberadaan file json
-        try:
-            creds = ServiceAccountCredentials.from_json_keyfile_name(AUTH_FILE, scope)
-        except Exception:
-            st.error("❌ File 'service-account.json' TIDAK DITEMUKAN di folder ini.")
-            st.stop()
-            
+        creds = ServiceAccountCredentials.from_json_keyfile_name(AUTH_FILE, scope)
     client = gspread.authorize(creds)
     sheet = client.open_by_url(SHEET_URL)
     return sheet
@@ -66,8 +60,6 @@ def load_data(sheet_name):
             df['Jumlah'] = pd.to_numeric(df['Jumlah'], errors='coerce').fillna(0)
         return df
     except Exception as e:
-        # TAMPILKAN ERROR AGAR TAHU PENYEBABNYA
-        st.error(f"❌ Gagal memuat data sheet '{sheet_name}'. Error: {e}")
         return pd.DataFrame()
 
 def save_to_sheet(sheet_name, new_row_list):
@@ -109,13 +101,12 @@ def dashboard_card(title, value, color, icon):
         "orange": "linear-gradient(135deg, #fd7e14, #d96203)"
     }
     bg = colors.get(color, "#6c757d")
-    font_size = "32px" if len(str(value)) < 15 else "20px"
     html = f"""
     <div style="background: {bg}; padding: 20px; border-radius: 15px; color: white; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); height: 120px;">
         <div style="display: flex; justify-content: space-between; align-items: center; height: 100%;">
             <div style="width: 80%;">
                 <h4 style="margin: 0; font-size: 14px; opacity: 0.9; color: white;">{title}</h4>
-                <h2 style="margin: 5px 0; font-size: {font_size}; font-weight: bold; color: white; line-height: 1.1;">{value}</h2>
+                <h2 style="margin: 5px 0; font-size: 24px; font-weight: bold; color: white; line-height: 1.1;">{value}</h2>
             </div>
             <div style="font-size: 40px; opacity: 0.8;">{icon}</div>
         </div>
@@ -123,54 +114,61 @@ def dashboard_card(title, value, color, icon):
     """
     st.markdown(html, unsafe_allow_html=True)
 
-# --- [FIXED] FUNGSI GENERATE LINK PRINT (NAMA DISAMAKAN) ---
-def create_print_link(html_content, button_text):
-    full_html = f"""
-    <html>
-    <head>
-        <title>Sistem Sarpras Print</title>
-        <style>
-            body {{ font-family: Arial, sans-serif; padding: 20px; -webkit-print-color-adjust: exact; }}
-            .batch-container {{ display: flex; flex-wrap: wrap; gap: 15px; justify-content: flex-start; }}
-            .label-card {{
-                width: 320px; height: 150px; border: 3px solid black; display: flex; align-items: center;
-                padding: 10px; margin-bottom: 10px; page-break-inside: avoid; break-inside: avoid;
-            }}
-            .qr-img {{ width: 110px; height: 110px; margin-right: 10px; }}
-            .label-info {{ font-family: Arial; line-height: 1.2; text-align: left; width: 100%; }}
-            .lbl-title {{ font-weight: 900; font-size: 14px; text-decoration: underline; text-transform: uppercase; }}
-            .lbl-name {{ font-weight: bold; font-size: 13px; margin-top: 3px; }}
-            .lbl-code {{ font-family: 'Courier New'; font-weight: 900; background: #eee; padding: 2px; display:inline-block; margin: 3px 0; border: 1px solid #999; }}
-            .lbl-meta {{ font-size: 11px; font-weight: bold; }}
-            
-            /* BAST CSS */
-            .bast-page {{ width: 100%; font-family: 'Times New Roman', serif; color: black; }}
-            .bast-header {{ text-align: center; font-weight: bold; font-size: 18px; text-decoration: underline; margin-bottom: 20px; }}
-            .bast-table {{ width: 100%; border-collapse: collapse; margin: 15px 0; }}
-            .bast-table th, .bast-table td {{ border: 1px solid black; padding: 8px; text-align: center; font-size: 12px; }}
-            .bast-sig {{ display: flex; justify-content: space-between; margin-top: 50px; text-align: center; }}
-            .sig-box {{ width: 40%; }}
-        </style>
-    </head>
-    <body>
-        {html_content}
-        <script>
-            window.onload = function() {{ window.print(); }}
-        </script>
-    </body>
-    </html>
+# --- FUNGSI PRINT JS (SOLUSI BARU) ---
+def trigger_print_js(html_content):
+    # Kita menyuntikkan Javascript untuk membuka jendela baru dan menulis HTML ke dalamnya
+    js_code = f"""
+    <script>
+        var printWindow = window.open('', '_blank');
+        printWindow.document.write(`
+            <html>
+            <head>
+                <title>Print Document</title>
+                <style>
+                    body {{ font-family: Arial, sans-serif; padding: 20px; -webkit-print-color-adjust: exact; }}
+                    .batch-container {{ display: flex; flex-wrap: wrap; gap: 15px; justify-content: flex-start; }}
+                    .label-card {{
+                        width: 320px; height: 150px; border: 3px solid black; display: flex; align-items: center;
+                        padding: 10px; margin-bottom: 10px; page-break-inside: avoid; break-inside: avoid;
+                    }}
+                    .qr-img {{ width: 110px; height: 110px; margin-right: 10px; }}
+                    .label-info {{ font-family: Arial; line-height: 1.2; text-align: left; width: 100%; }}
+                    .lbl-title {{ font-weight: 900; font-size: 14px; text-decoration: underline; text-transform: uppercase; }}
+                    .lbl-name {{ font-weight: bold; font-size: 13px; margin-top: 3px; }}
+                    .lbl-code {{ font-family: 'Courier New'; font-weight: 900; background: #eee; padding: 2px; display:inline-block; margin: 3px 0; border: 1px solid #999; }}
+                    .lbl-meta {{ font-size: 11px; font-weight: bold; }}
+                    
+                    .bast-page {{ width: 100%; font-family: 'Times New Roman', serif; color: black; }}
+                    .bast-header {{ text-align: center; font-weight: bold; font-size: 18px; text-decoration: underline; margin-bottom: 20px; }}
+                    .bast-table {{ width: 100%; border-collapse: collapse; margin: 15px 0; }}
+                    .bast-table th, .bast-table td {{ border: 1px solid black; padding: 8px; text-align: center; font-size: 12px; }}
+                    .bast-sig {{ display: flex; justify-content: space-between; margin-top: 50px; text-align: center; }}
+                    .sig-box {{ width: 40%; }}
+                </style>
+            </head>
+            <body>
+                {html_content}
+            </body>
+            </html>
+        `);
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(function() {{
+            printWindow.print();
+            printWindow.close();
+        }}, 500);
+    </script>
     """
-    b64 = base64.b64encode(full_html.encode()).decode()
-    href = f'<a href="data:text/html;base64,{b64}" target="_blank" style="text-decoration:none;">' \
-           f'<div style="background-color:#FF4B4B; color:white; padding:12px; border-radius:8px; text-align:center; font-weight:bold; cursor:pointer; margin-top:10px;">' \
-           f'🖨️ {button_text} (KLIK UNTUK PRINT)</div></a>'
-    return href
+    # Jalankan JS
+    components.html(js_code, height=0, width=0)
 
 def local_css():
     st.markdown("""
     <style>
         .stDataFrame { border: 1px solid #ddd; border-radius: 5px; }
         .stDataFrame div[data-testid="stTable"] { overflow-x: auto; }
+        
+        /* CSS PREVIEW (Hanya untuk tampilan di dalam App) */
         .batch-container { display: flex; flex-wrap: wrap; gap: 15px; justify-content: flex-start; }
         .label-card {
             width: 320px; height: 150px; border: 3px solid black; display: flex; align-items: center;
@@ -182,6 +180,7 @@ def local_css():
         .lbl-name { font-weight: bold; font-size: 13px; margin-top: 3px; }
         .lbl-code { font-family: 'Courier New'; font-weight: 900; background: #eee; padding: 2px; display:inline-block; margin: 3px 0; border: 1px solid #999; }
         .lbl-meta { font-size: 11px; font-weight: bold; }
+        
         .bast-page { width: 100%; font-family: 'Times New Roman', serif; color: black; padding: 20px; background: white; border: 1px solid #ddd; }
         .bast-header { text-align: center; font-weight: bold; font-size: 18px; text-decoration: underline; margin-bottom: 20px; }
         .bast-table { width: 100%; border-collapse: collapse; margin: 15px 0; }
@@ -294,7 +293,7 @@ def main_app():
                         rows = [[f"{base}.{last+i:03d}", nama, merk, "Aset Tetap", pj, lokasi, "BOS", tahun, "-", foto_name] for i in range(1, volume+1)]
                         if save_to_sheet("Aset", rows): st.success(f"Sukses simpan {volume} aset!"); time.sleep(1); st.rerun()
 
-    # --- DATA ASET, LABEL & BAST (PRINT FIX) ---
+    # --- DATA ASET, LABEL & BAST (PRINT SYSTEM FIX) ---
     elif menu == "Data Aset, Label & BAST":
         st.title("🖨️ Data Aset, Label & BAST")
         df = load_data("Aset")
@@ -316,13 +315,14 @@ def main_app():
                     html_labels_content += f"""<div class='label-card'><img src='{qr}' class='qr-img'><div class='label-info'><div class='lbl-title'>SMKN 6 JEMBER</div><div class='lbl-name'>{r['Nama_Barang']}</div><div class='lbl-code'>{r['Kode_Aset']}</div><div class='lbl-meta'>Lokasi: {r['Posisi']} | Th: {r['Tahun']}</div></div></div>"""
                 html_labels_content += "</div>"
                 
-                # Preview
+                # Preview di Aplikasi
                 st.subheader("Preview Tampilan:")
                 st.markdown(html_labels_content, unsafe_allow_html=True)
                 st.divider()
-                # Print Link (FIXED NAME)
-                print_link = create_print_link(html_labels_content, "CETAK LABEL SEKARANG")
-                st.markdown(print_link, unsafe_allow_html=True)
+                
+                # Tombol Trigger Print
+                if st.button("🖨️ CETAK LABEL SEKARANG", type="primary"):
+                    trigger_print_js(html_labels_content)
 
             # --- TAB 2: CETAK BAST ---
             with tab2:
@@ -366,9 +366,10 @@ def main_app():
                     st.subheader("Preview Surat:")
                     st.markdown(html_bast_content, unsafe_allow_html=True)
                     st.divider()
-                    # Print Link
-                    print_link_bast = create_print_link(html_bast_content, "CETAK SURAT BAST")
-                    st.markdown(print_link_bast, unsafe_allow_html=True)
+                    
+                    # Tombol Trigger Print
+                    if st.button("📄 CETAK SURAT BAST", type="primary"):
+                        trigger_print_js(html_bast_content)
 
     # --- GUDANG (STOK) ---
     elif menu == "Gudang (Stok)":
