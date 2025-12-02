@@ -9,7 +9,7 @@ import base64
 from datetime import datetime
 import google.generativeai as genai
 import time
-import streamlit.components.v1 as components # Modul Wajib untuk Print
+import streamlit.components.v1 as components # Modul Wajib untuk Print JS
 
 # ===========================
 # 1. KONFIGURASI
@@ -27,6 +27,7 @@ CREDENTIALS = {
 SHEET_URL = "https://docs.google.com/spreadsheets/d/13GG3dJ41H2c_62vG0Tc1Ere8FOLScZSdRcgfaVNxVxo/edit?usp=sharing"
 AUTH_FILE = "service-account.json"
 GEMINI_KEY = "AIzaSyBNkFkikC60JLG9T21V4_0eHXPBbcErnkI" 
+LOGO_FILE = "logo.png" # Pastikan file ini ada
 
 try:
     with open("gambar_bg.txt", "r") as f:
@@ -92,6 +93,31 @@ def ask_gemini(prompt):
     except Exception as e:
         return f"AI Error: {e}"
 
+# --- FUNGSI TANGGAL & TERBILANG ---
+def get_hari_indo(dt):
+    days = {0: "Senin", 1: "Selasa", 2: "Rabu", 3: "Kamis", 4: "Jumat", 5: "Sabtu", 6: "Minggu"}
+    return days[dt.weekday()]
+
+def get_bulan_indo(dt):
+    months = {1: "Januari", 2: "Februari", 3: "Maret", 4: "April", 5: "Mei", 6: "Juni", 7: "Juli", 8: "Agustus", 9: "September", 10: "Oktober", 11: "November", 12: "Desember"}
+    return months[dt.month]
+
+def angka_terbilang(n):
+    satuan = ["", "Satu", "Dua", "Tiga", "Empat", "Lima", "Enam", "Tujuh", "Delapan", "Sembilan", "Sepuluh", "Sebelas"]
+    n = int(n)
+    if n < 12: return satuan[n]
+    elif n < 20: return satuan[n-10] + " Belas"
+    elif n < 100: return satuan[n//10] + " Puluh " + satuan[n%10]
+    return str(n)
+
+def get_img_as_base64(file_path):
+    try:
+        with open(file_path, "rb") as f:
+            data = f.read()
+        return base64.b64encode(data).decode()
+    except:
+        return "" 
+
 def dashboard_card(title, value, color, icon):
     colors = {
         "blue": "linear-gradient(135deg, #007bff, #0056b3)",
@@ -114,36 +140,44 @@ def dashboard_card(title, value, color, icon):
     """
     st.markdown(html, unsafe_allow_html=True)
 
-# --- FUNGSI PRINT JS (SOLUSI BARU) ---
+# --- FUNGSI PRINT JS (DENGAN CSS A4 & BAST) ---
 def trigger_print_js(html_content):
-    # Kita menyuntikkan Javascript untuk membuka jendela baru dan menulis HTML ke dalamnya
     js_code = f"""
     <script>
         var printWindow = window.open('', '_blank');
         printWindow.document.write(`
             <html>
             <head>
-                <title>Print Document</title>
+                <title>Sistem Sarpras Print</title>
                 <style>
-                    body {{ font-family: Arial, sans-serif; padding: 20px; -webkit-print-color-adjust: exact; }}
-                    .batch-container {{ display: flex; flex-wrap: wrap; gap: 15px; justify-content: flex-start; }}
-                    .label-card {{
-                        width: 320px; height: 150px; border: 3px solid black; display: flex; align-items: center;
-                        padding: 10px; margin-bottom: 10px; page-break-inside: avoid; break-inside: avoid;
-                    }}
-                    .qr-img {{ width: 110px; height: 110px; margin-right: 10px; }}
-                    .label-info {{ font-family: Arial; line-height: 1.2; text-align: left; width: 100%; }}
-                    .lbl-title {{ font-weight: 900; font-size: 14px; text-decoration: underline; text-transform: uppercase; }}
-                    .lbl-name {{ font-weight: bold; font-size: 13px; margin-top: 3px; }}
-                    .lbl-code {{ font-family: 'Courier New'; font-weight: 900; background: #eee; padding: 2px; display:inline-block; margin: 3px 0; border: 1px solid #999; }}
-                    .lbl-meta {{ font-size: 11px; font-weight: bold; }}
+                    /* SETUP KERTAS A4 */
+                    @page {{ size: A4; margin: 15mm; }}
+                    body {{ font-family: 'Times New Roman', serif; -webkit-print-color-adjust: exact; margin: 0; padding: 0; }}
                     
-                    .bast-page {{ width: 100%; font-family: 'Times New Roman', serif; color: black; }}
-                    .bast-header {{ text-align: center; font-weight: bold; font-size: 18px; text-decoration: underline; margin-bottom: 20px; }}
-                    .bast-table {{ width: 100%; border-collapse: collapse; margin: 15px 0; }}
-                    .bast-table th, .bast-table td {{ border: 1px solid black; padding: 8px; text-align: center; font-size: 12px; }}
-                    .bast-sig {{ display: flex; justify-content: space-between; margin-top: 50px; text-align: center; }}
-                    .sig-box {{ width: 40%; }}
+                    /* LABEL STYLE */
+                    .batch-container {{ display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-start; font-family: Arial, sans-serif; }}
+                    .label-card {{
+                        width: 300px; height: 140px; border: 2px solid black; display: flex; align-items: center;
+                        padding: 5px; margin-bottom: 10px; page-break-inside: avoid; break-inside: avoid;
+                    }}
+                    .qr-img {{ width: 100px; height: 100px; margin-right: 10px; }}
+                    .label-info {{ font-family: Arial; line-height: 1.2; text-align: left; width: 100%; }}
+                    .lbl-title {{ font-weight: 900; font-size: 12px; text-decoration: underline; text-transform: uppercase; }}
+                    .lbl-name {{ font-weight: bold; font-size: 11px; margin-top: 3px; }}
+                    .lbl-code {{ font-family: 'Courier New'; font-weight: 900; background: #eee; padding: 2px; display:inline-block; margin: 2px 0; border: 1px solid #999; font-size: 12px; }}
+                    .lbl-meta {{ font-size: 10px; font-weight: bold; }}
+                    
+                    /* BAST STYLE (Setting A4 Compact) */
+                    .bast-page {{ width: 100%; color: black; }}
+                    .kop-surat {{ text-align: center; border-bottom: 3px double black; padding-bottom: 5px; margin-bottom: 15px; position: relative; min-height: 80px; }}
+                    .kop-img {{ width: 70px; height: auto; position: absolute; left: 0; top: 0; }}
+                    .kop-text {{ margin-left: 0; }}
+                    .bast-title {{ text-align: center; font-weight: bold; font-size: 14pt; text-decoration: underline; margin-bottom: 15px; }}
+                    .bast-text {{ text-align: justify; line-height: 1.3; font-size: 11pt; margin-bottom: 5px; }}
+                    .bast-table {{ width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 10pt; }}
+                    .bast-table th, .bast-table td {{ border: 1px solid black; padding: 4px; text-align: center; }}
+                    .bast-signature-table {{ width: 100%; margin-top: 20px; text-align: center; font-size: 11pt; border: none; }}
+                    .bast-signature-table td {{ padding: 5px; border: none; vertical-align: top; }}
                 </style>
             </head>
             <body>
@@ -159,7 +193,6 @@ def trigger_print_js(html_content):
         }}, 500);
     </script>
     """
-    # Jalankan JS
     components.html(js_code, height=0, width=0)
 
 def local_css():
@@ -168,7 +201,6 @@ def local_css():
         .stDataFrame { border: 1px solid #ddd; border-radius: 5px; }
         .stDataFrame div[data-testid="stTable"] { overflow-x: auto; }
         
-        /* CSS PREVIEW (Hanya untuk tampilan di dalam App) */
         .batch-container { display: flex; flex-wrap: wrap; gap: 15px; justify-content: flex-start; }
         .label-card {
             width: 320px; height: 150px; border: 3px solid black; display: flex; align-items: center;
@@ -257,8 +289,14 @@ def main_app():
         with c_kiri:
             st.subheader("📋 Aset Terbaru")
             if not df_aset.empty:
-                cols = [c for c in ['Kode_Aset', 'Nama_Barang', 'Posisi'] if c in df_aset.columns]
-                st.dataframe(df_aset[cols].tail(5), use_container_width=True, hide_index=True)
+                cols = [c for c in ['Kode_Aset', 'Nama_Barang', 'Posisi', 'Link_Foto'] if c in df_aset.columns]
+                # FITUR LINK CLICKABLE DI DASHBOARD JUGA
+                st.dataframe(
+                    df_aset[cols].tail(5), 
+                    use_container_width=True, 
+                    hide_index=True,
+                    column_config={"Link_Foto": st.column_config.LinkColumn("Foto", display_text="📸 Lihat")}
+                )
         with c_kanan:
             st.subheader("⚠️ Stok Perlu Restock")
             if not df_saldo_menipis.empty: st.dataframe(df_saldo_menipis.head(5), use_container_width=True, hide_index=True)
@@ -293,11 +331,25 @@ def main_app():
                         rows = [[f"{base}.{last+i:03d}", nama, merk, "Aset Tetap", pj, lokasi, "BOS", tahun, "-", foto_name] for i in range(1, volume+1)]
                         if save_to_sheet("Aset", rows): st.success(f"Sukses simpan {volume} aset!"); time.sleep(1); st.rerun()
 
-    # --- DATA ASET, LABEL & BAST (PRINT SYSTEM FIX) ---
+    # --- DATA ASET, LABEL & BAST ---
     elif menu == "Data Aset, Label & BAST":
         st.title("🖨️ Data Aset, Label & BAST")
         df = load_data("Aset")
-        event = st.dataframe(df, use_container_width=True, on_select="rerun", selection_mode="multi-row")
+        
+        # --- [FIXED] LINK CLICKABLE ---
+        # Menambahkan konfigurasi kolom Link_Foto agar jadi tombol
+        event = st.dataframe(
+            df, 
+            use_container_width=True, 
+            on_select="rerun", 
+            selection_mode="multi-row",
+            column_config={
+                "Link_Foto": st.column_config.LinkColumn(
+                    "Foto Aset",
+                    display_text="📸 Lihat Foto" # Teks yang muncul
+                )
+            }
+        )
         rows = event.selection.rows
         
         if rows:
@@ -315,59 +367,116 @@ def main_app():
                     html_labels_content += f"""<div class='label-card'><img src='{qr}' class='qr-img'><div class='label-info'><div class='lbl-title'>SMKN 6 JEMBER</div><div class='lbl-name'>{r['Nama_Barang']}</div><div class='lbl-code'>{r['Kode_Aset']}</div><div class='lbl-meta'>Lokasi: {r['Posisi']} | Th: {r['Tahun']}</div></div></div>"""
                 html_labels_content += "</div>"
                 
-                # Preview di Aplikasi
                 st.subheader("Preview Tampilan:")
                 st.markdown(html_labels_content, unsafe_allow_html=True)
                 st.divider()
                 
-                # Tombol Trigger Print
                 if st.button("🖨️ CETAK LABEL SEKARANG", type="primary"):
                     trigger_print_js(html_labels_content)
 
-            # --- TAB 2: CETAK BAST ---
+            # --- TAB 2: CETAK BAST (FORMAT A4 RAPI) ---
             with tab2:
+                st.subheader("Data Berita Acara")
                 with st.form("bast_form"):
                     col_a, col_b = st.columns(2)
-                    pihak1 = col_a.text_input("Nama Pihak 1 (Menyerahkan)", "Waka Sarpras")
-                    nip1 = col_b.text_input("NIP Pihak 1", "-")
-                    pihak2 = col_a.text_input("Nama Pihak 2 (Menerima)")
-                    nip2 = col_b.text_input("NIP Pihak 2", "-")
+                    
+                    st.markdown("##### PIHAK KESATU (Yang Menyerahkan)")
+                    p1_nama = col_a.text_input("Nama Waka Sarpras", ".............................................")
+                    p1_nip = col_b.text_input("NIP Waka Sarpras", ".............................................")
+                    
+                    st.markdown("##### PIHAK KEDUA (Yang Menerima)")
+                    p2_nama = col_a.text_input("Nama Penerima", "Muhammad Nur Hamid, S.Kom.")
+                    p2_nip = col_b.text_input("NIP Penerima", "19830216 202221 1 013")
+                    p2_jabatan = st.text_input("Jabatan Penerima", "Ketua Kompetensi Program Keahlian RPL")
+                    
+                    st.markdown("##### MENGETAHUI")
+                    ks_nama = col_a.text_input("Nama Kepala Sekolah", ".............................................")
+                    ks_nip = col_b.text_input("NIP Kepala Sekolah", ".............................................")
+                    saksi_nama = st.text_input("Nama Saksi (Sekretaris)", ".............................................")
+                    
                     tgl_bast = st.date_input("Tanggal BAST")
                     gen_bast = st.form_submit_button("Preview Surat")
                 
                 if gen_bast:
-                    tgl_indo = tgl_bast.strftime("%d-%m-%Y")
+                    hari_ini_indo = get_hari_indo(tgl_bast)
+                    tgl_terbilang = angka_terbilang(tgl_bast.day)
+                    bln_indo = get_bulan_indo(tgl_bast)
+                    thn_terbilang = angka_terbilang(tgl_bast.year)
+                    
                     rows_html = ""
                     df_selected = df.iloc[rows]
+                    no_urut = 1
                     for idx, row in df_selected.iterrows():
-                        rows_html += f"<tr><td>{row['Kode_Aset']}</td><td>{row['Nama_Barang']} ({row['Merk']})</td><td>1 Unit</td><td>Baik</td><td>{row['Posisi']}</td></tr>"
+                        rows_html += f"<tr><td>{no_urut}.</td><td>{row['Nama_Barang']}</td><td>1 Unit</td><td>-</td><td>{row.get('Keterangan', '-')}</td><td>{row['Sumber_Dana']}</td></tr>"
+                        no_urut += 1
+
+                    logo_base64 = get_img_as_base64(LOGO_FILE)
+                    img_tag = f'<img src="data:image/png;base64,{logo_base64}" class="kop-img">' if logo_base64 else ""
 
                     html_bast_content = f"""
                     <div class='bast-page'>
-                        <div class='bast-header'>BERITA ACARA SERAH TERIMA BARANG<br>SMKN 6 JEMBER</div>
-                        <p align='center'>Tanggal: <b>{tgl_indo}</b></p>
-                        <br>
-                        <table style='width:100%'>
-                            <tr><td style='width:100px'><b>PIHAK 1</b></td><td>: {pihak1} (NIP: {nip1})</td></tr>
-                            <tr><td><b>PIHAK 2</b></td><td>: {pihak2} (NIP: {nip2})</td></tr>
+                        <div class='kop-surat'>
+                            {img_tag}
+                            <div class='kop-text'>
+                                <h3 style='margin:0; font-size:14pt;'>PEMERINTAH PROVINSI JAWA TIMUR<br>DINAS PENDIDIKAN<br>SMK NEGERI 6 JEMBER</h3>
+                                <p style='font-size:9pt; margin:0;'>Jalan PB. Sudirman Telp./Fax. (0336) 621533 Tanggul - Jember 68155<br>Website: www.smkn6jember.sch.id  Email: smkn6jember@yahoo.co.id</p>
+                            </div>
+                        </div>
+                        
+                        <div class='bast-title'>BERITA ACARA SERAH TERIMA BARANG</div>
+                        
+                        <p class='bast-text'>
+                            Pada hari ini, <b>{hari_ini_indo}</b> tanggal <b>{tgl_terbilang}</b> Bulan <b>{bln_indo}</b> Tahun <b>{thn_terbilang}</b>, yang bertandatangan di bawah ini :
+                        </p>
+                        
+                        <table style='width:100%; border:none; margin-bottom:5px; font-size:11pt;'>
+                            <tr><td style='width:80px; border:none; text-align:left;'>Nama</td><td style='border:none; text-align:left;'>: {p1_nama}</td></tr>
+                            <tr><td style='border:none; text-align:left;'>NIP.</td><td style='border:none; text-align:left;'>: {p1_nip}</td></tr>
+                            <tr><td style='border:none; text-align:left;'>Jabatan</td><td style='border:none; text-align:left;'>: Waka Sarpras</td></tr>
                         </table>
-                        <br>
+                        <p class='bast-text' style='margin-left:85px;'>Dalam hal ini bertindak untuk dan atas nama jabatan, selanjutnya disebut <b>PIHAK KESATU</b></p>
+                        
+                        <table style='width:100%; border:none; margin-bottom:5px; font-size:11pt;'>
+                            <tr><td style='width:80px; border:none; text-align:left;'>Nama</td><td style='border:none; text-align:left;'>: {p2_nama}</td></tr>
+                            <tr><td style='border:none; text-align:left;'>NIP.</td><td style='border:none; text-align:left;'>: {p2_nip}</td></tr>
+                            <tr><td style='border:none; text-align:left;'>Jabatan</td><td style='border:none; text-align:left;'>: {p2_jabatan}</td></tr>
+                        </table>
+                        <p class='bast-text' style='margin-left:85px;'>Dalam hal ini bertindak untuk dan atas nama jabatan, selanjutnya disebut <b>PIHAK KEDUA</b></p>
+                        
+                        <p class='bast-text'>
+                            PIHAK KESATU Menyerahkan barang Kepada PIHAK KEDUA, dan PIHAK KEDUA menyatakan menerima barang dari PIHAK PERTAMA berupa daftar terlampir :
+                        </p>
+                        
                         <table class='bast-table'>
-                            <thead><tr><th>Kode</th><th>Barang</th><th>Jml</th><th>Kondisi</th><th>Lokasi</th></tr></thead>
+                            <thead><tr><th>No</th><th>Nama Barang</th><th>Jumlah</th><th>Harga</th><th>Keterangan</th><th>Sumber Dana</th></tr></thead>
                             <tbody>{rows_html}</tbody>
                         </table>
-                        <div class='bast-sig'>
-                            <div class='sig-box'><p>Yang Menerima</p><br><br><br><p><b>{pihak2}</b></p></div>
-                            <div class='sig-box'><p>Yang Menyerahkan</p><br><br><br><p><b>{pihak1}</b></p></div>
-                        </div>
+                        
+                        <p class='bast-text'>
+                            Berdasarkan Berita Acara Serah Terima Barang Inventaris gudang SMKN 6 Jember dari PIHAK PERTAMA kepada PIHAK KEDUA, adapun barang-barang tersebut dalam keadaan baik dan cukup.<br>
+                            Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung jawab PIHAK KEDUA.
+                        </p>
+                        
+                        <table class='bast-signature-table'>
+                            <tr>
+                                <td width='50%'>PIHAK KEDUA<br><br><br><br><br><b><u>{p2_nama}</u></b><br>NIP. {p2_nip}</td>
+                                <td width='50%'>PIHAK KESATU<br>Waka Sarpras<br><br><br><br><b><u>{p1_nama}</u></b><br>NIP. {p1_nip}</td>
+                            </tr>
+                            <tr>
+                                <td colspan='2'><br>Mengetahui,</td>
+                            </tr>
+                            <tr>
+                                <td>Kepala SMKN 6 Jember<br><br><br><br><br><b><u>{ks_nama}</u></b><br>NIP. {ks_nip}</td>
+                                <td>Saksi-saksi<br><br><br><br><br><b><u>{saksi_nama}</u></b><br>NIP. .........................</td>
+                            </tr>
+                        </table>
                     </div>
                     """
-                    # Preview
+                    
                     st.subheader("Preview Surat:")
                     st.markdown(html_bast_content, unsafe_allow_html=True)
                     st.divider()
                     
-                    # Tombol Trigger Print
                     if st.button("📄 CETAK SURAT BAST", type="primary"):
                         trigger_print_js(html_bast_content)
 
