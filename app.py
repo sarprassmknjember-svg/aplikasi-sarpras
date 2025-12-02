@@ -25,7 +25,7 @@ CREDENTIALS = {
 
 SHEET_URL = "https://docs.google.com/spreadsheets/d/13GG3dJ41H2c_62vG0Tc1Ere8FOLScZSdRcgfaVNxVxo/edit?usp=sharing"
 AUTH_FILE = "service-account.json"
-GEMINI_KEY = "AIzaSyBNkFkikC60JLG9T21V4_0eHXPBbcErnkI" 
+GEMINI_KEY = "AIzaSyB-z8AxoM5sfmG8j_8b85v91kteMsUc0-E" 
 LOGO_FILE = "logo_jatim.png"
 
 # DEFAULT PEJABAT
@@ -478,5 +478,6 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
