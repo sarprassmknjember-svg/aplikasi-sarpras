@@ -9,7 +9,7 @@ import base64
 from datetime import datetime
 import google.generativeai as genai
 import time
-import streamlit.components.v1 as components # Modul Wajib untuk Print JS
+import streamlit.components.v1 as components # WAJIB ADA
 
 # ===========================
 # 1. KONFIGURASI
@@ -27,7 +27,7 @@ CREDENTIALS = {
 SHEET_URL = "https://docs.google.com/spreadsheets/d/13GG3dJ41H2c_62vG0Tc1Ere8FOLScZSdRcgfaVNxVxo/edit?usp=sharing"
 AUTH_FILE = "service-account.json"
 GEMINI_KEY = "AIzaSyBNkFkikC60JLG9T21V4_0eHXPBbcErnkI" 
-LOGO_FILE = "logo.png" # Pastikan file ini ada
+LOGO_FILE = "logo.png"
 
 try:
     with open("gambar_bg.txt", "r") as f:
@@ -93,7 +93,7 @@ def ask_gemini(prompt):
     except Exception as e:
         return f"AI Error: {e}"
 
-# --- FUNGSI TANGGAL & TERBILANG ---
+# --- FUNGSI TANGGAL INDONESIA ---
 def get_hari_indo(dt):
     days = {0: "Senin", 1: "Selasa", 2: "Rabu", 3: "Kamis", 4: "Jumat", 5: "Sabtu", 6: "Minggu"}
     return days[dt.weekday()]
@@ -140,7 +140,7 @@ def dashboard_card(title, value, color, icon):
     """
     st.markdown(html, unsafe_allow_html=True)
 
-# --- FUNGSI PRINT JS (DENGAN CSS A4 & BAST) ---
+# --- FUNGSI PRINT JS (BUKA TAB BARU & PRINT OTOMATIS) ---
 def trigger_print_js(html_content):
     js_code = f"""
     <script>
@@ -148,35 +148,38 @@ def trigger_print_js(html_content):
         printWindow.document.write(`
             <html>
             <head>
-                <title>Sistem Sarpras Print</title>
+                <title>Cetak Dokumen</title>
                 <style>
-                    /* SETUP KERTAS A4 */
-                    @page {{ size: A4; margin: 15mm; }}
+                    /* SETUP KERTAS A4 UNTUK BAST */
+                    @page {{ size: A4; margin: 2cm; }}
                     body {{ font-family: 'Times New Roman', serif; -webkit-print-color-adjust: exact; margin: 0; padding: 0; }}
                     
-                    /* LABEL STYLE */
+                    /* LABEL STYLE (YANG BAPAK SUKA) */
                     .batch-container {{ display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-start; font-family: Arial, sans-serif; }}
                     .label-card {{
-                        width: 300px; height: 140px; border: 2px solid black; display: flex; align-items: center;
-                        padding: 5px; margin-bottom: 10px; page-break-inside: avoid; break-inside: avoid;
+                        width: 320px; height: 150px; 
+                        border: 3px solid black; 
+                        display: flex; align-items: center;
+                        padding: 10px; 
+                        margin-bottom: 15px; 
+                        page-break-inside: avoid; break-inside: avoid;
                     }}
-                    .qr-img {{ width: 100px; height: 100px; margin-right: 10px; }}
-                    .label-info {{ font-family: Arial; line-height: 1.2; text-align: left; width: 100%; }}
-                    .lbl-title {{ font-weight: 900; font-size: 12px; text-decoration: underline; text-transform: uppercase; }}
-                    .lbl-name {{ font-weight: bold; font-size: 11px; margin-top: 3px; }}
-                    .lbl-code {{ font-family: 'Courier New'; font-weight: 900; background: #eee; padding: 2px; display:inline-block; margin: 2px 0; border: 1px solid #999; font-size: 12px; }}
-                    .lbl-meta {{ font-size: 10px; font-weight: bold; }}
+                    .qr-img {{ width: 110px; height: 110px; margin-right: 15px; }}
+                    .label-info {{ font-family: Arial; line-height: 1.3; text-align: left; width: 100%; }}
+                    .lbl-title {{ font-weight: 900; font-size: 14px; text-decoration: underline; text-transform: uppercase; }}
+                    .lbl-name {{ font-weight: bold; font-size: 13px; margin-top: 5px; }}
+                    .lbl-code {{ font-family: 'Courier New'; font-weight: 900; background: #eee; padding: 2px; display:inline-block; margin: 3px 0; border: 1px solid #999; font-size: 14px; }}
+                    .lbl-meta {{ font-size: 11px; font-weight: bold; }}
                     
-                    /* BAST STYLE (Setting A4 Compact) */
+                    /* BAST STYLE */
                     .bast-page {{ width: 100%; color: black; }}
-                    .kop-surat {{ text-align: center; border-bottom: 3px double black; padding-bottom: 5px; margin-bottom: 15px; position: relative; min-height: 80px; }}
-                    .kop-img {{ width: 70px; height: auto; position: absolute; left: 0; top: 0; }}
-                    .kop-text {{ margin-left: 0; }}
-                    .bast-title {{ text-align: center; font-weight: bold; font-size: 14pt; text-decoration: underline; margin-bottom: 15px; }}
-                    .bast-text {{ text-align: justify; line-height: 1.3; font-size: 11pt; margin-bottom: 5px; }}
-                    .bast-table {{ width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 10pt; }}
-                    .bast-table th, .bast-table td {{ border: 1px solid black; padding: 4px; text-align: center; }}
-                    .bast-signature-table {{ width: 100%; margin-top: 20px; text-align: center; font-size: 11pt; border: none; }}
+                    .kop-surat {{ text-align: center; border-bottom: 3px double black; padding-bottom: 5px; margin-bottom: 20px; position: relative; min-height: 100px; }}
+                    .kop-img {{ width: 80px; height: auto; position: absolute; left: 0; top: 0; }}
+                    .bast-title {{ text-align: center; font-weight: bold; font-size: 14pt; text-decoration: underline; margin-bottom: 20px; text-transform: uppercase; }}
+                    .bast-text {{ text-align: justify; line-height: 1.5; font-size: 12pt; margin-bottom: 5px; }}
+                    .bast-table {{ width: 100%; border-collapse: collapse; margin: 15px 0; font-size: 11pt; }}
+                    .bast-table th, .bast-table td {{ border: 1px solid black; padding: 5px; text-align: center; }}
+                    .bast-signature-table {{ width: 100%; margin-top: 30px; text-align: center; font-size: 12pt; border: none; }}
                     .bast-signature-table td {{ padding: 5px; border: none; vertical-align: top; }}
                 </style>
             </head>
@@ -190,7 +193,7 @@ def trigger_print_js(html_content):
         setTimeout(function() {{
             printWindow.print();
             printWindow.close();
-        }}, 500);
+        }}, 1000);
     </script>
     """
     components.html(js_code, height=0, width=0)
@@ -201,6 +204,7 @@ def local_css():
         .stDataFrame { border: 1px solid #ddd; border-radius: 5px; }
         .stDataFrame div[data-testid="stTable"] { overflow-x: auto; }
         
+        /* CSS PREVIEW (Agar tampilan di layar sama dengan di kertas) */
         .batch-container { display: flex; flex-wrap: wrap; gap: 15px; justify-content: flex-start; }
         .label-card {
             width: 320px; height: 150px; border: 3px solid black; display: flex; align-items: center;
@@ -213,12 +217,8 @@ def local_css():
         .lbl-code { font-family: 'Courier New'; font-weight: 900; background: #eee; padding: 2px; display:inline-block; margin: 3px 0; border: 1px solid #999; }
         .lbl-meta { font-size: 11px; font-weight: bold; }
         
-        .bast-page { width: 100%; font-family: 'Times New Roman', serif; color: black; padding: 20px; background: white; border: 1px solid #ddd; }
+        .bast-page { width: 100%; padding: 20px; background: white; border: 1px solid #ddd; margin-top: 20px;}
         .bast-header { text-align: center; font-weight: bold; font-size: 18px; text-decoration: underline; margin-bottom: 20px; }
-        .bast-table { width: 100%; border-collapse: collapse; margin: 15px 0; }
-        .bast-table th, .bast-table td { border: 1px solid black; padding: 8px; text-align: center; font-size: 12px; }
-        .bast-sig { display: flex; justify-content: space-between; margin-top: 50px; text-align: center; }
-        .sig-box { width: 40%; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -289,14 +289,8 @@ def main_app():
         with c_kiri:
             st.subheader("📋 Aset Terbaru")
             if not df_aset.empty:
-                cols = [c for c in ['Kode_Aset', 'Nama_Barang', 'Posisi', 'Link_Foto'] if c in df_aset.columns]
-                # FITUR LINK CLICKABLE DI DASHBOARD JUGA
-                st.dataframe(
-                    df_aset[cols].tail(5), 
-                    use_container_width=True, 
-                    hide_index=True,
-                    column_config={"Link_Foto": st.column_config.LinkColumn("Foto", display_text="📸 Lihat")}
-                )
+                cols = [c for c in ['Kode_Aset', 'Nama_Barang', 'Posisi'] if c in df_aset.columns]
+                st.dataframe(df_aset[cols].tail(5), use_container_width=True, hide_index=True, column_config={"Link_Foto": st.column_config.LinkColumn("Foto", display_text="📸 Foto")})
         with c_kanan:
             st.subheader("⚠️ Stok Perlu Restock")
             if not df_saldo_menipis.empty: st.dataframe(df_saldo_menipis.head(5), use_container_width=True, hide_index=True)
@@ -335,27 +329,13 @@ def main_app():
     elif menu == "Data Aset, Label & BAST":
         st.title("🖨️ Data Aset, Label & BAST")
         df = load_data("Aset")
-        
-        # --- [FIXED] LINK CLICKABLE ---
-        # Menambahkan konfigurasi kolom Link_Foto agar jadi tombol
-        event = st.dataframe(
-            df, 
-            use_container_width=True, 
-            on_select="rerun", 
-            selection_mode="multi-row",
-            column_config={
-                "Link_Foto": st.column_config.LinkColumn(
-                    "Foto Aset",
-                    display_text="📸 Lihat Foto" # Teks yang muncul
-                )
-            }
-        )
+        event = st.dataframe(df, use_container_width=True, on_select="rerun", selection_mode="multi-row",
+            column_config={"Link_Foto": st.column_config.LinkColumn("Foto Aset", display_text="📸 Lihat Foto")})
         rows = event.selection.rows
         
         if rows:
             st.divider()
             st.success(f"✅ Terpilih {len(rows)} Item")
-            
             tab1, tab2 = st.tabs(["🏷️ LABEL ASET", "📄 SURAT BAST"])
             
             # --- TAB 1: CETAK LABEL ---
@@ -370,16 +350,13 @@ def main_app():
                 st.subheader("Preview Tampilan:")
                 st.markdown(html_labels_content, unsafe_allow_html=True)
                 st.divider()
-                
                 if st.button("🖨️ CETAK LABEL SEKARANG", type="primary"):
                     trigger_print_js(html_labels_content)
 
-            # --- TAB 2: CETAK BAST (FORMAT A4 RAPI) ---
+            # --- TAB 2: CETAK BAST ---
             with tab2:
-                st.subheader("Data Berita Acara")
                 with st.form("bast_form"):
                     col_a, col_b = st.columns(2)
-                    
                     st.markdown("##### PIHAK KESATU (Yang Menyerahkan)")
                     p1_nama = col_a.text_input("Nama Waka Sarpras", ".............................................")
                     p1_nip = col_b.text_input("NIP Waka Sarpras", ".............................................")
@@ -417,7 +394,7 @@ def main_app():
                     <div class='bast-page'>
                         <div class='kop-surat'>
                             {img_tag}
-                            <div class='kop-text'>
+                            <div style="margin-left: 90px; text-align: center;">
                                 <h3 style='margin:0; font-size:14pt;'>PEMERINTAH PROVINSI JAWA TIMUR<br>DINAS PENDIDIKAN<br>SMK NEGERI 6 JEMBER</h3>
                                 <p style='font-size:9pt; margin:0;'>Jalan PB. Sudirman Telp./Fax. (0336) 621533 Tanggul - Jember 68155<br>Website: www.smkn6jember.sch.id  Email: smkn6jember@yahoo.co.id</p>
                             </div>
@@ -429,26 +406,26 @@ def main_app():
                             Pada hari ini, <b>{hari_ini_indo}</b> tanggal <b>{tgl_terbilang}</b> Bulan <b>{bln_indo}</b> Tahun <b>{thn_terbilang}</b>, yang bertandatangan di bawah ini :
                         </p>
                         
-                        <table style='width:100%; border:none; margin-bottom:5px; font-size:11pt;'>
-                            <tr><td style='width:80px; border:none; text-align:left;'>Nama</td><td style='border:none; text-align:left;'>: {p1_nama}</td></tr>
-                            <tr><td style='border:none; text-align:left;'>NIP.</td><td style='border:none; text-align:left;'>: {p1_nip}</td></tr>
-                            <tr><td style='border:none; text-align:left;'>Jabatan</td><td style='border:none; text-align:left;'>: Waka Sarpras</td></tr>
+                        <table style='width:100%; border:none; margin-bottom:5px; font-size:12pt;'>
+                            <tr><td style='width:100px; border:none;'>Nama</td><td style='border:none;'>: {p1_nama}</td></tr>
+                            <tr><td style='border:none;'>NIP.</td><td style='border:none;'>: {p1_nip}</td></tr>
+                            <tr><td style='border:none;'>Jabatan</td><td style='border:none;'>: Waka Sarpras</td></tr>
                         </table>
-                        <p class='bast-text' style='margin-left:85px;'>Dalam hal ini bertindak untuk dan atas nama jabatan, selanjutnya disebut <b>PIHAK KESATU</b></p>
+                        <p class='bast-text' style='margin-left:105px;'>Dalam hal ini bertindak untuk dan atas nama jabatan, selanjutnya disebut <b>PIHAK KESATU</b></p>
                         
-                        <table style='width:100%; border:none; margin-bottom:5px; font-size:11pt;'>
-                            <tr><td style='width:80px; border:none; text-align:left;'>Nama</td><td style='border:none; text-align:left;'>: {p2_nama}</td></tr>
-                            <tr><td style='border:none; text-align:left;'>NIP.</td><td style='border:none; text-align:left;'>: {p2_nip}</td></tr>
-                            <tr><td style='border:none; text-align:left;'>Jabatan</td><td style='border:none; text-align:left;'>: {p2_jabatan}</td></tr>
+                        <table style='width:100%; border:none; margin-bottom:5px; font-size:12pt;'>
+                            <tr><td style='width:100px; border:none;'>Nama</td><td style='border:none;'>: {p2_nama}</td></tr>
+                            <tr><td style='border:none;'>NIP.</td><td style='border:none;'>: {p2_nip}</td></tr>
+                            <tr><td style='border:none;'>Jabatan</td><td style='border:none;'>: {p2_jabatan}</td></tr>
                         </table>
-                        <p class='bast-text' style='margin-left:85px;'>Dalam hal ini bertindak untuk dan atas nama jabatan, selanjutnya disebut <b>PIHAK KEDUA</b></p>
+                        <p class='bast-text' style='margin-left:105px;'>Dalam hal ini bertindak untuk dan atas nama jabatan, selanjutnya disebut <b>PIHAK KEDUA</b></p>
                         
                         <p class='bast-text'>
                             PIHAK KESATU Menyerahkan barang Kepada PIHAK KEDUA, dan PIHAK KEDUA menyatakan menerima barang dari PIHAK PERTAMA berupa daftar terlampir :
                         </p>
                         
                         <table class='bast-table'>
-                            <thead><tr><th>No</th><th>Nama Barang</th><th>Jumlah</th><th>Harga</th><th>Keterangan</th><th>Sumber Dana</th></tr></thead>
+                            <thead><tr><th>No</th><th>Nama Barang</th><th>Jumlah</th><th>Harga</th><th>Ket</th><th>Sumber</th></tr></thead>
                             <tbody>{rows_html}</tbody>
                         </table>
                         
