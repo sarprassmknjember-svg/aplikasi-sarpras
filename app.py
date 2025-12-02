@@ -26,8 +26,7 @@ CREDENTIALS = {
 SHEET_URL = "https://docs.google.com/spreadsheets/d/13GG3dJ41H2c_62vG0Tc1Ere8FOLScZSdRcgfaVNxVxo/edit?usp=sharing"
 AUTH_FILE = "service-account.json"
 GEMINI_KEY = "AIzaSyBNkFkikC60JLG9T21V4_0eHXPBbcErnkI" 
-# UPDATE NAMA FILE LOGO
-LOGO_FILE = "logo_jatim.png" 
+LOGO_FILE = "logo.png"
 
 # DEFAULT PEJABAT
 DEF_WAKA_NAMA = "Ahmad Syaiful Rizal, S.Pd., M.Stat."
@@ -86,8 +85,15 @@ def save_to_sheet(sheet_name, new_row_list):
 
 def generate_qr_base64(text):
     if text is None or str(text).strip() == "": return ""
-    safe_text = str(text).replace(" ", "%20").replace("\n", "%0A")
-    return f"https://api.qrserver.com/v1/create-qr-code/?size=300x300&data={safe_text}"
+    # Gunakan library qrcode Python (lebih stabil untuk data banyak)
+    qr = qrcode.QRCode(version=1, box_size=10, border=1)
+    qr.add_data(text)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    buffer = io.BytesIO()
+    img.save(buffer, format="PNG")
+    img_str = base64.b64encode(buffer.getvalue()).decode()
+    return f"data:image/png;base64,{img_str}"
 
 def handle_image_upload(uploaded_file):
     if uploaded_file is not None:
@@ -96,7 +102,7 @@ def handle_image_upload(uploaded_file):
 
 def ask_gemini(prompt):
     genai.configure(api_key=GEMINI_KEY)
-    model = genai.GenerativeModel('gemini-pro')
+    model = genai.GenerativeModel('gemini-pro-latest')
     try:
         response = model.generate_content(prompt)
         return response.text
@@ -120,14 +126,11 @@ def angka_terbilang(n):
     return str(n)
 
 def get_img_as_base64(file_path):
-    if not os.path.exists(file_path):
-        return ""
+    if not os.path.exists(file_path): return ""
     try:
-        with open(file_path, "rb") as f:
-            data = f.read()
+        with open(file_path, "rb") as f: data = f.read()
         return base64.b64encode(data).decode()
-    except:
-        return ""
+    except: return ""
 
 def dashboard_card(title, value, color, icon):
     colors = {
@@ -151,6 +154,7 @@ def dashboard_card(title, value, color, icon):
     """
     st.markdown(html, unsafe_allow_html=True)
 
+# JS PRINT LABEL
 def trigger_print_js(html_content):
     js_code = f"""
     <script>
@@ -160,13 +164,39 @@ def trigger_print_js(html_content):
             <style>
                 body {{ font-family: Arial, sans-serif; padding: 20px; -webkit-print-color-adjust: exact; }}
                 .batch-container {{ display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-start; }}
-                .label-card {{ width: 320px; height: 150px; border: 3px solid black; display: flex; align-items: center; padding: 10px; margin-bottom: 10px; page-break-inside: avoid; break-inside: avoid; }}
+                
+                /* LABEL CARD UPDATE: FLEXBOX UNTUK TAHUN DI BAWAH */
+                .label-card {{ 
+                    width: 320px; height: 150px; 
+                    border: 3px solid black; 
+                    display: flex; align-items: center; 
+                    padding: 8px; margin-bottom: 10px; 
+                    page-break-inside: avoid; break-inside: avoid; 
+                }}
                 .qr-img {{ width: 110px; height: 110px; margin-right: 10px; }}
-                .label-info {{ font-family: Arial; line-height: 1.2; text-align: left; width: 100%; }}
+                
+                /* Container Info Kanan */
+                .label-info {{ 
+                    font-family: Arial; 
+                    text-align: left; 
+                    width: 100%; height: 120px;
+                    display: flex; flex-direction: column; justify-content: space-between;
+                }}
+                
+                /* Bagian Atas Info */
+                .lbl-top {{ display: block; }}
                 .lbl-title {{ font-weight: 900; font-size: 14px; text-decoration: underline; text-transform: uppercase; }}
-                .lbl-name {{ font-weight: bold; font-size: 13px; margin-top: 3px; }}
-                .lbl-code {{ font-family: 'Courier New'; font-weight: 900; background: #eee; padding: 2px; display:inline-block; margin: 3px 0; border: 1px solid #999; }}
-                .lbl-meta {{ font-size: 11px; font-weight: bold; }}
+                .lbl-name {{ font-weight: bold; font-size: 13px; margin-top: 3px; line-height: 1.1; }}
+                .lbl-code {{ font-family: 'Courier New'; font-weight: 900; background: #eee; padding: 2px; display:inline-block; margin: 3px 0; border: 1px solid #999; font-size: 13px; }}
+                .lbl-loc {{ font-size: 11px; font-weight: bold; }}
+                
+                /* Bagian Bawah (Tahun) */
+                .lbl-year {{ 
+                    font-size: 12px; font-weight: 900; 
+                    text-align: right; /* Tahun di Kanan Bawah */
+                    border-top: 1px dotted #ccc;
+                    padding-top: 2px;
+                }}
             </style></head><body>{html_content}</body></html>
         `);
         printWindow.document.close(); printWindow.focus();
@@ -175,15 +205,13 @@ def trigger_print_js(html_content):
     """
     components.html(js_code, height=0, width=0)
 
-# FIX CSS LOGO DI SINI
 def wrap_bast_html(content):
     return f"""
     <html><head><title>Surat BAST</title>
     <style>
         @page {{ size: A4; margin: 2cm; }}
         body {{ font-family: 'Times New Roman', serif; -webkit-print-color-adjust: exact; margin: 0; padding: 20px; color: black; }}
-        .kop-surat {{ text-align: center; border-bottom: 3px double black; padding-bottom: 10px; margin-bottom: 20px; position: relative; min-height: 100px; }}
-        /* CSS LOGO DIPERBAIKI: Gunakan height agar tidak menabrak bawah */
+        .kop-surat {{ text-align: center; border-bottom: 3px double black; padding-bottom: 10px; margin-bottom: 20px; position: relative; min-height: 80px; }}
         .kop-img {{ height: 85px; width: auto; position: absolute; left: 0; top: 5px; }}
         .bast-title {{ text-align: center; font-weight: bold; font-size: 14pt; text-decoration: underline; margin-bottom: 20px; }}
         .bast-text {{ text-align: justify; line-height: 1.5; font-size: 12pt; margin-bottom: 5px; }}
@@ -200,13 +228,16 @@ def local_css():
         .stDataFrame { border: 1px solid #ddd; border-radius: 5px; }
         .stDataFrame div[data-testid="stTable"] { overflow-x: auto; }
         .batch-container { display: flex; flex-wrap: wrap; gap: 15px; justify-content: flex-start; }
-        .label-card { width: 320px; height: 150px; border: 3px solid black; display: flex; align-items: center; padding: 10px; margin-bottom: 10px; background: white; color: black; }
+        
+        /* CSS PREVIEW DALAM APLIKASI (MIRIP PRINT) */
+        .label-card { width: 320px; height: 150px; border: 3px solid black; display: flex; align-items: center; padding: 8px; margin-bottom: 10px; background: white; color: black; }
         .qr-img { width: 110px; height: 110px; margin-right: 10px; }
-        .label-info { font-family: Arial; line-height: 1.2; text-align: left; width: 100%; }
+        .label-info { font-family: Arial; line-height: 1.2; text-align: left; width: 100%; height: 120px; display: flex; flex-direction: column; justify-content: space-between; }
         .lbl-title { font-weight: 900; font-size: 14px; text-decoration: underline; text-transform: uppercase; }
         .lbl-name { font-weight: bold; font-size: 13px; margin-top: 3px; }
         .lbl-code { font-family: 'Courier New'; font-weight: 900; background: #eee; padding: 2px; display:inline-block; margin: 3px 0; border: 1px solid #999; }
-        .lbl-meta { font-size: 11px; font-weight: bold; }
+        .lbl-loc { font-size: 11px; font-weight: bold; }
+        .lbl-year { font-size: 12px; font-weight: 900; text-align: right; border-top: 1px dotted #ccc; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -305,17 +336,42 @@ def main_app():
         
         if rows:
             st.divider(); st.success(f"✅ Terpilih {len(rows)} Item")
-            
             if "bast_sub_menu" not in st.session_state: st.session_state["bast_sub_menu"] = "🏷️ LABEL"
-            
             sub_menu = st.radio("Pilih Mode:", ["🏷️ LABEL", "📄 BUAT SURAT BAST"], horizontal=True)
 
             if sub_menu == "🏷️ LABEL":
                 html_labels = "<div class='batch-container'>"
                 for i in rows:
                     r = df.iloc[i]
-                    qr = generate_qr_base64(f"SMKN 6 JEMBER\n{r['Kode_Aset']}\n{r['Nama_Barang']}\n{r['Posisi']}")
-                    html_labels += f"""<div class='label-card'><img src='{qr}' class='qr-img'><div class='label-info'><div class='lbl-title'>SMKN 6 JEMBER</div><div class='lbl-name'>{r['Nama_Barang']}</div><div class='lbl-code'>{r['Kode_Aset']}</div><div class='lbl-meta'>Lokasi: {r['Posisi']} | Th: {r['Tahun']}</div></div></div>"""
+                    # ISI QR LENGKAP
+                    qr_text = f"""SMKN 6 JEMBER
+Kode: {r['Kode_Aset']}
+Nama: {r['Nama_Barang']}
+Merk: {r.get('Merk','-')}
+PJ: {r.get('Penanggung_Jawab','-')}
+Lokasi: {r['Posisi']}
+Sumber: {r.get('Sumber_Dana','-')}
+Tahun: {r['Tahun']}
+Foto: {r.get('Link_Foto','-')}"""
+                    
+                    qr = generate_qr_base64(qr_text)
+                    
+                    # DESAIN LABEL DENGAN TAHUN DI BAWAH
+                    html_labels += f"""
+                    <div class='label-card'>
+                        <img src='{qr}' class='qr-img'>
+                        <div class='label-info'>
+                            <div class='lbl-top'>
+                                <div class='lbl-title'>SMKN 6 JEMBER</div>
+                                <div class='lbl-name'>{r['Nama_Barang']}</div>
+                                <div class='lbl-code'>{r['Kode_Aset']}</div>
+                                <div class='lbl-loc'>Lokasi: {r['Posisi']}</div>
+                            </div>
+                            <div class='lbl-year'>
+                                Tahun: {r['Tahun']}
+                            </div>
+                        </div>
+                    </div>"""
                 html_labels += "</div>"
                 st.markdown(html_labels, unsafe_allow_html=True)
                 if st.button("🖨️ CETAK LABEL (POP-UP)", type="primary"): trigger_print_js(html_labels)
@@ -327,17 +383,14 @@ def main_app():
                     st.markdown("**PIHAK KESATU (Yang Menyerahkan)**")
                     p1 = col_a.text_input("Nama Waka Sarpras", DEF_WAKA_NAMA)
                     n1 = col_b.text_input("NIP Waka", DEF_WAKA_NIP)
-                    
                     st.markdown("**PIHAK KEDUA (Yang Menerima)**")
                     p2 = col_a.text_input("Nama Penerima", "")
                     n2 = col_b.text_input("NIP Penerima", "")
                     jab2 = st.text_input("Jabatan Penerima", "")
-                    
                     st.markdown("**MENGETAHUI**")
                     ks = col_a.text_input("Kepala Sekolah", DEF_KS_NAMA)
                     nks = col_b.text_input("NIP Kepsek", DEF_KS_NIP)
                     saksi = st.text_input("Saksi", "")
-                    
                     tgl = st.date_input("Tanggal BAST")
                     create = st.form_submit_button("GENERATE & DOWNLOAD")
                 
@@ -346,18 +399,14 @@ def main_app():
                     tgl_terbilang = angka_terbilang(tgl.day)
                     bln_indo = get_bulan_indo(tgl)
                     thn_terbilang = angka_terbilang(tgl.year)
-                    
                     logo = get_img_as_base64(LOGO_FILE)
                     img_tag = f'<img src="data:image/png;base64,{logo}" class="kop-img">' if logo else ""
-                    if not logo: st.warning(f"File '{LOGO_FILE}' tidak ditemukan di folder.")
-
                     rows_html = ""
                     no = 1
                     for idx, row in df.iloc[rows].iterrows():
                         rows_html += f"<tr><td>{no}</td><td>{row['Nama_Barang']}</td><td>1</td><td>-</td><td>{row.get('Keterangan','-')}</td><td>{row['Sumber_Dana']}</td></tr>"
                         no += 1
                     
-                    # HTML BAST DENGAN POSISI TANDA TANGAN BARU
                     html_bast = f"""
                     <div class='bast-page'>
                         <div class='kop-surat'>
@@ -372,27 +421,18 @@ def main_app():
                         <table style='width:100%; border:none; margin-bottom:5px; font-size:11pt;'>
                             <tr><td style='width:100px;'>Nama</td><td>: {p1}</td></tr><tr><td>NIP</td><td>: {n1}</td></tr><tr><td>Jabatan</td><td>: Waka Sarpras (PIHAK KESATU)</td></tr>
                         </table>
-                        <p class='bast-text' style='margin-left:105px;'>Dalam hal ini bertindak untuk dan atas nama jabatan, selanjutnya disebut <b>PIHAK KESATU</b></p>
+                        <br>
                         <table style='width:100%; border:none; margin-bottom:5px; font-size:11pt;'>
-                            <tr><td style='width:100px;'>Nama</td><td>: {p2}</td></tr><tr><td>NIP</td><td>: {n2}</td></tr><tr><td>Jabatan</td><td>: {jab2}</td></tr>
+                            <tr><td style='width:100px;'>Nama</td><td>: {p2}</td></tr><tr><td>NIP</td><td>: {n2}</td></tr><tr><td>Jabatan</td><td>: {jab2} (PIHAK KEDUA)</td></tr>
                         </table>
-                        <p class='bast-text' style='margin-left:105px;'>Dalam hal ini bertindak untuk dan atas nama jabatan, selanjutnya disebut <b>PIHAK KEDUA</b></p>
-                        <p class='bast-text'>PIHAK KESATU menyerahkan barang kepada PIHAK KEDUA, dan PIHAK KEDUA menyatakan menerima barang dari PIHAK PERTAMA berupa daftar terlampir :</p>
+                        <p class='bast-text'>PIHAK KESATU menyerahkan barang kepada PIHAK KEDUA:</p>
                         <table class='bast-table'><thead><tr><th>No</th><th>Nama Barang</th><th>Jml</th><th>Harga</th><th>Ket</th><th>Sumber</th></tr></thead><tbody>{rows_html}</tbody></table>
-                        <p class='bast-text'>Barang diterima dalam keadaan baik. Tanggung jawab beralih ke PIHAK KEDUA.</p>
-                        
-                        <table class='bast-signature-table' style="width:100%;">
-                            <tr>
-                                <td width='50%'>PIHAK KEDUA<br><br><br><br><b><u>{p2}</u></b><br>NIP. {n2}</td>
-                                <td width='50%'>PIHAK KESATU<br>Waka Sarpras<br><br><br><br><b><u>{p1}</u></b><br>NIP. {n1}</td>
-                            </tr>
+                        <p class='bast-text'>Barang diterima dalam keadaan baik.</p>
+                        <table class='bast-signature-table'>
+                            <tr><td width='50%'>PIHAK KEDUA<br><br><br><br><b><u>{p2}</u></b><br>NIP. {n2}</td><td width='50%'>PIHAK KESATU<br><br><br><br><b><u>{p1}</u></b><br>NIP. {n1}</td></tr>
                             <tr><td colspan='2'><br>Mengetahui,</td></tr>
-                            <tr>
-                                <td colspan="2" style='text-align:center;'>Kepala SMKN 6 Jember<br><br><br><br><b><u>{ks}</u></b><br>NIP. {nks}</td>
-                            </tr>
-                            <tr>
-                                <td></td> <td style='text-align:center;'><br>Saksi<br><br><br><br><b><u>{saksi}</u></b></td>
-                            </tr>
+                            <tr><td colspan='2' style='text-align:center;'>Kepala SMKN 6 Jember<br><br><br><br><b><u>{ks}</u></b><br>NIP. {nks}</td></tr>
+                            <tr><td></td><td style='text-align:center;'><br>Saksi<br><br><br><br><b><u>{saksi}</u></b></td></tr>
                         </table>
                     </div>
                     """
