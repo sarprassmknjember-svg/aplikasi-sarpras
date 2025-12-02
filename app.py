@@ -115,50 +115,56 @@ def dashboard_card(title, value, color, icon):
     """
     st.markdown(html, unsafe_allow_html=True)
 
-# CSS KHUSUS PRINT & LABEL
+# --- FUNGSI DOWNLOAD HTML SIAP CETAK (NEW) ---
+def create_html_print_link(html_content, text_button):
+    # Bungkus HTML dengan Struktur Lengkap + Script Auto Print
+    full_html = f"""
+    <html>
+    <head>
+        <title>Sistem Sarpras - Print</title>
+        <style>
+            body {{ font-family: Arial, sans-serif; padding: 20px; }}
+            .batch-container {{ display: flex; flex-wrap: wrap; gap: 15px; justify-content: flex-start; }}
+            .label-card {{
+                width: 320px; height: 150px; border: 3px solid black; display: flex; align-items: center;
+                padding: 10px; margin-bottom: 10px; page-break-inside: avoid; break-inside: avoid;
+            }}
+            .qr-img {{ width: 110px; height: 110px; margin-right: 10px; }}
+            .label-info {{ font-family: Arial; line-height: 1.2; text-align: left; width: 100%; }}
+            .lbl-title {{ font-weight: 900; font-size: 14px; text-decoration: underline; text-transform: uppercase; }}
+            .lbl-name {{ font-weight: bold; font-size: 13px; margin-top: 3px; }}
+            .lbl-code {{ font-family: 'Courier New'; font-weight: 900; background: #eee; padding: 2px; display:inline-block; margin: 3px 0; border: 1px solid #999; }}
+            .lbl-meta {{ font-size: 11px; font-weight: bold; }}
+            
+            /* BAST CSS */
+            .bast-page {{ width: 100%; font-family: 'Times New Roman', serif; color: black; }}
+            .bast-header {{ text-align: center; font-weight: bold; font-size: 18px; text-decoration: underline; margin-bottom: 20px; }}
+            .bast-table {{ width: 100%; border-collapse: collapse; margin: 15px 0; }}
+            .bast-table th, .bast-table td {{ border: 1px solid black; padding: 8px; text-align: center; font-size: 12px; }}
+            .bast-sig {{ display: flex; justify-content: space-between; margin-top: 50px; text-align: center; }}
+            .sig-box {{ width: 40%; }}
+        </style>
+    </head>
+    <body>
+        {html_content}
+        <script>
+            window.onload = function() {{ window.print(); }}
+        </script>
+    </body>
+    </html>
+    """
+    # Encode ke Base64 agar bisa dibuka sebagai link
+    b64 = base64.b64encode(full_html.encode()).decode()
+    href = f'<a href="data:text/html;base64,{b64}" target="_blank" style="text-decoration:none;">' \
+           f'<button style="background-color:#FF4B4B;color:white;padding:10px 20px;border:none;border-radius:5px;font-weight:bold;cursor:pointer;">' \
+           f'📄 {text_button} (TAB BARU)</button></a>'
+    return href
+
 def local_css():
     st.markdown("""
     <style>
         .stDataFrame { border: 1px solid #ddd; border-radius: 5px; }
         .stDataFrame div[data-testid="stTable"] { overflow-x: auto; }
-        
-        /* TOMBOL PRINT HTML KHUSUS */
-        .print-btn {
-            background-color: #007bff; color: white; padding: 10px 20px; 
-            border: none; border-radius: 5px; cursor: pointer; font-weight: bold;
-            text-decoration: none; display: inline-block; margin-top: 10px;
-        }
-        .print-btn:hover { background-color: #0056b3; }
-
-        /* PRINT STYLE: HANYA TAMPILKAN AREA PRINT */
-        @media print {
-            body * { visibility: hidden; }
-            #print-area, #print-area * { visibility: visible; }
-            #print-area { position: absolute; left: 0; top: 0; width: 100%; }
-            /* Sembunyikan UI Streamlit */
-            .stSidebar, header, footer, .stButton, .stForm, div[data-testid="stToolbar"] { display: none !important; }
-        }
-        
-        /* LABEL STYLE */
-        .batch-container { display: flex; flex-wrap: wrap; gap: 15px; justify-content: flex-start; }
-        .label-card {
-            width: 320px; height: 150px; border: 3px solid black; display: flex; align-items: center;
-            padding: 10px; margin-bottom: 10px; page-break-inside: avoid; background: white; color: black;
-        }
-        .qr-img { width: 110px; height: 110px; margin-right: 10px; }
-        .label-info { font-family: Arial; line-height: 1.2; text-align: left; width: 100%; }
-        .lbl-title { font-weight: 900; font-size: 14px; text-decoration: underline; text-transform: uppercase; }
-        .lbl-name { font-weight: bold; font-size: 13px; margin-top: 3px; }
-        .lbl-code { font-family: 'Courier New'; font-weight: 900; background: #eee; padding: 2px; display:inline-block; margin: 3px 0; border: 1px solid #999; }
-        .lbl-meta { font-size: 11px; font-weight: bold; }
-
-        /* BAST STYLE */
-        .bast-page { width: 100%; font-family: 'Times New Roman', serif; color: black; padding: 20px; }
-        .bast-header { text-align: center; font-weight: bold; font-size: 18px; text-decoration: underline; margin-bottom: 20px; }
-        .bast-table { width: 100%; border-collapse: collapse; margin: 15px 0; }
-        .bast-table th, .bast-table td { border: 1px solid black; padding: 8px; text-align: center; font-size: 12px; }
-        .bast-sig { display: flex; justify-content: space-between; margin-top: 50px; text-align: center; }
-        .sig-box { width: 40%; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -265,7 +271,7 @@ def main_app():
                         rows = [[f"{base}.{last+i:03d}", nama, merk, "Aset Tetap", pj, lokasi, "BOS", tahun, "-", foto_name] for i in range(1, volume+1)]
                         if save_to_sheet("Aset", rows): st.success(f"Sukses simpan {volume} aset!"); time.sleep(1); st.rerun()
 
-    # --- DATA ASET, LABEL & BAST (DIPERBAIKI) ---
+    # --- DATA ASET, LABEL & BAST (PRINT FIX) ---
     elif menu == "Data Aset, Label & BAST":
         st.title("🖨️ Data Aset, Label & BAST")
         df = load_data("Aset")
@@ -274,21 +280,23 @@ def main_app():
         
         if rows:
             st.divider()
-            st.info(f"Terpilih {len(rows)} Item. Silakan pilih menu di bawah:")
+            st.success(f"✅ Terpilih {len(rows)} Item")
             
-            tab1, tab2 = st.tabs(["🏷️ CETAK LABEL", "📄 CETAK BAST"])
+            tab1, tab2 = st.tabs(["🏷️ LABEL ASET", "📄 SURAT BAST"])
             
             # --- TAB 1: CETAK LABEL ---
             with tab1:
-                html = "<div id='print-area'><div class='batch-container'>"
+                html_labels = "<div class='batch-container'>"
                 for i in rows:
                     r = df.iloc[i]
                     qr = generate_qr_base64(f"SMKN 6 JEMBER\n{r['Kode_Aset']}\n{r['Nama_Barang']}\n{r['Posisi']}")
-                    html += f"""<div class='label-card'><img src='{qr}' class='qr-img'><div class='label-info'><div class='lbl-title'>SMKN 6 JEMBER</div><div class='lbl-name'>{r['Nama_Barang']}</div><div class='lbl-code'>{r['Kode_Aset']}</div><div class='lbl-meta'>Lokasi: {r['Posisi']} | Th: {r['Tahun']}</div></div></div>"""
-                html += "</div></div>"
-                st.markdown(html, unsafe_allow_html=True)
-                # Tombol HTML Khusus Print
-                st.markdown('<button onclick="window.print()" class="print-btn">🖨️ CETAK LABEL SEKARANG</button>', unsafe_allow_html=True)
+                    html_labels += f"""<div class='label-card'><img src='{qr}' class='qr-img'><div class='label-info'><div class='lbl-title'>SMKN 6 JEMBER</div><div class='lbl-name'>{r['Nama_Barang']}</div><div class='lbl-code'>{r['Kode_Aset']}</div><div class='lbl-meta'>Lokasi: {r['Posisi']} | Th: {r['Tahun']}</div></div></div>"""
+                html_labels += "</div>"
+                
+                # Tampilkan Preview
+                st.markdown(html_labels, unsafe_allow_html=True)
+                # Tampilkan Tombol Print Link
+                st.markdown(create_html_print_link(html_labels, "CETAK LABEL SEKARANG"), unsafe_allow_html=True)
 
             # --- TAB 2: CETAK BAST ---
             with tab2:
@@ -299,56 +307,37 @@ def main_app():
                     pihak2 = col_a.text_input("Nama Pihak 2 (Menerima)")
                     nip2 = col_b.text_input("NIP Pihak 2", "-")
                     tgl_bast = st.date_input("Tanggal BAST")
-                    
-                    # Generate Button inside form just to refresh state
-                    gen_bast = st.form_submit_button("Generate Surat BAST")
+                    gen_bast = st.form_submit_button("Preview Surat")
                 
                 if gen_bast:
-                    # Buat HTML BAST
                     tgl_indo = tgl_bast.strftime("%d-%m-%Y")
-                    # Tabel Barang BAST
                     rows_html = ""
                     df_selected = df.iloc[rows]
                     for idx, row in df_selected.iterrows():
                         rows_html += f"<tr><td>{row['Kode_Aset']}</td><td>{row['Nama_Barang']} ({row['Merk']})</td><td>1 Unit</td><td>Baik</td><td>{row['Posisi']}</td></tr>"
 
                     html_bast = f"""
-                    <div id='print-area'>
-                        <div class='bast-page'>
-                            <div class='bast-header'>BERITA ACARA SERAH TERIMA BARANG<br>SMKN 6 JEMBER</div>
-                            <p>Pada hari ini tanggal <b>{tgl_indo}</b>, kami yang bertanda tangan di bawah ini:</p>
-                            <table style='width:100%'>
-                                <tr><td style='width:100px'>Nama</td><td>: {pihak1}</td></tr>
-                                <tr><td>NIP</td><td>: {nip1}</td></tr>
-                                <tr><td>Jabatan</td><td>: PIHAK PERTAMA (Yang Menyerahkan)</td></tr>
-                            </table>
-                            <br>
-                            <table style='width:100%'>
-                                <tr><td style='width:100px'>Nama</td><td>: {pihak2}</td></tr>
-                                <tr><td>NIP</td><td>: {nip2}</td></tr>
-                                <tr><td>Jabatan</td><td>: PIHAK KEDUA (Yang Menerima)</td></tr>
-                            </table>
-                            <br>
-                            <p>PIHAK PERTAMA menyerahkan barang inventaris kepada PIHAK KEDUA dengan rincian sebagai berikut:</p>
-                            <table class='bast-table'>
-                                <thead><tr><th>Kode Aset</th><th>Nama Barang</th><th>Jumlah</th><th>Kondisi</th><th>Lokasi</th></tr></thead>
-                                <tbody>{rows_html}</tbody>
-                            </table>
-                            <p>Barang tersebut telah diterima dalam keadaan baik dan menjadi tanggung jawab PIHAK KEDUA.</p>
-                            
-                            <div class='bast-sig'>
-                                <div class='sig-box'><p>PIHAK KEDUA</p><br><br><br><p><b>{pihak2}</b></p><p>NIP. {nip2}</p></div>
-                                <div class='sig-box'><p>PIHAK PERTAMA</p><br><br><br><p><b>{pihak1}</b></p><p>NIP. {nip1}</p></div>
-                            </div>
-                            <br><br>
-                            <div style='text-align:center'>
-                                <p>Mengetahui,<br>Kepala SMKN 6 Jember</p><br><br><br><p><b>...................................</b></p><p>NIP. .........................</p>
-                            </div>
+                    <div class='bast-page'>
+                        <div class='bast-header'>BERITA ACARA SERAH TERIMA BARANG<br>SMKN 6 JEMBER</div>
+                        <p align='center'>Tanggal: <b>{tgl_indo}</b></p>
+                        <br>
+                        <table style='width:100%'>
+                            <tr><td style='width:100px'><b>PIHAK 1</b></td><td>: {pihak1} (NIP: {nip1})</td></tr>
+                            <tr><td><b>PIHAK 2</b></td><td>: {pihak2} (NIP: {nip2})</td></tr>
+                        </table>
+                        <br>
+                        <table class='bast-table'>
+                            <thead><tr><th>Kode</th><th>Barang</th><th>Jml</th><th>Kondisi</th><th>Lokasi</th></tr></thead>
+                            <tbody>{rows_html}</tbody>
+                        </table>
+                        <div class='bast-sig'>
+                            <div class='sig-box'><p>Yang Menerima</p><br><br><br><p><b>{pihak2}</b></p></div>
+                            <div class='sig-box'><p>Yang Menyerahkan</p><br><br><br><p><b>{pihak1}</b></p></div>
                         </div>
                     </div>
                     """
                     st.markdown(html_bast, unsafe_allow_html=True)
-                    st.markdown('<button onclick="window.print()" class="print-btn">📄 CETAK SURAT BAST</button>', unsafe_allow_html=True)
+                    st.markdown(create_html_print_link(html_bast, "CETAK SURAT BAST"), unsafe_allow_html=True)
 
     # --- GUDANG (STOK) ---
     elif menu == "Gudang (Stok)":
