@@ -26,7 +26,7 @@ CREDENTIALS = {
 SHEET_URL = "https://docs.google.com/spreadsheets/d/13GG3dJ41H2c_62vG0Tc1Ere8FOLScZSdRcgfaVNxVxo/edit?usp=sharing"
 AUTH_FILE = "service-account.json"
 GEMINI_KEY = "AIzaSyBNkFkikC60JLG9T21V4_0eHXPBbcErnkI" 
-LOGO_FILE = "logo.png" # Pastikan file bernama ini ada di folder D:/sarpras_python/
+LOGO_FILE = "logo_jatim.png" # Pastikan file bernama ini ada di folder D:/sarpras_python/
 
 # DEFAULT PEJABAT
 DEF_WAKA_NAMA = "Ahmad Syaiful Rizal, S.Pd., M.Stat."
@@ -440,4 +440,5 @@ def main_app():
 
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
+
 else: main_app()
