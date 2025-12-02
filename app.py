@@ -26,7 +26,8 @@ CREDENTIALS = {
 SHEET_URL = "https://docs.google.com/spreadsheets/d/13GG3dJ41H2c_62vG0Tc1Ere8FOLScZSdRcgfaVNxVxo/edit?usp=sharing"
 AUTH_FILE = "service-account.json"
 GEMINI_KEY = "AIzaSyBNkFkikC60JLG9T21V4_0eHXPBbcErnkI" 
-LOGO_FILE = "logo_jatim.png" # Pastikan file bernama ini ada di folder D:/sarpras_python/
+# UPDATE NAMA FILE LOGO
+LOGO_FILE = "logo_jatim.png" 
 
 # DEFAULT PEJABAT
 DEF_WAKA_NAMA = "Ahmad Syaiful Rizal, S.Pd., M.Stat."
@@ -119,7 +120,6 @@ def angka_terbilang(n):
     return str(n)
 
 def get_img_as_base64(file_path):
-    # Cek apakah file ada
     if not os.path.exists(file_path):
         return ""
     try:
@@ -175,6 +175,7 @@ def trigger_print_js(html_content):
     """
     components.html(js_code, height=0, width=0)
 
+# FIX CSS LOGO DI SINI
 def wrap_bast_html(content):
     return f"""
     <html><head><title>Surat BAST</title>
@@ -182,7 +183,8 @@ def wrap_bast_html(content):
         @page {{ size: A4; margin: 2cm; }}
         body {{ font-family: 'Times New Roman', serif; -webkit-print-color-adjust: exact; margin: 0; padding: 20px; color: black; }}
         .kop-surat {{ text-align: center; border-bottom: 3px double black; padding-bottom: 10px; margin-bottom: 20px; position: relative; min-height: 100px; }}
-        .kop-img {{ width: 90px; height: auto; position: absolute; left: 0; top: 0; }}
+        /* CSS LOGO DIPERBAIKI: Gunakan height agar tidak menabrak bawah */
+        .kop-img {{ height: 85px; width: auto; position: absolute; left: 0; top: 5px; }}
         .bast-title {{ text-align: center; font-weight: bold; font-size: 14pt; text-decoration: underline; margin-bottom: 20px; }}
         .bast-text {{ text-align: justify; line-height: 1.5; font-size: 12pt; margin-bottom: 5px; }}
         .bast-table {{ width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 10pt; }}
@@ -248,7 +250,6 @@ def main_app():
         df_saldo_menipis = pd.DataFrame()
         if not df_stok.empty:
             saldo_df = df_stok.groupby('Nama_Barang')['Jumlah'].apply(lambda x: x[df_stok['Jenis_Transaksi'] == 'Masuk'].sum() - x[df_stok['Jenis_Transaksi'] == 'Keluar'].sum()).reset_index(name='Sisa')
-            # SOLUSI WARNA: Kita filter dulu yang <= 5, nanti ditampilkan di tabel bawah
             df_saldo_menipis = saldo_df[saldo_df['Sisa'] <= 5].sort_values('Sisa')
             stok_alert = len(df_saldo_menipis)
         with c2: dashboard_card("Stok Menipis", f"{stok_alert} Item", "red", "📉")
@@ -268,7 +269,6 @@ def main_app():
         with c_kanan:
             st.subheader("⚠️ Stok Perlu Restock")
             if stok_alert > 0: 
-                # TAMPILAN PERBAIKAN STOK
                 st.dataframe(df_saldo_menipis.head(5), use_container_width=True, hide_index=True)
             else:
                 st.success("Stok Aman")
@@ -306,7 +306,6 @@ def main_app():
         if rows:
             st.divider(); st.success(f"✅ Terpilih {len(rows)} Item")
             
-            # SESSION STATE UNTUK TAB
             if "bast_sub_menu" not in st.session_state: st.session_state["bast_sub_menu"] = "🏷️ LABEL"
             
             sub_menu = st.radio("Pilih Mode:", ["🏷️ LABEL", "📄 BUAT SURAT BAST"], horizontal=True)
@@ -326,18 +325,15 @@ def main_app():
                 with st.form("bast"):
                     col_a, col_b = st.columns(2)
                     st.markdown("**PIHAK KESATU (Yang Menyerahkan)**")
-                    # AUTO FILL WAKA
                     p1 = col_a.text_input("Nama Waka Sarpras", DEF_WAKA_NAMA)
                     n1 = col_b.text_input("NIP Waka", DEF_WAKA_NIP)
                     
                     st.markdown("**PIHAK KEDUA (Yang Menerima)**")
-                    # KOSONG
                     p2 = col_a.text_input("Nama Penerima", "")
                     n2 = col_b.text_input("NIP Penerima", "")
                     jab2 = st.text_input("Jabatan Penerima", "")
                     
                     st.markdown("**MENGETAHUI**")
-                    # AUTO FILL KEPSEK
                     ks = col_a.text_input("Kepala Sekolah", DEF_KS_NAMA)
                     nks = col_b.text_input("NIP Kepsek", DEF_KS_NIP)
                     saksi = st.text_input("Saksi", "")
@@ -351,18 +347,17 @@ def main_app():
                     bln_indo = get_bulan_indo(tgl)
                     thn_terbilang = angka_terbilang(tgl.year)
                     
-                    # LOGO DETECTION (Penting!)
                     logo = get_img_as_base64(LOGO_FILE)
                     img_tag = f'<img src="data:image/png;base64,{logo}" class="kop-img">' if logo else ""
-                    if not logo: st.warning("Logo tidak ditemukan. Pastikan file 'logo.png' ada di folder.")
+                    if not logo: st.warning(f"File '{LOGO_FILE}' tidak ditemukan di folder.")
 
                     rows_html = ""
-                    # PENOMORAN TABEL DIMULAI DARI 1
                     no = 1
                     for idx, row in df.iloc[rows].iterrows():
                         rows_html += f"<tr><td>{no}</td><td>{row['Nama_Barang']}</td><td>1</td><td>-</td><td>{row.get('Keterangan','-')}</td><td>{row['Sumber_Dana']}</td></tr>"
                         no += 1
                     
+                    # HTML BAST DENGAN POSISI TANDA TANGAN BARU
                     html_bast = f"""
                     <div class='bast-page'>
                         <div class='kop-surat'>
@@ -375,7 +370,7 @@ def main_app():
                         <div class='bast-title'>BERITA ACARA SERAH TERIMA BARANG</div>
                         <p class='bast-text'>Pada hari ini, <b>{hari_indo}</b> tanggal <b>{tgl_terbilang}</b> Bulan <b>{bln_indo}</b> Tahun <b>{thn_terbilang}</b>, yang bertandatangan di bawah ini:</p>
                         <table style='width:100%; border:none; margin-bottom:5px; font-size:11pt;'>
-                            <tr><td style='width:100px;'>Nama</td><td>: {p1}</td></tr><tr><td>NIP</td><td>: {n1}</td></tr><tr><td>Jabatan</td><td>: Waka Sarpras</td></tr>
+                            <tr><td style='width:100px;'>Nama</td><td>: {p1}</td></tr><tr><td>NIP</td><td>: {n1}</td></tr><tr><td>Jabatan</td><td>: Waka Sarpras (PIHAK KESATU)</td></tr>
                         </table>
                         <p class='bast-text' style='margin-left:105px;'>Dalam hal ini bertindak untuk dan atas nama jabatan, selanjutnya disebut <b>PIHAK KESATU</b></p>
                         <table style='width:100%; border:none; margin-bottom:5px; font-size:11pt;'>
@@ -386,15 +381,17 @@ def main_app():
                         <table class='bast-table'><thead><tr><th>No</th><th>Nama Barang</th><th>Jml</th><th>Harga</th><th>Ket</th><th>Sumber</th></tr></thead><tbody>{rows_html}</tbody></table>
                         <p class='bast-text'>Barang diterima dalam keadaan baik. Tanggung jawab beralih ke PIHAK KEDUA.</p>
                         
-                        <table class='bast-signature-table'>
+                        <table class='bast-signature-table' style="width:100%;">
                             <tr>
                                 <td width='50%'>PIHAK KEDUA<br><br><br><br><b><u>{p2}</u></b><br>NIP. {n2}</td>
                                 <td width='50%'>PIHAK KESATU<br>Waka Sarpras<br><br><br><br><b><u>{p1}</u></b><br>NIP. {n1}</td>
                             </tr>
                             <tr><td colspan='2'><br>Mengetahui,</td></tr>
                             <tr>
-                                <td style='text-align:center;'>Kepala SMKN 6 Jember<br><br><br><br><b><u>{ks}</u></b><br>NIP. {nks}</td>
-                                <td style='text-align:center;'>Saksi<br><br><br><br><b><u>{saksi}</u></b></td>
+                                <td colspan="2" style='text-align:center;'>Kepala SMKN 6 Jember<br><br><br><br><b><u>{ks}</u></b><br>NIP. {nks}</td>
+                            </tr>
+                            <tr>
+                                <td></td> <td style='text-align:center;'><br>Saksi<br><br><br><br><b><u>{saksi}</u></b></td>
                             </tr>
                         </table>
                     </div>
@@ -415,11 +412,9 @@ def main_app():
         df = load_data("Stok")
         if not df.empty:
             bal = df.groupby(['Nama_Barang','Satuan']).apply(lambda x: x[x['Jenis_Transaksi']=='Masuk']['Jumlah'].sum() - x[x['Jenis_Transaksi']=='Keluar']['Jumlah'].sum()).reset_index(name='Sisa')
-            # SOLUSI WARNA BARU (Pake Kolom Indikator)
             bal['Status'] = bal['Sisa'].apply(lambda x: '🔴 Kritis' if x <= 5 else '🟢 Aman')
-            
             st.subheader("Stok")
-            st.dataframe(bal, use_container_width=True, hide_index=True) # Hide index biar rapi
+            st.dataframe(bal, use_container_width=True, hide_index=True) 
             st.divider(); st.subheader("Riwayat"); st.dataframe(df, use_container_width=True, hide_index=True)
 
     elif menu == "Jadwal Aula":
@@ -440,5 +435,4 @@ def main_app():
 
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
-
 else: main_app()
