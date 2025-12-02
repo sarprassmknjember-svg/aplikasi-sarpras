@@ -41,12 +41,10 @@ except:
 @st.cache_resource
 def connect_google_sheet():
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    # Logika Dual Mode: Cloud (Secrets) / Laptop (JSON)
     if "gcp_service_account" in st.secrets:
         creds = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["gcp_service_account"], scope)
     else:
         creds = ServiceAccountCredentials.from_json_keyfile_name(AUTH_FILE, scope)
-        
     client = gspread.authorize(creds)
     sheet = client.open_by_url(SHEET_URL)
     return sheet
@@ -76,8 +74,10 @@ def save_to_sheet(sheet_name, new_row_list):
         return False
 
 def generate_qr_base64(text):
-    # Menggunakan API agar ringan & tidak perlu install library grafis berat
-    if is.null(text) or text == "": return ""
+    # PERBAIKAN DI SINI (Sebelumnya error karena pakai syntax R)
+    if text is None or str(text).strip() == "": 
+        return ""
+    
     safe_text = str(text).replace(" ", "%20").replace("\n", "%0A")
     return f"https://api.qrserver.com/v1/create-qr-code/?size=300x300&data={safe_text}"
 
@@ -122,9 +122,7 @@ def local_css():
     st.markdown("""
     <style>
         .stDataFrame { border: 1px solid #ddd; border-radius: 5px; }
-        /* Tabel Scroll di HP */
         .stDataFrame div[data-testid="stTable"] { overflow-x: auto; }
-        
         @media print {
             body * { visibility: hidden; }
             #print-area, #print-area * { visibility: visible; }
@@ -189,7 +187,7 @@ def main_app():
     local_css()
     with st.sidebar:
         st.title(f"👤 {st.session_state['username'].upper()}")
-        menu = st.radio("Menu", ["Dashboard", "Input Aset (Masal)", "Data Aset & Label", "Gudang (Stok)", "Jadwal Aula", "Tanya AI"])
+        menu = st.radio("Menu", ["Dashboard", "Input Aset", "Data Aset & Label", "Gudang (Stok)", "Jadwal Aula", "Tanya AI"])
         if st.button("Logout", use_container_width=True):
             st.session_state['logged_in'] = False
             st.rerun()
@@ -241,10 +239,10 @@ def main_app():
                 st.dataframe(df_saldo_menipis.head(5), use_container_width=True, hide_index=True)
             else: st.success("Stok aman terkendali.")
 
-    # --- INPUT ASET (TANPA KAMERA LIVE, PAKE UPLOADER) ---
-    elif menu == "Input Aset (Masal)":
+    # --- INPUT ASET ---
+    elif menu == "Input Aset":
         if st.session_state['role'] == 'view': st.warning("Akses View Only"); st.stop()
-        st.title("📦 Input Aset Massal")
+        st.title("📦 Input Aset")
         with st.form("input_aset"):
             c1, c2 = st.columns(2)
             prefix = c1.text_input("Kode Prefix", placeholder="LPT / MEJA").upper()
@@ -257,9 +255,7 @@ def main_app():
             tahun = st.number_input("Tahun", value=2025)
             
             st.write("---")
-            # --- UPDATED: HANYA FILE UPLOADER (HP akan menawarkan Kamera/Galeri) ---
             final_pic = st.file_uploader("📸 Foto Aset (Klik Browse -> Pilih Kamera di HP)", type=['jpg','png','jpeg'])
-            # -----------------------------------------------------------------------
 
             submit = st.form_submit_button("Simpan", type="primary")
             
