@@ -9,6 +9,7 @@ import base64
 from datetime import datetime
 import google.generativeai as genai
 import time
+import os
 import streamlit.components.v1 as components 
 
 # ===========================
@@ -27,17 +28,17 @@ AUTH_FILE = "service-account.json"
 GEMINI_KEY = "AIzaSyBNkFkikC60JLG9T21V4_0eHXPBbcErnkI" 
 LOGO_FILE = "logo.png"
 
+# DEFAULT DATA PEJABAT (OTOMATIS)
+DEF_WAKA_NAMA = "Ahmad Syaiful Rizal, S.Pd., M.Stat."
+DEF_WAKA_NIP = "199304062020121018"
+DEF_KS_NAMA = "Evi Silviana, S.Pd., M.M."
+DEF_KS_NIP = "19750527 199903 2 005"
+
 try:
     with open("gambar_bg.txt", "r") as f:
         BG_IMAGE_URL = f.read().strip()
 except:
     BG_IMAGE_URL = "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80"
-
-# DATA PEJABAT (DEFAULT)
-DEFAULT_WAKA_NAMA = "Ahmad Syaiful Rizal, S.Pd., M.Stat."
-DEFAULT_WAKA_NIP = "199304062020121018"
-DEFAULT_KS_NAMA = "Evi Silviana, S.Pd., M.M."
-DEFAULT_KS_NIP = "19750527 199903 2 005"
 
 # ===========================
 # 2. FUNGSI BANTUAN
@@ -118,12 +119,14 @@ def angka_terbilang(n):
     return str(n)
 
 def get_img_as_base64(file_path):
+    if not os.path.exists(file_path):
+        return ""
     try:
         with open(file_path, "rb") as f:
             data = f.read()
         return base64.b64encode(data).decode()
     except:
-        return "" 
+        return ""
 
 def dashboard_card(title, value, color, icon):
     colors = {
@@ -147,64 +150,45 @@ def dashboard_card(title, value, color, icon):
     """
     st.markdown(html, unsafe_allow_html=True)
 
-# JS PRINT LABEL
 def trigger_print_js(html_content):
     js_code = f"""
     <script>
         var printWindow = window.open('', '_blank');
         printWindow.document.write(`
-            <html>
-            <head>
-                <title>Cetak Label</title>
-                <style>
-                    body {{ font-family: Arial, sans-serif; padding: 20px; -webkit-print-color-adjust: exact; }}
-                    .batch-container {{ display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-start; }}
-                    .label-card {{
-                        width: 320px; height: 150px; border: 3px solid black; display: flex; align-items: center;
-                        padding: 10px; margin-bottom: 10px; page-break-inside: avoid; break-inside: avoid;
-                    }}
-                    .qr-img {{ width: 110px; height: 110px; margin-right: 10px; }}
-                    .label-info {{ font-family: Arial; line-height: 1.2; text-align: left; width: 100%; }}
-                    .lbl-title {{ font-weight: 900; font-size: 14px; text-decoration: underline; text-transform: uppercase; }}
-                    .lbl-name {{ font-weight: bold; font-size: 13px; margin-top: 3px; }}
-                    .lbl-code {{ font-family: 'Courier New'; font-weight: 900; background: #eee; padding: 2px; display:inline-block; margin: 3px 0; border: 1px solid #999; }}
-                    .lbl-meta {{ font-size: 11px; font-weight: bold; }}
-                </style>
-            </head>
-            <body>{html_content}</body>
-            </html>
+            <html><head><title>Cetak Label</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; padding: 20px; -webkit-print-color-adjust: exact; }}
+                .batch-container {{ display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-start; }}
+                .label-card {{ width: 320px; height: 150px; border: 3px solid black; display: flex; align-items: center; padding: 10px; margin-bottom: 10px; page-break-inside: avoid; break-inside: avoid; }}
+                .qr-img {{ width: 110px; height: 110px; margin-right: 10px; }}
+                .label-info {{ font-family: Arial; line-height: 1.2; text-align: left; width: 100%; }}
+                .lbl-title {{ font-weight: 900; font-size: 14px; text-decoration: underline; text-transform: uppercase; }}
+                .lbl-name {{ font-weight: bold; font-size: 13px; margin-top: 3px; }}
+                .lbl-code {{ font-family: 'Courier New'; font-weight: 900; background: #eee; padding: 2px; display:inline-block; margin: 3px 0; border: 1px solid #999; }}
+                .lbl-meta {{ font-size: 11px; font-weight: bold; }}
+            </style></head><body>{html_content}</body></html>
         `);
-        printWindow.document.close();
-        printWindow.focus();
-        setTimeout(function() {{
-            printWindow.print();
-            printWindow.close();
-        }}, 1000);
+        printWindow.document.close(); printWindow.focus();
+        setTimeout(function() {{ printWindow.print(); printWindow.close(); }}, 1000);
     </script>
     """
     components.html(js_code, height=0, width=0)
 
-# WRAPPER BAST
 def wrap_bast_html(content):
     return f"""
-    <html>
-    <head>
-        <title>Surat BAST</title>
-        <style>
-            @page {{ size: A4; margin: 2cm; }}
-            body {{ font-family: 'Times New Roman', serif; -webkit-print-color-adjust: exact; margin: 0; padding: 20px; color: black; }}
-            .kop-surat {{ text-align: center; border-bottom: 3px double black; padding-bottom: 10px; margin-bottom: 20px; position: relative; min-height: 80px; }}
-            .kop-img {{ width: 90px; height: auto; position: absolute; left: 0; top: 0; }}
-            .bast-title {{ text-align: center; font-weight: bold; font-size: 14pt; text-decoration: underline; margin-bottom: 20px; }}
-            .bast-text {{ text-align: justify; line-height: 1.3; font-size: 11pt; margin-bottom: 5px; }}
-            .bast-table {{ width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 10pt; }}
-            .bast-table th, .bast-table td {{ border: 1px solid black; padding: 4px; text-align: center; }}
-            .bast-signature-table {{ width: 100%; margin-top: 20px; text-align: center; font-size: 11pt; border: none; }}
-            .bast-signature-table td {{ padding: 5px; border: none; vertical-align: top; }}
-        </style>
-    </head>
-    <body>{content}</body>
-    </html>
+    <html><head><title>Surat BAST</title>
+    <style>
+        @page {{ size: A4; margin: 2cm; }}
+        body {{ font-family: 'Times New Roman', serif; -webkit-print-color-adjust: exact; margin: 0; padding: 20px; color: black; }}
+        .kop-surat {{ text-align: center; border-bottom: 3px double black; padding-bottom: 10px; margin-bottom: 20px; position: relative; min-height: 80px; }}
+        .kop-img {{ width: 90px; height: auto; position: absolute; left: 0; top: 0; }}
+        .bast-title {{ text-align: center; font-weight: bold; font-size: 14pt; text-decoration: underline; margin-bottom: 20px; }}
+        .bast-text {{ text-align: justify; line-height: 1.5; font-size: 12pt; margin-bottom: 5px; }}
+        .bast-table {{ width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 10pt; }}
+        .bast-table th, .bast-table td {{ border: 1px solid black; padding: 4px; text-align: center; }}
+        .bast-signature-table {{ width: 100%; margin-top: 20px; text-align: center; font-size: 12pt; border: none; }}
+        .bast-signature-table td {{ padding: 5px; border: none; vertical-align: top; }}
+    </style></head><body>{content}</body></html>
     """
 
 def local_css():
@@ -257,23 +241,19 @@ def main_app():
     if menu == "Dashboard":
         st.title("📊 Dashboard Utama")
         df_aset = load_data("Aset"); df_stok = load_data("Stok"); df_jadwal = load_data("Jadwal")
-        
         c1, c2, c3 = st.columns(3)
         with c1: dashboard_card("Total Aset", f"{len(df_aset)} Unit", "blue", "🏫")
-        
         stok_alert = 0
         if not df_stok.empty:
             saldo_df = df_stok.groupby('Nama_Barang')['Jumlah'].apply(lambda x: x[df_stok['Jenis_Transaksi'] == 'Masuk'].sum() - x[df_stok['Jenis_Transaksi'] == 'Keluar'].sum()).reset_index(name='Sisa')
             stok_alert = len(saldo_df[saldo_df['Sisa'] <= 5])
         with c2: dashboard_card("Stok Menipis", f"{stok_alert} Item", "red", "📉")
-        
         agenda = "Tidak ada"
         if not df_jadwal.empty:
             df_jadwal['Tanggal'] = pd.to_datetime(df_jadwal['Tanggal'])
             upcoming = df_jadwal[df_jadwal['Tanggal'].dt.date >= datetime.now().date()].sort_values('Tanggal')
             if not upcoming.empty: agenda = f"{upcoming.iloc[0]['Kegiatan']} ({upcoming.iloc[0]['Tanggal'].strftime('%d/%m')})"
         with c3: dashboard_card("Agenda Terdekat", agenda, "purple", "📅")
-
         st.divider()
         c_kiri, c_kanan = st.columns(2)
         with c_kiri:
@@ -317,10 +297,17 @@ def main_app():
         
         if rows:
             st.divider(); st.success(f"✅ Terpilih {len(rows)} Item")
-            tab1, tab2 = st.tabs(["🏷️ LABEL", "📄 SURAT BAST"])
             
-            # LABEL
-            with tab1:
+            # --- PENGGUNAAN RADIO SEBAGAI TAB AGAR STATE TERJAGA SAAT SUBMIT ---
+            # Jika user sudah klik "Buat Surat", kita kunci state-nya agar tidak lompat ke label lagi
+            if "active_sub_menu" not in st.session_state:
+                st.session_state["active_sub_menu"] = 0 # Default Label
+            
+            sub_menu = st.radio("Pilih Aksi:", ["🏷️ CETAK LABEL", "📄 BUAT BAST"], 
+                                index=st.session_state["active_sub_menu"], horizontal=True)
+
+            if sub_menu == "🏷️ CETAK LABEL":
+                st.session_state["active_sub_menu"] = 0
                 html_labels = "<div class='batch-container'>"
                 for i in rows:
                     r = df.iloc[i]
@@ -330,31 +317,34 @@ def main_app():
                 st.markdown(html_labels, unsafe_allow_html=True)
                 if st.button("🖨️ CETAK LABEL (POP-UP)", type="primary"): trigger_print_js(html_labels)
 
-            # BAST
-            with tab2:
+            elif sub_menu == "📄 BUAT BAST":
+                st.session_state["active_sub_menu"] = 1 # Kunci di tab BAST
+                st.subheader("Form Berita Acara")
+                
+                # FORM BAST
                 with st.form("bast"):
                     col_a, col_b = st.columns(2)
                     st.markdown("**PIHAK KESATU (Yang Menyerahkan)**")
                     # AUTO FILL WAKA
-                    p1 = col_a.text_input("Nama Waka Sarpras", DEFAULT_WAKA_NAMA)
-                    n1 = col_b.text_input("NIP Waka", DEFAULT_WAKA_NIP)
+                    p1 = col_a.text_input("Nama Waka Sarpras", DEF_WAKA_NAMA)
+                    n1 = col_b.text_input("NIP Waka", DEF_WAKA_NIP)
                     
                     st.markdown("**PIHAK KEDUA (Yang Menerima)**")
-                    p2 = col_a.text_input("Nama Penerima", "Muhammad Nur Hamid, S.Kom.")
-                    n2 = col_b.text_input("NIP Penerima", "19830216 202221 1 013")
-                    p2_jab = st.text_input("Jabatan Penerima", "Ketua Kompetensi Keahlian RPL")
+                    # KOSONGKAN DEFAULT
+                    p2 = col_a.text_input("Nama Penerima", "")
+                    n2 = col_b.text_input("NIP Penerima", "")
+                    jab2 = st.text_input("Jabatan Penerima", "")
                     
                     st.markdown("**MENGETAHUI**")
                     # AUTO FILL KEPSEK
-                    ks = col_a.text_input("Kepala Sekolah", DEFAULT_KS_NAMA)
-                    nks = col_b.text_input("NIP Kepsek", DEFAULT_KS_NIP)
-                    saksi = st.text_input("Saksi", "-")
+                    ks = col_a.text_input("Kepala Sekolah", DEF_KS_NAMA)
+                    nks = col_b.text_input("NIP Kepala Sekolah", DEF_KS_NIP)
+                    saksi = st.text_input("Saksi", "")
                     
                     tgl = st.date_input("Tanggal BAST")
                     create = st.form_submit_button("Buat Surat")
                 
                 if create:
-                    # Logic
                     hari_indo = get_hari_indo(tgl)
                     tgl_terbilang = angka_terbilang(tgl.day)
                     bln_indo = get_bulan_indo(tgl)
@@ -374,7 +364,7 @@ def main_app():
                             {img_tag}
                             <div style="margin-left: 90px; text-align: center;">
                                 <h3 style='margin:0; font-size:14pt;'>PEMERINTAH PROVINSI JAWA TIMUR<br>DINAS PENDIDIKAN<br>SMK NEGERI 6 JEMBER</h3>
-                                <p style='font-size:9pt; margin:0;'>Jalan PB. Sudirman Telp./Fax. (0336) 621533 Tanggul - Jember 68155</p>
+                                <p style='font-size:9pt; margin:0;'>Jalan PB. Sudirman Telp./Fax. (0336) 621533 Tanggul - Jember 68155<br>Website: www.smkn6jember.sch.id Email: smkn6jember@yahoo.co.id</p>
                             </div>
                         </div>
                         <div class='bast-title'>BERITA ACARA SERAH TERIMA BARANG</div>
@@ -384,20 +374,32 @@ def main_app():
                         </table>
                         <br>
                         <table style='width:100%; border:none; margin-bottom:5px; font-size:11pt;'>
-                            <tr><td style='width:100px;'>Nama</td><td>: {p2}</td></tr><tr><td>NIP</td><td>: {n2}</td></tr><tr><td>Jabatan</td><td>: {p2_jab} (PIHAK KEDUA)</td></tr>
+                            <tr><td style='width:100px;'>Nama</td><td>: {p2}</td></tr><tr><td>NIP</td><td>: {n2}</td></tr><tr><td>Jabatan</td><td>: {jab2} (PIHAK KEDUA)</td></tr>
                         </table>
                         <p class='bast-text'>PIHAK KESATU menyerahkan barang kepada PIHAK KEDUA:</p>
                         <table class='bast-table'><thead><tr><th>No</th><th>Nama Barang</th><th>Jml</th><th>Harga</th><th>Ket</th><th>Sumber</th></tr></thead><tbody>{rows_html}</tbody></table>
                         <p class='bast-text'>Barang diterima dalam keadaan baik.</p>
+                        
                         <table class='bast-signature-table'>
-                            <tr><td width='50%'>PIHAK KEDUA<br><br><br><br><b><u>{p2}</u></b><br>NIP. {n2}</td><td width='50%'>PIHAK KESATU<br><br><br><br><b><u>{p1}</u></b><br>NIP. {n1}</td></tr>
+                            <tr>
+                                <td width='50%'>PIHAK KEDUA<br><br><br><br><b><u>{p2}</u></b><br>NIP. {n2}</td>
+                                <td width='50%'>PIHAK KESATU<br>Waka Sarpras<br><br><br><br><b><u>{p1}</u></b><br>NIP. {n1}</td>
+                            </tr>
                             <tr><td colspan='2'><br>Mengetahui,</td></tr>
-                            <tr><td>Kepala Sekolah<br><br><br><br><b><u>{ks}</u></b><br>NIP. {nks}</td><td>Saksi<br><br><br><br><b><u>{saksi}</u></b></td></tr>
+                            <tr>
+                                <td style='vertical-align:top;'>Kepala SMKN 6 Jember<br><br><br><br><b><u>{ks}</u></b><br>NIP. {nks}</td>
+                                <td></td>
+                            </tr>
+                            <tr>
+                                <td></td>
+                                <td style='vertical-align:top;'>Saksi<br><br><br><br><b><u>{saksi}</u></b></td>
+                            </tr>
                         </table>
                     </div>
                     """
                     full_html_bast = wrap_bast_html(html_bast)
-                    st.success("Surat BAST Berhasil Dibuat! Silakan Download.")
+                    # PESAN SUKSES & TOMBOL DOWNLOAD
+                    st.success("✅ Surat BAST Berhasil Dibuat!")
                     st.download_button("💾 DOWNLOAD SURAT BAST (HTML)", full_html_bast, "BAST_Surat.html", "text/html", type="primary")
 
     elif menu == "Gudang (Stok)":
