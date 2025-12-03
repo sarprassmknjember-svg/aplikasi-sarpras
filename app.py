@@ -35,7 +35,6 @@ try:
     PARENT_FOLDER_ID = st.secrets["PARENT_FOLDER_ID"]
 except:
     st.error("❌ Konfigurasi Secrets Belum Lengkap!")
-    st.info("Pastikan 'GEMINI_KEY' dan 'PARENT_FOLDER_ID' sudah ada di .streamlit/secrets.toml")
     st.stop()
 
 # DEFAULT PEJABAT
@@ -360,20 +359,24 @@ def main_app():
             st.subheader("⚠️ Stok Perlu Restock")
             if stok_alert > 0: st.dataframe(df_saldo_menipis.head(5), use_container_width=True, hide_index=True)
             else: st.success("Stok Aman")
-
-   elif menu == "Input Aset":
-        if st.session_state['role'] == 'view': st.warning("View Only"); st.stop()
-        st.title("📦 Input Aset")
-        with st.form("input"):
-            c1, c2 = st.columns(2)
-            prefix = c1.text_input("Prefix", "MEJA").upper(); vol = c2.number_input("Vol", 1, 1000, 1)
-            nama = st.text_input("Nama"); merk = st.text_input("Merk")
-            c3, c4 = st.columns(2); lok = c3.text_input("Lokasi"); pj = c4.text_input("PJ")
-            thn = st.number_input("Tahun", value=2025)
-            pic = st.file_uploader("📸 Foto Aset")
             
-            if st.form_submit_button("Simpan", type="primary") and prefix and nama:
-                with st.spinner("Menyimpan..."):
+    elif menu == "Input Aset":
+            if st.session_state['role'] == 'view': st.warning("View Only"); st.stop()
+            st.title("📦 Input Aset")
+            with st.form("input"):
+                c1, c2 = st.columns(2)
+                prefix = c1.text_input("Prefix*", placeholder="MEJA").upper(); vol = c2.number_input("Vol*", 1, 1000, 1)
+                nama = st.text_input("Nama Barang*"); merk = st.text_input("Merk*")
+                c3, c4 = st.columns(2); lok = c3.text_input("Lokasi*"); pj = c4.text_input("PJ*")
+                thn = st.number_input("Tahun*", value=2025)
+                pic = st.file_uploader("📸 Foto Aset")
+            
+            if st.form_submit_button("Simpan", type="primary"):
+                # --- VALIDASI WAJIB ISI ---
+                if not prefix or not nama or not merk or not lok or not pj:
+                    st.error("⚠️ Error: Semua kolom bertanda bintang (*) WAJIB DIISI!")
+                else:
+                    with st.spinner("Menyimpan..."):
                         df = load_data("Aset")
                         base = f"{prefix}.{thn}"
                         existing = df[df['Kode_Aset'].astype(str).str.startswith(base)]
@@ -381,15 +384,14 @@ def main_app():
                         if not existing.empty:
                             try: last = existing['Kode_Aset'].str.split('.').str[-1].astype(int).max()
                             except: pass
-                        # === UPLOAD DRIVE YANG ASLI ===
-                        if pic:
-                            f_name = f"{prefix}_{thn}_{last+1}.jpg" # Nama file rapi
-                            file_link = upload_to_drive_real(pic, f_name) # Upload ke Drive
-                        else:
-                            file_link = "-"
-                        # ==============================
                         
-                        rows = [[f"{base}.{last+i:03d}", nama, merk, "Aset Tetap", pj, lok, "BOS", thn, "-", f_name] for i in range(1, vol+1)]
+                        # UPLOAD KE GOOGLE DRIVE (REAL)
+                        f_link = "-"
+                        if pic:
+                            f_name = f"{prefix}_{thn}_{last+1}.jpg"
+                            f_link = upload_to_drive_real(pic, f_name) # Fungsi baru
+
+                        rows = [[f"{base}.{last+i:03d}", nama, merk, "Aset Tetap", pj, lok, "BOS", thn, "-", f_link] for i in range(1, vol+1)]
                         if save_to_sheet("Aset", rows): st.success("Sukses!"); time.sleep(1); st.rerun()
                         
     elif menu == "Data Aset, Label & BAST":
@@ -572,5 +574,3 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
-
-
