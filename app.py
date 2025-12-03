@@ -27,11 +27,11 @@ SHEET_URL = "https://docs.google.com/spreadsheets/d/13GG3dJ41H2c_62vG0Tc1Ere8FOL
 AUTH_FILE = "service-account.json"
 LOGO_FILE = "logo_jatim.png"
 
-# --- KEAMANAN API KEY ---
+# KEAMANAN API KEY
 try:
     GEMINI_KEY = st.secrets["GEMINI_KEY"]
 except:
-    st.error("❌ API Key Gemini belum disetting di secrets.toml!")
+    st.error("❌ API Key belum disetting di secrets.toml!")
     st.stop()
 
 # DEFAULT PEJABAT
@@ -158,7 +158,7 @@ def trigger_print_js(html_content):
     <script>
         var printWindow = window.open('', '_blank');
         printWindow.document.write(`
-            <html><head><title>Cetak Label</title>
+            <html><head><title>Cetak</title>
             <style>
                 body {{ font-family: Arial, sans-serif; padding: 20px; -webkit-print-color-adjust: exact; }}
                 .batch-container {{ display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-start; }}
@@ -184,7 +184,7 @@ def wrap_bast_html(content):
         @page {{ size: A4; margin: 2cm; }}
         body {{ font-family: 'Times New Roman', serif; -webkit-print-color-adjust: exact; margin: 0; padding: 20px; color: black; }}
         .kop-surat {{ text-align: center; border-bottom: 3px double black; padding-bottom: 10px; margin-bottom: 20px; position: relative; min-height: 100px; }}
-        .kop-img {{ height: 85px; width: auto; position: absolute; left: 0; top: 5px; }}
+        .kop-img {{ width: 90px; height: auto; position: absolute; left: 0; top: 0; }}
         .bast-title {{ text-align: center; font-weight: bold; font-size: 14pt; text-decoration: underline; margin-bottom: 20px; }}
         .bast-text {{ text-align: justify; line-height: 1.5; font-size: 12pt; margin-bottom: 5px; }}
         .bast-table {{ width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 10pt; }}
@@ -234,9 +234,7 @@ def login_page():
 
 def main_app():
     local_css()
-    # INISIALISASI HISTORY CHAT (Agar tidak hilang saat pindah menu)
-    if "chat_history" not in st.session_state:
-        st.session_state["chat_history"] = []
+    if "chat_history" not in st.session_state: st.session_state["chat_history"] = []
 
     with st.sidebar:
         st.title(f"👤 {st.session_state['username'].upper()}")
@@ -254,7 +252,8 @@ def main_app():
         df_saldo_menipis = pd.DataFrame()
         if not df_stok.empty:
             saldo_df = df_stok.groupby('Nama_Barang')['Jumlah'].apply(lambda x: x[df_stok['Jenis_Transaksi'] == 'Masuk'].sum() - x[df_stok['Jenis_Transaksi'] == 'Keluar'].sum()).reset_index(name='Sisa')
-            stok_alert = len(saldo_df[saldo_df['Sisa'] <= 5])
+            df_saldo_menipis = saldo_df[saldo_df['Sisa'] <= 5].sort_values('Sisa')
+            stok_alert = len(df_saldo_menipis)
         with c2: dashboard_card("Stok Menipis", f"{stok_alert} Item", "red", "📉")
         agenda = "Tidak ada"
         if not df_jadwal.empty:
@@ -271,7 +270,7 @@ def main_app():
                 st.dataframe(df_aset[cols].tail(5), use_container_width=True, hide_index=True, column_config={"Link_Foto": st.column_config.LinkColumn("Foto", display_text="📸 Foto")})
         with c_kanan:
             st.subheader("⚠️ Stok Perlu Restock")
-            if stok_alert > 0: st.dataframe(saldo_df[saldo_df['Sisa'] <= 5].head(5), use_container_width=True, hide_index=True)
+            if stok_alert > 0: st.dataframe(df_saldo_menipis.head(5), use_container_width=True, hide_index=True)
             else: st.success("Stok Aman")
 
     elif menu == "Input Aset (Masal)":
@@ -361,14 +360,12 @@ def main_app():
                         <table style='width:100%; border:none; margin-bottom:5px; font-size:11pt;'>
                             <tr><td style='width:100px;'>Nama</td><td>: {p1}</td></tr><tr><td>NIP</td><td>: {n1}</td></tr><tr><td>Jabatan</td><td>: Waka Sarpras (PIHAK KESATU)</td></tr>
                         </table>
-                        <p class='bast-text' style='margin-left:105px;'>Dalam hal ini bertindak untuk dan atas nama jabatan, selanjutnya disebut <b>PIHAK KESATU</b></p>
                         <table style='width:100%; border:none; margin-bottom:5px; font-size:11pt;'>
                             <tr><td style='width:100px;'>Nama</td><td>: {p2}</td></tr><tr><td>NIP</td><td>: {n2}</td></tr><tr><td>Jabatan</td><td>: {jab2} (PIHAK KEDUA)</td></tr>
                         </table>
-                        <p class='bast-text' style='margin-left:105px;'>Dalam hal ini bertindak untuk dan atas nama jabatan, selanjutnya disebut <b>PIHAK KEDUA</b></p>
                         <p class='bast-text'>PIHAK KESATU menyerahkan barang kepada PIHAK KEDUA, dan PIHAK KEDUA menyatakan menerima barang dari PIHAK PERTAMA berupa daftar terlampir :</p>
                         <table class='bast-table'><thead><tr><th>No</th><th>Nama Barang</th><th>Jml</th><th>Harga</th><th>Ket</th><th>Sumber</th></tr></thead><tbody>{rows_html}</tbody></table>
-                        <p class='bast-text'>Barang diterima dalam keadaan baik. Tanggung jawab beralih ke PIHAK KEDUA.</p>
+                        <p class='bast-text'>Barang diterima dalam keadaan baik.</p>
                         <table class='bast-signature-table'>
                             <tr><td width='50%'>PIHAK KEDUA<br><br><br><br><b><u>{p2}</u></b><br>NIP. {n2}</td><td width='50%'>PIHAK KESATU<br><br><br><br><b><u>{p1}</u></b><br>NIP. {n1}</td></tr>
                             <tr><td colspan='2'><br>Mengetahui,</td></tr>
@@ -389,7 +386,7 @@ def main_app():
                     c1,c2=st.columns(2); d=c1.date_input("Tgl"); n=c2.text_input("Barang")
                     c3,c4=st.columns(2); j=c3.radio("Aksi",["Masuk","Keluar"],horizontal=True); q=c4.number_input("Jml",1)
                     c5,c6=st.columns(2); s=c5.text_input("Satuan"); k=c6.text_input("Ket")
-                    if st.form_submit_button("Simpan", type="primary"): save_to_sheet("Stok",[[str(d),n,j,q,s,k]]); st.success("OK"); st.rerun()
+                    if st.form_submit_button("Simpan"): save_to_sheet("Stok",[[str(d),n,j,q,s,k]]); st.success("OK"); st.rerun()
         df = load_data("Stok")
         if not df.empty:
             bal = df.groupby(['Nama_Barang','Satuan']).apply(lambda x: x[x['Jenis_Transaksi']=='Masuk']['Jumlah'].sum() - x[x['Jenis_Transaksi']=='Keluar']['Jumlah'].sum()).reset_index(name='Sisa')
@@ -406,82 +403,56 @@ def main_app():
                     d=st.date_input("Tgl"); nm=st.text_input("Kegiatan")
                     t=[f"{h:02}:00" for h in range(7,17)]; c1,c2=st.columns(2); m=c1.selectbox("Mulai",t); s=c2.selectbox("Selesai",t)
                     p=st.text_input("Peminjam"); k=st.text_area("Ket")
-                    if st.form_submit_button("Simpan", type="primary"): save_to_sheet("Jadwal",[[str(d),nm,m,s,p,"Booked",k]]); st.success("OK"); st.rerun()
+                    if st.form_submit_button("Simpan"): save_to_sheet("Jadwal",[[str(d),nm,m,s,p,"Booked",k]]); st.success("OK"); st.rerun()
         df = load_data("Jadwal"); 
         if not df.empty: df['Tanggal']=pd.to_datetime(df['Tanggal']); st.dataframe(df.sort_values('Tanggal', ascending=False), use_container_width=True, hide_index=True)
 
-    # ... (Kode atas tetap sama) ...
-
+    # --- MENU AI YANG BARU (CERDAS) ---
     elif menu == "Tanya AI":
-        st.title("🤖 Chat Data Sarpras")
+        st.title("🤖 Chat Data")
+        if st.button("🗑️ Hapus Chat"): st.session_state["chat_history"] = []; st.rerun()
+        for msg in st.session_state["chat_history"]: st.chat_message(msg["role"]).write(msg["content"])
         
-        # Tombol Hapus History
-        if st.button("🗑️ Hapus Riwayat Chat"):
-            st.session_state["chat_history"] = []
-            st.rerun()
+        if p := st.chat_input("Tanya..."):
+            st.chat_message("user").write(p); st.session_state["chat_history"].append({"role": "user", "content": p})
             
-        # Tampilkan History
-        for msg in st.session_state["chat_history"]:
-            st.chat_message(msg["role"]).write(msg["content"])
-
-        # Input User
-        if prompt := st.chat_input("Contoh: Berapa sisa stok kertas? / Siapa PJ Laptop Asus?"):
-            st.chat_message("user").write(prompt)
-            st.session_state["chat_history"].append({"role": "user", "content": prompt})
-            
-            # --- LOGIKA AI PINTAR (V83) ---
+            # LOAD SEMUA DATA
             df_aset = load_data("Aset")
             df_stok = load_data("Stok")
+            df_jadwal = load_data("Jadwal")
             
-            # 1. Ringkasan Jumlah (Selalu baca semua data)
-            summary_aset = ""
-            context_data = ""
+            # BUAT KONTEKS PINTAR (SEARCHING)
+            context = ""
             
+            # 1. Cek Aset
             if not df_aset.empty:
-                counts = df_aset['Nama_Barang'].value_counts().to_string()
-                summary_aset = f"RINGKASAN TOTAL UNIT ASET:\n{counts}\n"
+                # Ringkasan Total (Agar AI tau jumlah total)
+                total_aset_summary = df_aset['Nama_Barang'].value_counts().to_string()
+                context += f"RINGKASAN JUMLAH ASET:\n{total_aset_summary}\n\n"
                 
-                # 2. FILTER PINTAR: Cari data yang relevan dengan pertanyaan user
-                # Jika user tanya "Laptop", kita ambil semua baris yang mengandung kata "Laptop"
-                keyword = prompt.lower()
-                # Filter Aset
-                relevant_aset = df_aset[df_aset.apply(lambda row: row.astype(str).str.contains(keyword, case=False).any(), axis=1)]
-                
-                if not relevant_aset.empty:
-                    # Ambil maksimal 50 data yang COCOK saja (bukan 50 data teratas)
-                    context_data += f"\nDETAIL ASET YANG DITEMUKAN SESUAI KATA KUNCI '{keyword}':\n{relevant_aset.head(50).to_string()}"
-                else:
-                    # Jika tidak ada keyword spesifik, tampilkan 20 data teratas saja sebagai sampel
-                    context_data += f"\nSAMPEL DATA ASET (20 Teratas):\n{df_aset.head(20).to_string()}"
-
+                # Pencarian Detail (Filter)
+                match_aset = df_aset[df_aset.apply(lambda r: r.astype(str).str.contains(p, case=False).any(), axis=1)]
+                if not match_aset.empty:
+                    context += f"DETAIL ASET DITEMUKAN:\n{match_aset.head(30).to_string()}\n\n"
+            
+            # 2. Cek Stok
             if not df_stok.empty:
-                # Lakukan hal sama untuk stok
-                relevant_stok = df_stok[df_stok.apply(lambda row: row.astype(str).str.contains(prompt.lower(), case=False).any(), axis=1)]
-                if not relevant_stok.empty:
-                    context_data += f"\n\nRIWAYAT STOK YANG RELEVAN:\n{relevant_stok.head(30).to_string()}"
+                match_stok = df_stok[df_stok.apply(lambda r: r.astype(str).str.contains(p, case=False).any(), axis=1)]
+                if not match_stok.empty:
+                    context += f"DATA STOK GUDANG DITEMUKAN:\n{match_stok.head(30).to_string()}\n\n"
             
-            # 3. KIRIM KE AI
-            full_prompt = f"""
-            Anda adalah asisten Sarpras Sekolah.
-            
-            DATA RINGKASAN (JUMLAH UNIT):
-            {summary_aset}
-            
-            DATA DETAIL (HASIL PENCARIAN):
-            {context_data}
-            
-            PERTANYAAN USER: {prompt}
-            
-            Tugas Anda: Jawab pertanyaan berdasarkan data di atas dengan bahasa Indonesia yang sopan dan ringkas.
-            Jika data detail tidak ditemukan di hasil pencarian, gunakan data ringkasan.
-            """
-            
-            res = ask_gemini(full_prompt)
-            
-            st.chat_message("ai").write(res)
-            st.session_state["chat_history"].append({"role": "ai", "content": res})
+            # 3. Cek Jadwal
+            if not df_jadwal.empty:
+                match_jadwal = df_jadwal[df_jadwal.apply(lambda r: r.astype(str).str.contains(p, case=False).any(), axis=1)]
+                # Tambahkan juga jadwal masa depan sebagai konteks umum
+                future_jadwal = df_jadwal[pd.to_datetime(df_jadwal['Tanggal']) >= datetime.now()].head(5)
+                context += f"JADWAL TERKAIT:\n{match_jadwal.to_string()}\n\nJADWAL MENDATANG:\n{future_jadwal.to_string()}"
+
+            # KIRIM PROMPT
+            final_prompt = f"Anda adalah asisten data sekolah. Jawab pertanyaan user berdasarkan data berikut:\n\n{context}\n\nUser: {p}\nJawab dengan bahasa Indonesia yang jelas."
+            res = ask_gemini(final_prompt)
+            st.chat_message("ai").write(res); st.session_state["chat_history"].append({"role": "ai", "content": res})
 
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
-
