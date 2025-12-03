@@ -31,10 +31,11 @@ LOGO_FILE = "logo_jatim.png"
 
 # KEAMANAN API KEY
 try:
+    # Asumsi Anda menggunakan st.secrets untuk konfigurasi
     GEMINI_KEY = st.secrets["GEMINI_KEY"]
     PARENT_FOLDER_ID = st.secrets["PARENT_FOLDER_ID"]
 except:
-    st.error("❌ Konfigurasi Secrets Belum Lengkap!")
+    st.error("❌ Konfigurasi Secrets Belum Lengkap! Pastikan GEMINI_KEY dan PARENT_FOLDER_ID ada di secrets.")
     st.stop()
 
 # DEFAULT PEJABAT
@@ -79,7 +80,7 @@ def connect_google_sheet():
 def upload_to_drive_real(uploaded_file, filename):
     try:
         creds = get_gcp_creds()
-        # Membangun service Drive API (setara dengan library googledrive di R)
+        # Membangun service Drive API
         service = build('drive', 'v3', credentials=creds)
         
         file_metadata = {
@@ -88,10 +89,11 @@ def upload_to_drive_real(uploaded_file, filename):
         }
         
         # Konversi file buffer
+        # PENTING: uploaded_file.getvalue() untuk mendapatkan byte data
         fh = io.BytesIO(uploaded_file.getvalue())
-        media = MediaIoBaseUpload(fh, mimetype=uploaded_file.type)
+        media = MediaIoBaseUpload(fh, mimetype=uploaded_file.type, resumable=True)
         
-        # 1. UPLOAD FILE (drive_upload)
+        # 1. UPLOAD FILE
         file = service.files().create(
             body=file_metadata,
             media_body=media,
@@ -100,15 +102,14 @@ def upload_to_drive_real(uploaded_file, filename):
         
         file_id = file.get('id')
         
-        # 2. SHARE FILE PUBLIC (drive_share type="anyone")
-        # Agar bisa dilihat tanpa login (seperti di R)
+        # 2. SHARE FILE PUBLIC
         service.permissions().create(
             fileId=file_id,
             body={'type': 'anyone', 'role': 'reader'}
         ).execute()
         
         # 3. GENERATE DIRECT LINK
-        # Link ini yang digunakan untuk menampilkan gambar
+        # Link ini yang digunakan untuk menampilkan gambar di Streamlit/HTML
         return f"https://drive.google.com/uc?export=view&id={file_id}"
         
     except Exception as e:
@@ -141,7 +142,6 @@ def save_to_sheet(sheet_name, new_row_list):
 
 def generate_qr_base64(text):
     if text is None or str(text).strip() == "": return ""
-    # Gunakan library qrcode Python (lebih stabil untuk data banyak)
     qr = qrcode.QRCode(version=1, box_size=10, border=1)
     qr.add_data(text)
     qr.make(fit=True)
@@ -151,10 +151,7 @@ def generate_qr_base64(text):
     img_str = base64.b64encode(buffer.getvalue()).decode()
     return f"data:image/png;base64,{img_str}"
 
-def handle_image_upload(uploaded_file):
-    if uploaded_file is not None:
-        return f"FOTO_{int(time.time())}.jpg" 
-    return "-"
+# FUNGSI handle_image_upload DIHAPUS karena logikanya dipindahkan langsung ke main_app
 
 def ask_gemini(prompt):
     genai.configure(api_key=GEMINI_KEY)
@@ -385,12 +382,15 @@ def main_app():
                             try: last = existing['Kode_Aset'].str.split('.').str[-1].astype(int).max()
                             except: pass
                         
+                        # --- LOGIKA PERBAIKAN UPLOAD FOTO KE DRIVE ---
+                        f_link = "-"
                         if pic:
-                            f_name = f"{prefix}_{thn}_{last+1}.jpg"
+                            # Tentukan nama file unik
+                            f_name = f"{prefix}_{thn}_{last+1}_{int(time.time())}.jpg"
+                            # Lakukan proses upload ke Drive
                             f_link = upload_to_drive_real(pic, f_name)
-                        else:
-                            f_link = "-"
 
+                        # Buat baris data untuk Google Sheet
                         rows = [[f"{base}.{last+i:03d}", nama, merk, "Aset Tetap", pj, lok, "BOS", thn, "-", f_link] for i in range(1, vol+1)]
                         if save_to_sheet("Aset", rows): st.success("Sukses!"); time.sleep(1); st.rerun()
                         
@@ -488,7 +488,7 @@ Foto: {r.get('Link_Foto','-')}"""
                             <tr><td style='width:100px;'>Nama</td><td>: {p2}</td></tr><tr><td>NIP</td><td>: {n2}</td></tr><tr><td>Jabatan</td><td>: {jab2} (PIHAK KEDUA)</td></tr>
                         </table>
                         <p class='bast-text'>PIHAK KESATU menyerahkan barang kepada PIHAK KEDUA, dan PIHAK KEDUA menyatakan menerima barang dari PIHAK PERTAMA berupa daftar terlampir :</p>
-                        <table class='bast-table'><thead><tr><th>No</th><th>Nama Barang</th><th>Jml</th><th>Harga</th><th>Ket</th><th>Sumber</th></tr></thead><tbody>{rows_html}</tbody></table>
+                        <table class='bast-table'><thead><tr><th>No</th><th>Nama Barang</th><th>Jml</th><th><th>Harga</th><th>Ket</th><th>Sumber</th></tr></thead><tbody>{rows_html}</tbody></table>
                         <p class='bast-text'>Berdasarkan Berita Acara Serah Terima Barang Inventaris gudang SMKN 6 Jember dari PIHAK PERTAMA kepada PIHAK KEDUA, adapun barang-barang tersebut dalam keadaan baik dan cukup,
 Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung jawab PIHAK KEDUA.</p>
                         <table class='bast-signature-table'>
@@ -574,7 +574,3 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
-
-
-
-
