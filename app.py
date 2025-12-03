@@ -361,17 +361,18 @@ def main_app():
             else: st.success("Stok Aman")
             
     elif menu == "Input Aset":
-            if st.session_state['role'] == 'view': st.warning("View Only"); st.stop()
-            st.title("📦 Input Aset")
-            with st.form("input"):
-                c1, c2 = st.columns(2)
-                prefix = c1.text_input("Prefix*", placeholder="MEJA").upper(); vol = c2.number_input("Vol*", 1, 1000, 1)
-                nama = st.text_input("Nama Barang*"); merk = st.text_input("Merk*")
-                c3, c4 = st.columns(2); lok = c3.text_input("Lokasi*"); pj = c4.text_input("PJ*")
-                thn = st.number_input("Tahun*", value=2025)
-                pic = st.file_uploader("📸 Foto Aset")
-                if st.form_submit_button("Simpan", type="primary"):
-                # --- VALIDASI WAJIB ISI ---
+        if st.session_state['role'] == 'view': st.warning("View Only"); st.stop()
+        st.title("📦 Input Aset Massal")
+        with st.form("input"):
+            c1, c2 = st.columns(2)
+            prefix = c1.text_input("Prefix*", placeholder="MEJA").upper(); vol = c2.number_input("Vol*", 1, 1000, 1)
+            nama = st.text_input("Nama Barang*"); merk = st.text_input("Merk*")
+            c3, c4 = st.columns(2); lok = c3.text_input("Lokasi*"); pj = c4.text_input("PJ*")
+            thn = st.number_input("Tahun*", value=2025)
+            pic = st.file_uploader("📸 Foto Aset")
+            
+            if st.form_submit_button("Simpan", type="primary"):
+                # --- VALIDASI INPUT WAJIB ---
                 if not prefix or not nama or not merk or not lok or not pj:
                     st.error("⚠️ Error: Semua kolom bertanda bintang (*) WAJIB DIISI!")
                 else:
@@ -384,11 +385,11 @@ def main_app():
                             try: last = existing['Kode_Aset'].str.split('.').str[-1].astype(int).max()
                             except: pass
                         
-                        # UPLOAD KE GOOGLE DRIVE (REAL)
-                        f_link = "-"
                         if pic:
-                            f_name = f"{base}.{last+1:03d}.jpg"
-                            f_link = upload_to_drive_real(pic, f_name) # Fungsi baru
+                            f_name = f"{prefix}_{thn}_{last+1}.jpg"
+                            f_link = upload_to_drive(pic, f_name)
+                        else:
+                            f_link = "-"
 
                         rows = [[f"{base}.{last+i:03d}", nama, merk, "Aset Tetap", pj, lok, "BOS", thn, "-", f_link] for i in range(1, vol+1)]
                         if save_to_sheet("Aset", rows): st.success("Sukses!"); time.sleep(1); st.rerun()
@@ -573,5 +574,6 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
