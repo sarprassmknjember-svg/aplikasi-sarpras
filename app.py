@@ -11,6 +11,8 @@ import google.generativeai as genai
 import time
 import os
 import streamlit.components.v1 as components 
+from googleapiclient.discovery import build 
+from googleapiclient.http import MediaIoBaseUpload
 
 # ===========================
 # 1. KONFIGURASI
@@ -30,8 +32,10 @@ LOGO_FILE = "logo_jatim.png"
 # KEAMANAN API KEY
 try:
     GEMINI_KEY = st.secrets["GEMINI_KEY"]
+    PARENT_FOLDER_ID = st.secrets["PARENT_FOLDER_ID"]
 except:
-    st.error("❌ API Key belum disetting di secrets.toml!")
+    st.error("❌ Konfigurasi Secrets Belum Lengkap!")
+    st.info("Pastikan 'GEMINI_KEY' dan 'PARENT_FOLDER_ID' sudah ada di .streamlit/secrets.toml")
     st.stop()
 
 # DEFAULT PEJABAT
@@ -51,8 +55,11 @@ except:
 # ===========================
 
 @st.cache_resource
-def connect_google_sheet():
-    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+def get_gcp_creds():
+    scope = [
+        "https://spreadsheets.google.com/feeds",
+        "https://www.googleapis.com/auth/drive"
+    ]
     if "gcp_service_account" in st.secrets:
         creds = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["gcp_service_account"], scope)
     else:
@@ -61,9 +68,39 @@ def connect_google_sheet():
         except:
             st.error("File JSON tidak ditemukan.")
             st.stop()
+    return creds
+
+def connect_google_sheet():
+    creds = get_gcp_creds()
     client = gspread.authorize(creds)
     sheet = client.open_by_url(SHEET_URL)
     return sheet
+
+# --- FUNGSI UPLOAD KE GOOGLE DRIVE ---
+def upload_to_drive(uploaded_file, filename):
+    try:
+        creds = get_gcp_creds()
+        service = build('drive', 'v3', credentials=creds)
+        
+        file_metadata = {
+            'name': filename,
+            'parents': [PARENT_FOLDER_ID] # Mengambil dari Secrets
+        }
+        
+        fh = io.BytesIO(uploaded_file.getvalue())
+        media = MediaIoBaseUpload(fh, mimetype=uploaded_file.type)
+        
+        file = service.files().create(
+            body=file_metadata,
+            media_body=media,
+            fields='id, webViewLink'
+        ).execute()
+        
+        return file.get('webViewLink')
+        
+    except Exception as e:
+        st.error(f"Gagal Upload Drive: {e}")
+        return "-"
 
 @st.cache_data(ttl=10)
 def load_data(sheet_name):
@@ -321,14 +358,8 @@ def main_app():
             thn = st.number_input("Tahun", value=2025)
             pic = st.file_uploader("📸 Foto Aset")
             
-            submitted = st.form_submit_button("Simpan", type="primary")
-            
-            if submitted:
-                # VALIDASI INPUT WAJIB
-                if not prefix or not nama or not merk or not lok or not pj:
-                    st.error("⚠️ Semua data wajib diisi (kecuali Foto)!")
-                else:
-                    with st.spinner("Menyimpan..."):
+            if st.form_submit_button("Simpan", type="primary") and prefix and nama:
+                with st.spinner("Menyimpan..."):
                         df = load_data("Aset")
                         base = f"{prefix}.{thn}"
                         existing = df[df['Kode_Aset'].astype(str).str.startswith(base)]
@@ -336,7 +367,14 @@ def main_app():
                         if not existing.empty:
                             try: last = existing['Kode_Aset'].str.split('.').str[-1].astype(int).max()
                             except: pass
-                        f_name = handle_image_upload(pic)
+                        # === UPLOAD DRIVE YANG ASLI ===
+                        if pic:
+                            f_name = f"{prefix}_{thn}_{last+1}.jpg" # Nama file rapi
+                            file_link = upload_to_drive(pic, f_name) # Upload ke Drive
+                        else:
+                            file_link = "-"
+                        # ==============================
+                        
                         rows = [[f"{base}.{last+i:03d}", nama, merk, "Aset Tetap", pj, lok, "BOS", thn, "-", f_name] for i in range(1, vol+1)]
                         if save_to_sheet("Aset", rows): st.success("Sukses!"); time.sleep(1); st.rerun()
                         
@@ -520,4 +558,5 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
