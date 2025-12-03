@@ -25,16 +25,14 @@ CREDENTIALS = {
 
 SHEET_URL = "https://docs.google.com/spreadsheets/d/13GG3dJ41H2c_62vG0Tc1Ere8FOLScZSdRcgfaVNxVxo/edit?usp=sharing"
 AUTH_FILE = "service-account.json"
-LOGO_FILE = "logo_jatim.png" # Pastikan file bernama ini ada di folder D:/sarpras_python/
+LOGO_FILE = "logo_jatim.png"
 
-# --- [KEAMANAN BARU] MEMBACA DARI SECRETS ---
+# --- KEAMANAN API KEY ---
 try:
     GEMINI_KEY = st.secrets["GEMINI_KEY"]
 except:
-    st.error("❌ ERROR KEAMANAN: File '.streamlit/secrets.toml' belum dibuat atau API Key belum diisi.")
-    st.info("Buat folder .streamlit > file secrets.toml > isi: GEMINI_KEY = 'AIza...'")
+    st.error("❌ API Key Gemini belum disetting di secrets.toml!")
     st.stop()
-# --------------------------------------------
 
 # DEFAULT PEJABAT
 DEF_WAKA_NAMA = "Ahmad Syaiful Rizal, S.Pd., M.Stat."
@@ -127,15 +125,11 @@ def angka_terbilang(n):
     return str(n)
 
 def get_img_as_base64(file_path):
-    # Cek apakah file ada
-    if not os.path.exists(file_path):
-        return ""
+    if not os.path.exists(file_path): return ""
     try:
-        with open(file_path, "rb") as f:
-            data = f.read()
+        with open(file_path, "rb") as f: data = f.read()
         return base64.b64encode(data).decode()
-    except:
-        return ""
+    except: return ""
 
 def dashboard_card(title, value, color, icon):
     colors = {
@@ -190,7 +184,7 @@ def wrap_bast_html(content):
         @page {{ size: A4; margin: 2cm; }}
         body {{ font-family: 'Times New Roman', serif; -webkit-print-color-adjust: exact; margin: 0; padding: 20px; color: black; }}
         .kop-surat {{ text-align: center; border-bottom: 3px double black; padding-bottom: 10px; margin-bottom: 20px; position: relative; min-height: 100px; }}
-        .kop-img {{ width: 90px; height: auto; position: absolute; left: 0; top: 0; }}
+        .kop-img {{ height: 85px; width: auto; position: absolute; left: 0; top: 5px; }}
         .bast-title {{ text-align: center; font-weight: bold; font-size: 14pt; text-decoration: underline; margin-bottom: 20px; }}
         .bast-text {{ text-align: justify; line-height: 1.5; font-size: 12pt; margin-bottom: 5px; }}
         .bast-table {{ width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 10pt; }}
@@ -240,6 +234,10 @@ def login_page():
 
 def main_app():
     local_css()
+    # INISIALISASI HISTORY CHAT (Agar tidak hilang saat pindah menu)
+    if "chat_history" not in st.session_state:
+        st.session_state["chat_history"] = []
+
     with st.sidebar:
         st.title(f"👤 {st.session_state['username'].upper()}")
         menu = st.radio("Menu", ["Dashboard", "Input Aset (Masal)", "Data Aset, Label & BAST", "Gudang (Stok)", "Jadwal Aula", "Tanya AI"])
@@ -256,9 +254,7 @@ def main_app():
         df_saldo_menipis = pd.DataFrame()
         if not df_stok.empty:
             saldo_df = df_stok.groupby('Nama_Barang')['Jumlah'].apply(lambda x: x[df_stok['Jenis_Transaksi'] == 'Masuk'].sum() - x[df_stok['Jenis_Transaksi'] == 'Keluar'].sum()).reset_index(name='Sisa')
-            # SOLUSI WARNA: Kita filter dulu yang <= 5, nanti ditampilkan di tabel bawah
-            df_saldo_menipis = saldo_df[saldo_df['Sisa'] <= 5].sort_values('Sisa')
-            stok_alert = len(df_saldo_menipis)
+            stok_alert = len(saldo_df[saldo_df['Sisa'] <= 5])
         with c2: dashboard_card("Stok Menipis", f"{stok_alert} Item", "red", "📉")
         agenda = "Tidak ada"
         if not df_jadwal.empty:
@@ -275,11 +271,8 @@ def main_app():
                 st.dataframe(df_aset[cols].tail(5), use_container_width=True, hide_index=True, column_config={"Link_Foto": st.column_config.LinkColumn("Foto", display_text="📸 Foto")})
         with c_kanan:
             st.subheader("⚠️ Stok Perlu Restock")
-            if stok_alert > 0: 
-                # TAMPILAN PERBAIKAN STOK
-                st.dataframe(df_saldo_menipis.head(5), use_container_width=True, hide_index=True)
-            else:
-                st.success("Stok Aman")
+            if stok_alert > 0: st.dataframe(saldo_df[saldo_df['Sisa'] <= 5].head(5), use_container_width=True, hide_index=True)
+            else: st.success("Stok Aman")
 
     elif menu == "Input Aset (Masal)":
         if st.session_state['role'] == 'view': st.warning("View Only"); st.stop()
@@ -313,10 +306,7 @@ def main_app():
         
         if rows:
             st.divider(); st.success(f"✅ Terpilih {len(rows)} Item")
-            
-            # SESSION STATE UNTUK TAB
             if "bast_sub_menu" not in st.session_state: st.session_state["bast_sub_menu"] = "🏷️ LABEL"
-            
             sub_menu = st.radio("Pilih Mode:", ["🏷️ LABEL", "📄 BUAT SURAT BAST"], horizontal=True)
 
             if sub_menu == "🏷️ LABEL":
@@ -334,43 +324,29 @@ def main_app():
                 with st.form("bast"):
                     col_a, col_b = st.columns(2)
                     st.markdown("**PIHAK KESATU (Yang Menyerahkan)**")
-                    # AUTO FILL WAKA
                     p1 = col_a.text_input("Nama Waka Sarpras", DEF_WAKA_NAMA)
                     n1 = col_b.text_input("NIP Waka", DEF_WAKA_NIP)
-                    
                     st.markdown("**PIHAK KEDUA (Yang Menerima)**")
-                    # KOSONG
                     p2 = col_a.text_input("Nama Penerima", "")
                     n2 = col_b.text_input("NIP Penerima", "")
                     jab2 = st.text_input("Jabatan Penerima", "")
-                    
                     st.markdown("**MENGETAHUI**")
-                    # AUTO FILL KEPSEK
                     ks = col_a.text_input("Kepala Sekolah", DEF_KS_NAMA)
                     nks = col_b.text_input("NIP Kepsek", DEF_KS_NIP)
                     saksi = st.text_input("Saksi", "")
-                    
                     tgl = st.date_input("Tanggal BAST")
                     create = st.form_submit_button("GENERATE & DOWNLOAD")
                 
                 if create:
-                    hari_indo = get_hari_indo(tgl)
-                    tgl_terbilang = angka_terbilang(tgl.day)
-                    bln_indo = get_bulan_indo(tgl)
-                    thn_terbilang = angka_terbilang(tgl.year)
-                    
-                    # LOGO DETECTION (Penting!)
+                    hari_indo = get_hari_indo(tgl); tgl_terbilang = angka_terbilang(tgl.day)
+                    bln_indo = get_bulan_indo(tgl); thn_terbilang = angka_terbilang(tgl.year)
                     logo = get_img_as_base64(LOGO_FILE)
                     img_tag = f'<img src="data:image/png;base64,{logo}" class="kop-img">' if logo else ""
-                    if not logo: st.warning("Logo tidak ditemukan. Pastikan file 'logo.png' ada di folder.")
-
                     rows_html = ""
-                    # PENOMORAN TABEL DIMULAI DARI 1
                     no = 1
                     for idx, row in df.iloc[rows].iterrows():
                         rows_html += f"<tr><td>{no}</td><td>{row['Nama_Barang']}</td><td>1</td><td>-</td><td>{row.get('Keterangan','-')}</td><td>{row['Sumber_Dana']}</td></tr>"
                         no += 1
-                    
                     html_bast = f"""
                     <div class='bast-page'>
                         <div class='kop-surat'>
@@ -383,27 +359,21 @@ def main_app():
                         <div class='bast-title'>BERITA ACARA SERAH TERIMA BARANG</div>
                         <p class='bast-text'>Pada hari ini, <b>{hari_indo}</b> tanggal <b>{tgl_terbilang}</b> Bulan <b>{bln_indo}</b> Tahun <b>{thn_terbilang}</b>, yang bertandatangan di bawah ini:</p>
                         <table style='width:100%; border:none; margin-bottom:5px; font-size:11pt;'>
-                            <tr><td style='width:100px;'>Nama</td><td>: {p1}</td></tr><tr><td>NIP</td><td>: {n1}</td></tr><tr><td>Jabatan</td><td>: Waka Sarpras</td></tr>
+                            <tr><td style='width:100px;'>Nama</td><td>: {p1}</td></tr><tr><td>NIP</td><td>: {n1}</td></tr><tr><td>Jabatan</td><td>: Waka Sarpras (PIHAK KESATU)</td></tr>
                         </table>
                         <p class='bast-text' style='margin-left:105px;'>Dalam hal ini bertindak untuk dan atas nama jabatan, selanjutnya disebut <b>PIHAK KESATU</b></p>
                         <table style='width:100%; border:none; margin-bottom:5px; font-size:11pt;'>
-                            <tr><td style='width:100px;'>Nama</td><td>: {p2}</td></tr><tr><td>NIP</td><td>: {n2}</td></tr><tr><td>Jabatan</td><td>: {jab2}</td></tr>
+                            <tr><td style='width:100px;'>Nama</td><td>: {p2}</td></tr><tr><td>NIP</td><td>: {n2}</td></tr><tr><td>Jabatan</td><td>: {jab2} (PIHAK KEDUA)</td></tr>
                         </table>
                         <p class='bast-text' style='margin-left:105px;'>Dalam hal ini bertindak untuk dan atas nama jabatan, selanjutnya disebut <b>PIHAK KEDUA</b></p>
                         <p class='bast-text'>PIHAK KESATU menyerahkan barang kepada PIHAK KEDUA, dan PIHAK KEDUA menyatakan menerima barang dari PIHAK PERTAMA berupa daftar terlampir :</p>
                         <table class='bast-table'><thead><tr><th>No</th><th>Nama Barang</th><th>Jml</th><th>Harga</th><th>Ket</th><th>Sumber</th></tr></thead><tbody>{rows_html}</tbody></table>
                         <p class='bast-text'>Barang diterima dalam keadaan baik. Tanggung jawab beralih ke PIHAK KEDUA.</p>
-                        
                         <table class='bast-signature-table'>
-                            <tr>
-                                <td width='50%'>PIHAK KEDUA<br><br><br><br><b><u>{p2}</u></b><br>NIP. {n2}</td>
-                                <td width='50%'>PIHAK KESATU<br>Waka Sarpras<br><br><br><br><b><u>{p1}</u></b><br>NIP. {n1}</td>
-                            </tr>
+                            <tr><td width='50%'>PIHAK KEDUA<br><br><br><br><b><u>{p2}</u></b><br>NIP. {n2}</td><td width='50%'>PIHAK KESATU<br><br><br><br><b><u>{p1}</u></b><br>NIP. {n1}</td></tr>
                             <tr><td colspan='2'><br>Mengetahui,</td></tr>
-                            <tr>
-                                <td style='text-align:center;'>Kepala SMKN 6 Jember<br><br><br><br><b><u>{ks}</u></b><br>NIP. {nks}</td>
-                                <td style='text-align:center;'>Saksi<br><br><br><br><b><u>{saksi}</u></b></td>
-                            </tr>
+                            <tr><td colspan='2' style='text-align:center;'>Kepala SMKN 6 Jember<br><br><br><br><b><u>{ks}</u></b><br>NIP. {nks}</td></tr>
+                            <tr><td></td><td style='text-align:center;'><br>Saksi<br><br><br><br><b><u>{saksi}</u></b></td></tr>
                         </table>
                     </div>
                     """
@@ -419,15 +389,13 @@ def main_app():
                     c1,c2=st.columns(2); d=c1.date_input("Tgl"); n=c2.text_input("Barang")
                     c3,c4=st.columns(2); j=c3.radio("Aksi",["Masuk","Keluar"],horizontal=True); q=c4.number_input("Jml",1)
                     c5,c6=st.columns(2); s=c5.text_input("Satuan"); k=c6.text_input("Ket")
-                    if st.form_submit_button("Simpan"): save_to_sheet("Stok",[[str(d),n,j,q,s,k]]); st.success("OK"); st.rerun()
+                    if st.form_submit_button("Simpan", type="primary"): save_to_sheet("Stok",[[str(d),n,j,q,s,k]]); st.success("OK"); st.rerun()
         df = load_data("Stok")
         if not df.empty:
             bal = df.groupby(['Nama_Barang','Satuan']).apply(lambda x: x[x['Jenis_Transaksi']=='Masuk']['Jumlah'].sum() - x[x['Jenis_Transaksi']=='Keluar']['Jumlah'].sum()).reset_index(name='Sisa')
-            # SOLUSI WARNA BARU (Pake Kolom Indikator)
             bal['Status'] = bal['Sisa'].apply(lambda x: '🔴 Kritis' if x <= 5 else '🟢 Aman')
-            
             st.subheader("Stok")
-            st.dataframe(bal, use_container_width=True, hide_index=True) # Hide index biar rapi
+            st.dataframe(bal, use_container_width=True, hide_index=True) 
             st.divider(); st.subheader("Riwayat"); st.dataframe(df, use_container_width=True, hide_index=True)
 
     elif menu == "Jadwal Aula":
@@ -438,13 +406,38 @@ def main_app():
                     d=st.date_input("Tgl"); nm=st.text_input("Kegiatan")
                     t=[f"{h:02}:00" for h in range(7,17)]; c1,c2=st.columns(2); m=c1.selectbox("Mulai",t); s=c2.selectbox("Selesai",t)
                     p=st.text_input("Peminjam"); k=st.text_area("Ket")
-                    if st.form_submit_button("Simpan"): save_to_sheet("Jadwal",[[str(d),nm,m,s,p,"Booked",k]]); st.success("OK"); st.rerun()
+                    if st.form_submit_button("Simpan", type="primary"): save_to_sheet("Jadwal",[[str(d),nm,m,s,p,"Booked",k]]); st.success("OK"); st.rerun()
         df = load_data("Jadwal"); 
         if not df.empty: df['Tanggal']=pd.to_datetime(df['Tanggal']); st.dataframe(df.sort_values('Tanggal', ascending=False), use_container_width=True, hide_index=True)
 
     elif menu == "Tanya AI":
-        st.title("🤖 Chat"); p = st.chat_input("Tanya...")
-        if p: st.chat_message("user").write(p); res = ask_gemini(f"Data:\n{load_data('Aset').head(20).to_string()}\nUser: {p}"); st.chat_message("ai").write(res)
+        st.title("🤖 Chat Data")
+        if st.button("🗑️ Hapus Riwayat Chat"):
+            st.session_state["chat_history"] = []
+            st.rerun()
+            
+        # Tampilkan History
+        for msg in st.session_state["chat_history"]:
+            st.chat_message(msg["role"]).write(msg["content"])
+
+        if prompt := st.chat_input("Tanya stok/aset..."):
+            st.chat_message("user").write(prompt)
+            st.session_state["chat_history"].append({"role": "user", "content": prompt})
+            
+            # 1. BUAT RINGKASAN DATA AGAR AI PINTAR
+            df_aset = load_data("Aset")
+            summary_aset = ""
+            if not df_aset.empty:
+                # Hitung jumlah per barang
+                counts = df_aset['Nama_Barang'].value_counts().to_string()
+                summary_aset = f"RINGKASAN JUMLAH ASET:\n{counts}\n\nDETAIL DATA (50 BARIS PERTAMA):\n{df_aset.head(50).to_string()}"
+            
+            # 2. KIRIM KE AI
+            full_prompt = f"Anda adalah asisten Sarpras Sekolah. Jawablah berdasarkan data ini:\n\n{summary_aset}\n\nUser bertanya: {prompt}\nJawab ringkas bahasa Indonesia."
+            res = ask_gemini(full_prompt)
+            
+            st.chat_message("ai").write(res)
+            st.session_state["chat_history"].append({"role": "ai", "content": res})
 
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
