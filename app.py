@@ -77,29 +77,43 @@ def connect_google_sheet():
     return sheet
 
 # --- FUNGSI UPLOAD KE GOOGLE DRIVE ---
-def upload_to_drive(uploaded_file, filename):
+def upload_to_drive_real(uploaded_file, filename):
     try:
         creds = get_gcp_creds()
+        # Membangun service Drive API (setara dengan library googledrive di R)
         service = build('drive', 'v3', credentials=creds)
         
         file_metadata = {
             'name': filename,
-            'parents': [PARENT_FOLDER_ID] # Mengambil dari Secrets
+            'parents': [PARENT_FOLDER_ID] # Upload ke Folder ID Spesifik
         }
         
+        # Konversi file buffer
         fh = io.BytesIO(uploaded_file.getvalue())
         media = MediaIoBaseUpload(fh, mimetype=uploaded_file.type)
         
+        # 1. UPLOAD FILE (drive_upload)
         file = service.files().create(
             body=file_metadata,
             media_body=media,
-            fields='id, webViewLink'
+            fields='id'
         ).execute()
         
-        return file.get('webViewLink')
+        file_id = file.get('id')
+        
+        # 2. SHARE FILE PUBLIC (drive_share type="anyone")
+        # Agar bisa dilihat tanpa login (seperti di R)
+        service.permissions().create(
+            fileId=file_id,
+            body={'type': 'anyone', 'role': 'reader'}
+        ).execute()
+        
+        # 3. GENERATE DIRECT LINK
+        # Link ini yang digunakan untuk menampilkan gambar
+        return f"https://drive.google.com/uc?export=view&id={file_id}"
         
     except Exception as e:
-        st.error(f"Gagal Upload Drive: {e}")
+        st.error(f"Gagal Upload ke Drive: {e}")
         return "-"
 
 @st.cache_data(ttl=10)
@@ -562,6 +576,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
 
