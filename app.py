@@ -275,7 +275,7 @@ def main_app():
 
     with st.sidebar:
         st.title(f"👤 {st.session_state['username'].upper()}")
-        menu = st.radio("Menu", ["Dashboard", "Input Aset (Masal)", "Data Aset, Label & BAST", "Gudang (Stok)", "Jadwal Aula", "Tanya AI"])
+        menu = st.radio("Menu", ["Dashboard", "Input Aset", "Data Aset, Label & BAST", "Gudang (Stok)", "Jadwal Aula", "Tanya AI"])
         if st.button("Logout", use_container_width=True):
             st.session_state['logged_in'] = False
             st.rerun()
@@ -310,9 +310,9 @@ def main_app():
             if stok_alert > 0: st.dataframe(df_saldo_menipis.head(5), use_container_width=True, hide_index=True)
             else: st.success("Stok Aman")
 
-    elif menu == "Input Aset (Masal)":
+    elif menu == "Input Aset":
         if st.session_state['role'] == 'view': st.warning("View Only"); st.stop()
-        st.title("📦 Input Aset Massal")
+        st.title("📦 Input Aset")
         with st.form("input"):
             c1, c2 = st.columns(2)
             prefix = c1.text_input("Prefix", "MEJA").upper(); vol = c2.number_input("Vol", 1, 1000, 1)
@@ -320,19 +320,26 @@ def main_app():
             c3, c4 = st.columns(2); lok = c3.text_input("Lokasi"); pj = c4.text_input("PJ")
             thn = st.number_input("Tahun", value=2025)
             pic = st.file_uploader("📸 Foto Aset")
-            if st.form_submit_button("Simpan", type="primary") and prefix and nama:
-                with st.spinner("Menyimpan..."):
-                    df = load_data("Aset")
-                    base = f"{prefix}.{thn}"
-                    existing = df[df['Kode_Aset'].astype(str).str.startswith(base)]
-                    last = 0
-                    if not existing.empty:
-                        try: last = existing['Kode_Aset'].str.split('.').str[-1].astype(int).max()
-                        except: pass
-                    f_name = handle_image_upload(pic)
-                    rows = [[f"{base}.{last+i:03d}", nama, merk, "Aset Tetap", pj, lok, "BOS", thn, "-", f_name] for i in range(1, vol+1)]
-                    if save_to_sheet("Aset", rows): st.success("Sukses!"); time.sleep(1); st.rerun()
-
+            
+            submitted = st.form_submit_button("Simpan", type="primary")
+            
+            if submitted:
+                # VALIDASI INPUT WAJIB
+                if not prefix or not nama or not merk or not lok or not pj:
+                    st.error("⚠️ Semua data wajib diisi (kecuali Foto)!")
+                else:
+                    with st.spinner("Menyimpan..."):
+                        df = load_data("Aset")
+                        base = f"{prefix}.{thn}"
+                        existing = df[df['Kode_Aset'].astype(str).str.startswith(base)]
+                        last = 0
+                        if not existing.empty:
+                            try: last = existing['Kode_Aset'].str.split('.').str[-1].astype(int).max()
+                            except: pass
+                        f_name = handle_image_upload(pic)
+                        rows = [[f"{base}.{last+i:03d}", nama, merk, "Aset Tetap", pj, lok, "BOS", thn, "-", f_name] for i in range(1, vol+1)]
+                        if save_to_sheet("Aset", rows): st.success("Sukses!"); time.sleep(1); st.rerun()
+                        
     elif menu == "Data Aset, Label & BAST":
         st.title("🖨️ Data Aset, Label & BAST")
         df = load_data("Aset")
@@ -513,3 +520,4 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
