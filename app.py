@@ -388,7 +388,7 @@ def main_app():
                         # UPLOAD KE GOOGLE DRIVE (REAL)
                         f_link = "-"
                         if pic:
-                            f_name = f"{prefix}_{thn}_{last+1}.jpg"
+                            f_name = f"{base}.{last+1:03d}.jpg"
                             f_link = upload_to_drive_real(pic, f_name) # Fungsi baru
 
                         rows = [[f"{base}.{last+i:03d}", nama, merk, "Aset Tetap", pj, lok, "BOS", thn, "-", f_link] for i in range(1, vol+1)]
@@ -574,3 +574,4 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
