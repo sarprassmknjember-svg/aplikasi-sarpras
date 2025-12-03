@@ -387,7 +387,7 @@ def main_app():
                         
                         if pic:
                             f_name = f"{prefix}_{thn}_{last+1}.jpg"
-                            f_link = upload_to_drive(pic, f_name)
+                            f_link = upload_to_drive_real(pic, f_name)
                         else:
                             f_link = "-"
 
@@ -574,6 +574,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
 
