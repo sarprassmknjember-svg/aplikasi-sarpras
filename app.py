@@ -95,7 +95,7 @@ def handle_image_upload(uploaded_file):
 
 def ask_gemini(prompt):
     genai.configure(api_key=GEMINI_KEY)
-    model = genai.GenerativeModel('gemini-pro')
+    model = genai.GenerativeModel('gemini-pro-latest')
     try:
         response = model.generate_content(prompt)
         return response.text
@@ -441,3 +441,4 @@ def main_app():
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
