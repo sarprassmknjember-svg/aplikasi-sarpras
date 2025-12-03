@@ -36,7 +36,7 @@ except:
 
 # DEFAULT PEJABAT
 DEF_WAKA_NAMA = "Ahmad Syaiful Rizal, S.Pd., M.Stat."
-DEF_WAKA_NIP = "199304062020121018"
+DEF_WAKA_NIP = "19930406 202012 1 018"
 DEF_KS_NAMA = "Evi Silviana, S.Pd., M.M."
 DEF_KS_NIP = "19750527 199903 2 005"
 
@@ -421,38 +421,32 @@ def main_app():
             df_stok = load_data("Stok")
             df_jadwal = load_data("Jadwal")
             
-            # BUAT KONTEKS PINTAR (SEARCHING)
+            # FORMAT DATA MENJADI STRING CSV (HEMAT TOKEN & BACA SEMUA)
             context = ""
-            
-            # 1. Cek Aset
             if not df_aset.empty:
-                # Ringkasan Total (Agar AI tau jumlah total)
-                total_aset_summary = df_aset['Nama_Barang'].value_counts().to_string()
-                context += f"RINGKASAN JUMLAH ASET:\n{total_aset_summary}\n\n"
-                
-                # Pencarian Detail (Filter)
-                match_aset = df_aset[df_aset.apply(lambda r: r.astype(str).str.contains(p, case=False).any(), axis=1)]
-                if not match_aset.empty:
-                    context += f"DETAIL ASET DITEMUKAN:\n{match_aset.head(30).to_string()}\n\n"
-            
-            # 2. Cek Stok
+                context += "=== DATA ASET TETAP (INVENTARIS) ===\n" + df_aset.to_csv(index=False) + "\n\n"
             if not df_stok.empty:
-                match_stok = df_stok[df_stok.apply(lambda r: r.astype(str).str.contains(p, case=False).any(), axis=1)]
-                if not match_stok.empty:
-                    context += f"DATA STOK GUDANG DITEMUKAN:\n{match_stok.head(30).to_string()}\n\n"
-            
-            # 3. Cek Jadwal
+                context += "=== DATA STOK GUDANG (BARANG HABIS PAKAI) ===\n" + df_stok.to_csv(index=False) + "\n\n"
             if not df_jadwal.empty:
-                match_jadwal = df_jadwal[df_jadwal.apply(lambda r: r.astype(str).str.contains(p, case=False).any(), axis=1)]
-                # Tambahkan juga jadwal masa depan sebagai konteks umum
-                future_jadwal = df_jadwal[pd.to_datetime(df_jadwal['Tanggal']) >= datetime.now()].head(5)
-                context += f"JADWAL TERKAIT:\n{match_jadwal.to_string()}\n\nJADWAL MENDATANG:\n{future_jadwal.to_string()}"
-
-            # KIRIM PROMPT
-            final_prompt = f"Anda adalah asisten data sekolah. Jawab pertanyaan user berdasarkan data berikut:\n\n{context}\n\nUser: {p}\nJawab dengan bahasa Indonesia yang jelas."
-            res = ask_gemini(final_prompt)
+                context += "=== JADWAL PENGGUNAAN AULA ===\n" + df_jadwal.to_csv(index=False) + "\n\n"
+            
+            # PROMPT RAJA (MASTER PROMPT)
+            full_prompt = f"""
+            Anda adalah Asisten Cerdas untuk Sistem Sarana Prasarana (Sarpras) Sekolah SMKN 6 Jember.
+            Tugas Anda adalah menjawab pertanyaan user dengan AKURAT berdasarkan data tabel berikut.
+            
+            JANGAN MENGARANG. Jika data tidak ada di tabel, katakan tidak ada.
+            Baca semua baris data untuk memastikan hitungan dan pencarian akurat.
+            
+            {context}
+            
+            PERTANYAAN USER: {p}
+            """
+            
+            res = ask_gemini(full_prompt)
             st.chat_message("ai").write(res); st.session_state["chat_history"].append({"role": "ai", "content": res})
 
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
