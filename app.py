@@ -91,8 +91,15 @@ def save_to_sheet(sheet_name, new_row_list):
 
 def generate_qr_base64(text):
     if text is None or str(text).strip() == "": return ""
-    safe_text = str(text).replace(" ", "%20").replace("\n", "%0A")
-    return f"https://api.qrserver.com/v1/create-qr-code/?size=300x300&data={safe_text}"
+    # Gunakan library qrcode Python (lebih stabil untuk data banyak)
+    qr = qrcode.QRCode(version=1, box_size=10, border=1)
+    qr.add_data(text)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    buffer = io.BytesIO()
+    img.save(buffer, format="PNG")
+    img_str = base64.b64encode(buffer.getvalue()).decode()
+    return f"data:image/png;base64,{img_str}"
 
 def handle_image_upload(uploaded_file):
     if uploaded_file is not None:
@@ -153,22 +160,49 @@ def dashboard_card(title, value, color, icon):
     """
     st.markdown(html, unsafe_allow_html=True)
 
+# JS PRINT LABEL
 def trigger_print_js(html_content):
     js_code = f"""
     <script>
         var printWindow = window.open('', '_blank');
         printWindow.document.write(`
-            <html><head><title>Cetak</title>
+            <html><head><title>Cetak Label</title>
             <style>
                 body {{ font-family: Arial, sans-serif; padding: 20px; -webkit-print-color-adjust: exact; }}
                 .batch-container {{ display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-start; }}
-                .label-card {{ width: 320px; height: 150px; border: 3px solid black; display: flex; align-items: center; padding: 10px; margin-bottom: 10px; page-break-inside: avoid; break-inside: avoid; }}
+                
+                /* LABEL CARD UPDATE: FLEXBOX UNTUK TAHUN DI BAWAH */
+                .label-card {{ 
+                    width: 320px; height: 150px; 
+                    border: 3px solid black; 
+                    display: flex; align-items: center; 
+                    padding: 8px; margin-bottom: 10px; 
+                    page-break-inside: avoid; break-inside: avoid; 
+                }}
                 .qr-img {{ width: 110px; height: 110px; margin-right: 10px; }}
-                .label-info {{ font-family: Arial; line-height: 1.2; text-align: left; width: 100%; }}
+                
+                /* Container Info Kanan */
+                .label-info {{ 
+                    font-family: Arial; 
+                    text-align: left; 
+                    width: 100%; height: 120px;
+                    display: flex; flex-direction: column; justify-content: space-between;
+                }}
+                
+                /* Bagian Atas Info */
+                .lbl-top {{ display: block; }}
                 .lbl-title {{ font-weight: 900; font-size: 14px; text-decoration: underline; text-transform: uppercase; }}
-                .lbl-name {{ font-weight: bold; font-size: 13px; margin-top: 3px; }}
-                .lbl-code {{ font-family: 'Courier New'; font-weight: 900; background: #eee; padding: 2px; display:inline-block; margin: 3px 0; border: 1px solid #999; }}
-                .lbl-meta {{ font-size: 11px; font-weight: bold; }}
+                .lbl-name {{ font-weight: bold; font-size: 13px; margin-top: 3px; line-height: 1.1; }}
+                .lbl-code {{ font-family: 'Courier New'; font-weight: 900; background: #eee; padding: 2px; display:inline-block; margin: 3px 0; border: 1px solid #999; font-size: 13px; }}
+                .lbl-loc {{ font-size: 11px; font-weight: bold; }}
+                
+                /* Bagian Bawah (Tahun) */
+                .lbl-year {{ 
+                    font-size: 12px; font-weight: 900; 
+                    text-align: right; /* Tahun di Kanan Bawah */
+                    border-top: 1px dotted #ccc;
+                    padding-top: 2px;
+                }}
             </style></head><body>{html_content}</body></html>
         `);
         printWindow.document.close(); printWindow.focus();
@@ -200,13 +234,16 @@ def local_css():
         .stDataFrame { border: 1px solid #ddd; border-radius: 5px; }
         .stDataFrame div[data-testid="stTable"] { overflow-x: auto; }
         .batch-container { display: flex; flex-wrap: wrap; gap: 15px; justify-content: flex-start; }
-        .label-card { width: 320px; height: 150px; border: 3px solid black; display: flex; align-items: center; padding: 10px; margin-bottom: 10px; background: white; color: black; }
+        
+        /* CSS PREVIEW DALAM APLIKASI (MIRIP PRINT) */
+        .label-card { width: 320px; height: 150px; border: 3px solid black; display: flex; align-items: center; padding: 8px; margin-bottom: 10px; background: white; color: black; }
         .qr-img { width: 110px; height: 110px; margin-right: 10px; }
-        .label-info { font-family: Arial; line-height: 1.2; text-align: left; width: 100%; }
+        .label-info { font-family: Arial; line-height: 1.2; text-align: left; width: 100%; height: 120px; display: flex; flex-direction: column; justify-content: space-between; }
         .lbl-title { font-weight: 900; font-size: 14px; text-decoration: underline; text-transform: uppercase; }
         .lbl-name { font-weight: bold; font-size: 13px; margin-top: 3px; }
         .lbl-code { font-family: 'Courier New'; font-weight: 900; background: #eee; padding: 2px; display:inline-block; margin: 3px 0; border: 1px solid #999; }
-        .lbl-meta { font-size: 11px; font-weight: bold; }
+        .lbl-loc { font-size: 11px; font-weight: bold; }
+        .lbl-year { font-size: 12px; font-weight: 900; text-align: right; border-top: 1px dotted #ccc; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -312,12 +349,38 @@ def main_app():
                 html_labels = "<div class='batch-container'>"
                 for i in rows:
                     r = df.iloc[i]
-                    qr = generate_qr_base64(f"SMKN 6 JEMBER\n{r['Kode_Aset']}\n{r['Nama_Barang']}\n{r['Posisi']}")
-                    html_labels += f"""<div class='label-card'><img src='{qr}' class='qr-img'><div class='label-info'><div class='lbl-title'>SMKN 6 JEMBER</div><div class='lbl-name'>{r['Nama_Barang']}</div><div class='lbl-code'>{r['Kode_Aset']}</div><div class='lbl-meta'>Lokasi: {r['Posisi']} | Th: {r['Tahun']}</div></div></div>"""
+                    # ISI QR LENGKAP
+                    qr_text = f"""SMKN 6 JEMBER
+Kode: {r['Kode_Aset']}
+Nama: {r['Nama_Barang']}
+Merk: {r.get('Merk','-')}
+PJ: {r.get('Penanggung_Jawab','-')}
+Lokasi: {r['Posisi']}
+Sumber: {r.get('Sumber_Dana','-')}
+Tahun: {r['Tahun']}
+Foto: {r.get('Link_Foto','-')}"""
+                    
+                    qr = generate_qr_base64(qr_text)
+                    
+                    # DESAIN LABEL DENGAN TAHUN DI BAWAH
+                    html_labels += f"""
+                    <div class='label-card'>
+                        <img src='{qr}' class='qr-img'>
+                        <div class='label-info'>
+                            <div class='lbl-top'>
+                                <div class='lbl-title'>SMKN 6 JEMBER</div>
+                                <div class='lbl-name'>{r['Nama_Barang']}</div>
+                                <div class='lbl-code'>{r['Kode_Aset']}</div>
+                                <div class='lbl-loc'>Lokasi: {r['Posisi']}</div>
+                            </div>
+                            <div class='lbl-year'>
+                                Tahun: {r['Tahun']}
+                            </div>
+                        </div>
+                    </div>"""
                 html_labels += "</div>"
                 st.markdown(html_labels, unsafe_allow_html=True)
                 if st.button("🖨️ CETAK LABEL (POP-UP)", type="primary"): trigger_print_js(html_labels)
-
             elif sub_menu == "📄 BUAT SURAT BAST":
                 st.subheader("Form Berita Acara")
                 with st.form("bast"):
@@ -449,5 +512,3 @@ def main_app():
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
-
-
