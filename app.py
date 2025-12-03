@@ -358,21 +358,15 @@ def main_app():
             thn = st.number_input("Tahun", value=2025)
             pic = st.file_uploader("📸 Foto Aset")
             
-            submitted = st.form_submit_button("Simpan", type="primary")
-            
-            if submitted:
-                # VALIDASI INPUT WAJIB
-                if not prefix or not nama or not merk or not lok or not pj:
-                    st.error("⚠️ Semua data wajib diisi (kecuali Foto)!")
-                else:
-                    with st.spinner("Menyimpan..."):
-                        df = load_data("Aset")
-                        base = f"{prefix}.{thn}"
-                        existing = df[df['Kode_Aset'].astype(str).str.startswith(base)]
-                        last = 0
-                        if not existing.empty:
-                            try: last = existing['Kode_Aset'].str.split('.').str[-1].astype(int).max()
-                            except: pass
+            if st.form_submit_button("Simpan", type="primary") and prefix and nama:
+                with st.spinner("Menyimpan..."):
+                    df = load_data("Aset")
+                    base = f"{prefix}.{thn}"
+                    existing = df[df['Kode_Aset'].astype(str).str.startswith(base)]
+                    last = 0
+                    if not existing.empty:
+                        try: last = existing['Kode_Aset'].str.split('.').str[-1].astype(int).max()
+                        except: pass
                         # === UPLOAD DRIVE YANG ASLI ===
                         if pic:
                             f_name = f"{prefix}_{thn}_{last+1}.jpg" # Nama file rapi
@@ -564,6 +558,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
 
