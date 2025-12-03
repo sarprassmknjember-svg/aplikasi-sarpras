@@ -218,7 +218,7 @@ def wrap_bast_html(content):
         @page {{ size: A4; margin: 2cm; }}
         body {{ font-family: 'Times New Roman', serif; -webkit-print-color-adjust: exact; margin: 0; padding: 20px; color: black; }}
         .kop-surat {{ text-align: center; border-bottom: 3px double black; padding-bottom: 10px; margin-bottom: 20px; position: relative; min-height: 100px; }}
-        .kop-img {{ width: 90px; height: auto; position: absolute; left: 0; top: 0; }}
+        .kop-img {{ height: 85px; width: auto; position: absolute; left: 0; top: 0; }}
         .bast-title {{ text-align: center; font-weight: bold; font-size: 14pt; text-decoration: underline; margin-bottom: 20px; }}
         .bast-text {{ text-align: justify; line-height: 1.5; font-size: 12pt; margin-bottom: 5px; }}
         .bast-table {{ width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 10pt; }}
@@ -428,7 +428,8 @@ Foto: {r.get('Link_Foto','-')}"""
                         </table>
                         <p class='bast-text'>PIHAK KESATU menyerahkan barang kepada PIHAK KEDUA, dan PIHAK KEDUA menyatakan menerima barang dari PIHAK PERTAMA berupa daftar terlampir :</p>
                         <table class='bast-table'><thead><tr><th>No</th><th>Nama Barang</th><th>Jml</th><th>Harga</th><th>Ket</th><th>Sumber</th></tr></thead><tbody>{rows_html}</tbody></table>
-                        <p class='bast-text'>Barang diterima dalam keadaan baik.</p>
+                        <p class='bast-text'>Berdasarkan Berita Acara Serah Terima Barang Inventaris gudang SMKN 6 Jember dari PIHAK PERTAMA kepada PIHAK KEDUA, adapun barang-barang tersebut dalam keadaan baik dan cukup,
+Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung jawab PIHAK KEDUA.</p>
                         <table class='bast-signature-table'>
                             <tr><td width='50%'>PIHAK KEDUA<br><br><br><br><b><u>{p2}</u></b><br>NIP. {n2}</td><td width='50%'>PIHAK KESATU<br><br><br><br><b><u>{p1}</u></b><br>NIP. {n1}</td></tr>
                             <tr><td colspan='2'><br>Mengetahui,</td></tr>
