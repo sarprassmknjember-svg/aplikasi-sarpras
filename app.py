@@ -410,8 +410,12 @@ def main_app():
         df = load_data("Jadwal"); 
         if not df.empty: df['Tanggal']=pd.to_datetime(df['Tanggal']); st.dataframe(df.sort_values('Tanggal', ascending=False), use_container_width=True, hide_index=True)
 
+    # ... (Kode atas tetap sama) ...
+
     elif menu == "Tanya AI":
-        st.title("🤖 Chat Data")
+        st.title("🤖 Chat Data Sarpras")
+        
+        # Tombol Hapus History
         if st.button("🗑️ Hapus Riwayat Chat"):
             st.session_state["chat_history"] = []
             st.rerun()
@@ -420,20 +424,58 @@ def main_app():
         for msg in st.session_state["chat_history"]:
             st.chat_message(msg["role"]).write(msg["content"])
 
-        if prompt := st.chat_input("Tanya stok/aset..."):
+        # Input User
+        if prompt := st.chat_input("Contoh: Berapa sisa stok kertas? / Siapa PJ Laptop Asus?"):
             st.chat_message("user").write(prompt)
             st.session_state["chat_history"].append({"role": "user", "content": prompt})
             
-            # 1. BUAT RINGKASAN DATA AGAR AI PINTAR
+            # --- LOGIKA AI PINTAR (V83) ---
             df_aset = load_data("Aset")
-            summary_aset = ""
-            if not df_aset.empty:
-                # Hitung jumlah per barang
-                counts = df_aset['Nama_Barang'].value_counts().to_string()
-                summary_aset = f"RINGKASAN JUMLAH ASET:\n{counts}\n\nDETAIL DATA (50 BARIS PERTAMA):\n{df_aset.head(50).to_string()}"
+            df_stok = load_data("Stok")
             
-            # 2. KIRIM KE AI
-            full_prompt = f"Anda adalah asisten Sarpras Sekolah. Jawablah berdasarkan data ini:\n\n{summary_aset}\n\nUser bertanya: {prompt}\nJawab ringkas bahasa Indonesia."
+            # 1. Ringkasan Jumlah (Selalu baca semua data)
+            summary_aset = ""
+            context_data = ""
+            
+            if not df_aset.empty:
+                counts = df_aset['Nama_Barang'].value_counts().to_string()
+                summary_aset = f"RINGKASAN TOTAL UNIT ASET:\n{counts}\n"
+                
+                # 2. FILTER PINTAR: Cari data yang relevan dengan pertanyaan user
+                # Jika user tanya "Laptop", kita ambil semua baris yang mengandung kata "Laptop"
+                keyword = prompt.lower()
+                # Filter Aset
+                relevant_aset = df_aset[df_aset.apply(lambda row: row.astype(str).str.contains(keyword, case=False).any(), axis=1)]
+                
+                if not relevant_aset.empty:
+                    # Ambil maksimal 50 data yang COCOK saja (bukan 50 data teratas)
+                    context_data += f"\nDETAIL ASET YANG DITEMUKAN SESUAI KATA KUNCI '{keyword}':\n{relevant_aset.head(50).to_string()}"
+                else:
+                    # Jika tidak ada keyword spesifik, tampilkan 20 data teratas saja sebagai sampel
+                    context_data += f"\nSAMPEL DATA ASET (20 Teratas):\n{df_aset.head(20).to_string()}"
+
+            if not df_stok.empty:
+                # Lakukan hal sama untuk stok
+                relevant_stok = df_stok[df_stok.apply(lambda row: row.astype(str).str.contains(prompt.lower(), case=False).any(), axis=1)]
+                if not relevant_stok.empty:
+                    context_data += f"\n\nRIWAYAT STOK YANG RELEVAN:\n{relevant_stok.head(30).to_string()}"
+            
+            # 3. KIRIM KE AI
+            full_prompt = f"""
+            Anda adalah asisten Sarpras Sekolah.
+            
+            DATA RINGKASAN (JUMLAH UNIT):
+            {summary_aset}
+            
+            DATA DETAIL (HASIL PENCARIAN):
+            {context_data}
+            
+            PERTANYAAN USER: {prompt}
+            
+            Tugas Anda: Jawab pertanyaan berdasarkan data di atas dengan bahasa Indonesia yang sopan dan ringkas.
+            Jika data detail tidak ditemukan di hasil pencarian, gunakan data ringkasan.
+            """
+            
             res = ask_gemini(full_prompt)
             
             st.chat_message("ai").write(res)
@@ -442,3 +484,4 @@ def main_app():
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
