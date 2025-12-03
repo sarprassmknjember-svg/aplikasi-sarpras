@@ -361,9 +361,9 @@ def main_app():
             if stok_alert > 0: st.dataframe(df_saldo_menipis.head(5), use_container_width=True, hide_index=True)
             else: st.success("Stok Aman")
 
-   elif menu == "Input Aset (Masal)":
+   elif menu == "Input Aset":
         if st.session_state['role'] == 'view': st.warning("View Only"); st.stop()
-        st.title("📦 Input Aset Massal")
+        st.title("📦 Input Aset")
         with st.form("input"):
             c1, c2 = st.columns(2)
             prefix = c1.text_input("Prefix*", placeholder="MEJA").upper(); vol = c2.number_input("Vol*", 1, 1000, 1)
@@ -575,3 +575,4 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
