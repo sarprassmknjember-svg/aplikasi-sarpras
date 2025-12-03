@@ -370,8 +370,7 @@ def main_app():
                 c3, c4 = st.columns(2); lok = c3.text_input("Lokasi*"); pj = c4.text_input("PJ*")
                 thn = st.number_input("Tahun*", value=2025)
                 pic = st.file_uploader("📸 Foto Aset")
-            
-            if st.form_submit_button("Simpan", type="primary"):
+                if st.form_submit_button("Simpan", type="primary"):
                 # --- VALIDASI WAJIB ISI ---
                 if not prefix or not nama or not merk or not lok or not pj:
                     st.error("⚠️ Error: Semua kolom bertanda bintang (*) WAJIB DIISI!")
@@ -574,4 +573,5 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
