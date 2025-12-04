@@ -327,6 +327,105 @@ def update_aset_sheet(df_updated):
     except Exception as e:
         st.error(f"Gagal memperbarui sheet: {e}")
         return False
+def update_inventaris_kelas_sheet(df_updated):
+    """Memperbarui seluruh data InventarisKelas kembali ke Google Sheet."""
+    try:
+        sh = connect_google_sheet()
+        wks = sh.worksheet("InventarisKelas")
+        
+        # Hapus semua data yang ada (kecuali header)
+        wks.clear()
+        
+        # Masukkan kembali header dan data yang sudah diedit
+        wks.update([df_updated.columns.values.tolist()] + df_updated.values.tolist())
+        st.cache_data.clear()
+        st.success("✅ Data Inventaris Kelas Berhasil Diperbarui!")
+        return True
+    except Exception as e:
+        st.error(f"Gagal memperbarui sheet Inventaris Kelas: {e}")
+        return False
+def generate_kik_html(df_kik, ruangan):
+    """Menghasilkan HTML untuk Kartu Inventaris Kelas (KIK)."""
+    
+    # Hitung total rekapitulasi
+    total_unit = df_kik['Total_Unit'].sum()
+    total_baik = df_kik['Baik'].sum()
+    total_rusak_sedang = df_kik['Rusak_Sedang'].sum()
+    total_rusak_berat = df_kik['Rusak_Berat'].sum()
+    
+    html_content = f"""
+    <html>
+    <head>
+        <title>Kartu Inventaris Kelas - {ruangan}</title>
+        <style>
+            @media print {{
+                @page {{ size: A4 portrait; margin: 1cm; }}
+                body {{ font-size: 10pt; }}
+            }}
+            body {{ font-family: Arial, sans-serif; padding: 20px; }}
+            h2 {{ text-align: center; margin-bottom: 20px; }}
+            .info-table th, .info-table td {{ border: none; padding: 5px; text-align: left; }}
+            table {{ width: 100%; border-collapse: collapse; margin-top: 15px; }}
+            th, td {{ border: 1px solid black; padding: 8px; text-align: center; }}
+            th {{ background-color: #f2f2f2; }}
+        </style>
+    </head>
+    <body>
+        <h2>KARTU INVENTARIS KELAS</h2>
+        <table class="info-table">
+            <tr><th style="width: 25%;">Ruangan/Kelas</th><td>: {ruangan}</td></tr>
+            <tr><th>Tahun Pelaporan</th><td>: {pd.to_datetime('today').year}</td></tr>
+        </table>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th rowspan="2">No.</th>
+                    <th rowspan="2">Nama Barang/Inventaris</th>
+                    <th rowspan="2">Tahun Perolehan</th>
+                    <th rowspan="2">Total Unit</th>
+                    <th colspan="3">Kondisi (Unit)</th>
+                </tr>
+                <tr>
+                    <th>Baik</th>
+                    <th>Rusak Sedang</th>
+                    <th>Rusak Berat</th>
+                </tr>
+            </thead>
+            <tbody>
+    """
+    
+    for i, row in df_kik.iterrows():
+        html_content += f"""
+        <tr>
+            <td>{i + 1}</td>
+            <td style="text-align: left;">{row['Nama_Barang']}</td>
+            <td>{row['Tahun_Perolehan']}</td>
+            <td>{row['Total_Unit']}</td>
+            <td>{row['Baik']}</td>
+            <td>{row['Rusak_Sedang']}</td>
+            <td>{row['Rusak_Berat']}</td>
+        </tr>
+        """
+        
+    # Tambahkan baris rekapitulasi (footer)
+    html_content += f"""
+            <tr>
+                <th colspan="3" style="text-align: right;">TOTAL REKAPITULASI</th>
+                <th>{total_unit}</th>
+                <th>{total_baik}</th>
+                <th>{total_rusak_sedang}</th>
+                <th>{total_rusak_berat}</th>
+            </tr>
+            </tbody>
+        </table>
+        
+        <p style="margin-top: 50px;">Tanggal Cetak: {pd.to_datetime('today').strftime('%d %B %Y')}</p>
+        
+    </body>
+    </html>
+    """
+    return html_content
 
 # ===========================
 # 3. LOGIN & MAIN APP
@@ -350,18 +449,63 @@ def login_page():
                 else:
                     st.error("Login Gagal!")
 
+# ===========================
+# MAIN APP NEW
+# ===========================
 def main_app():
     local_css()
     if "chat_history" not in st.session_state: st.session_state["chat_history"] = []
+    # Inisialisasi st.session_state['menu'] jika belum ada
+    if 'menu' not in st.session_state: st.session_state['menu'] = 'Dashboard' # Default ke Dashboard
 
     with st.sidebar:
         st.title(f"👤 {st.session_state['username'].upper()}")
-        menu = st.radio("Menu", ["Dashboard", "Input Aset", "Data Aset, Label & BAST", "Gudang (Stok)", "Jadwal Aula", "Tanya AI"])
-        if st.button("Logout", use_container_width=True):
-            st.session_state['logged_in'] = False
+        st.caption(f"Role: {st.session_state['role'].upper()}")
+        st.divider()
+        
+        # --- MENU BERBASIS BUTTON ---
+        # Membuat tombol menu yang menyimpan pilihan ke st.session_state['menu']
+        if st.button("📊 Dashboard", use_container_width=True):
+            st.session_state['menu'] = 'Dashboard'
             st.rerun()
 
-    if menu == "Dashboard":
+        # Menu yang hanya muncul untuk role tertentu
+        if st.session_state['role'] != 'view':
+            if st.button("📦 Input Aset", use_container_width=True):
+                st.session_state['menu'] = 'Input Aset'
+                st.rerun()
+
+        if st.button("🖨️ Data Aset, Label & BAST", use_container_width=True):
+            st.session_state['menu'] = 'Data Aset, Label & BAST'
+            st.rerun()
+            
+        # <<< MENU BARU INVENTARIS KELAS >>>
+        if st.button("🏢 Inventaris Kelas", use_container_width=True):
+            st.session_state['menu'] = 'Inventaris Kelas'
+            st.rerun()
+        
+        if st.button("🏭 Gudang (Stok)", use_container_width=True):
+            st.session_state['menu'] = 'Gudang (Stok)'
+            st.rerun()
+        
+        if st.button("📅 Jadwal Aula", use_container_width=True):
+            st.session_state['menu'] = 'Jadwal Aula'
+            st.rerun()
+
+        if st.button("🤖 Tanya AI", use_container_width=True):
+            st.session_state['menu'] = 'Tanya AI'
+            st.rerun()
+
+        st.divider()
+        if st.button("Logout", use_container_width=True):
+            st.session_state['logged_in'] = False
+            # Clear session state saat logout (opsional, tapi baik untuk keamanan)
+            for key in list(st.session_state.keys()):
+                 del st.session_state[key]
+            st.rerun()
+
+    # --- TAMPILKAN KONTEN BERDASARKAN SESSION STATE ---
+    if st.session_state['menu'] == "Dashboard":
         st.title("📊 Dashboard Utama")
         df_aset = load_data("Aset"); df_stok = load_data("Stok"); df_jadwal = load_data("Jadwal")
         c1, c2, c3 = st.columns(3)
@@ -390,8 +534,8 @@ def main_app():
             st.subheader("⚠️ Stok Perlu Restock")
             if stok_alert > 0: st.dataframe(df_saldo_menipis.head(5), use_container_width=True, hide_index=True)
             else: st.success("Stok Aman")
-            
-    elif menu == "Input Aset":
+
+    elif st.session_state['menu'] == "Input Aset":
         if st.session_state['role'] == 'view': st.warning("View Only"); st.stop()
         st.title("📦 Input Aset Massal")
         with st.form("input"):
@@ -427,8 +571,8 @@ def main_app():
                         # Buat baris data untuk Google Sheet
                         rows = [[f"{base}.{last+i:03d}", nama, merk, "Aset Tetap", pj, lok, "BOS", thn, "-", f_link, "Baik"] for i in range(1, vol+1)]
                         if save_to_sheet("Aset", rows): st.success("Sukses!"); time.sleep(1); st.rerun()
-                        
-    elif menu == "Data Aset, Label & BAST":
+    
+    elif st.session_state['menu'] == "Data Aset, Label & BAST":
         st.title("🖨️ Data Aset, Label & BAST")
         df = load_data("Aset")
 
@@ -582,7 +726,7 @@ Foto: {r.get('Link_Foto','-')}"""
                             <tr><td style='width:100px;'>Nama</td><td>: {p2}</td></tr><tr><td>NIP</td><td>: {n2}</td></tr><tr><td>Jabatan</td><td>: {jab2} (PIHAK KEDUA)</td></tr>
                         </table>
                         <p class='bast-text'>PIHAK KESATU menyerahkan barang kepada PIHAK KEDUA, dan PIHAK KEDUA menyatakan menerima barang dari PIHAK PERTAMA berupa daftar terlampir :</p>
-                        <table class='bast-table'><thead><tr><th>No</th><th>Nama Barang</th><th>Jml</th><th>Harga</th><th>Ket</th><th>Sumber</th></tr></thead><tbody>{rows_html}</tbody></table>
+                        <table class='bast-table'><thead><tr><th>No</th><th>Nama Barang</th><th>Jml</th><th><th>Harga</th><th>Ket</th><th>Sumber</th></tr></thead><tbody>{rows_html}</tbody></table>
                         <p class='bast-text'>Berdasarkan Berita Acara Serah Terima Barang Inventaris gudang SMKN 6 Jember dari PIHAK PERTAMA kepada PIHAK KEDUA, adapun barang-barang tersebut dalam keadaan baik dan cukup,
 Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung jawab PIHAK KEDUA.</p>
                         <table class='bast-signature-table'>
@@ -597,7 +741,124 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
                     st.success("✅ Surat Siap!")
                     st.download_button("💾 DOWNLOAD SURAT BAST (HTML)", full_html_bast, "BAST_Surat.html", "text/html", type="primary")
 
-    elif menu == "Gudang (Stok)":
+    elif st.session_state['menu'] == 'Inventaris Kelas':
+        st.header("🏢 Manajemen Inventaris Kelas/Ruangan")
+        df_inv = load_data("InventarisKelas")
+    
+        # -----------------------------------------------------------
+        # TABS: Pendataan Awal dan Audit/Update Kondisi
+        # -----------------------------------------------------------
+        tab1, tab2 = st.tabs(["➕ Pendataan Awal", "🔍 Audit & Update Kondisi"])
+    
+        # =======================================================
+        # TAB 1: FORM INPUT INVENTARIS BARU
+        # =======================================================
+        with tab1:
+            st.subheader("Input Item Inventaris Baru ke Ruangan")
+        
+            with st.form("form_inventaris_baru"):
+                ruangan = st.text_input("Nama Kelas/Ruangan (Misal: X PPLG 1)")
+                nama_barang = st.text_input("Nama Barang (Misal: Kursi Siswa)")
+                total_unit = st.number_input("Total Unit Barang di Ruangan Ini", min_value=1, value=1)
+                thn = st.number_input("Tahun Perolehan/Pembelian", min_value=1990, value=pd.to_datetime('today').year)
+            
+                submitted = st.form_submit_button("Simpan Data Inventaris", type="primary")
+            
+                if submitted:
+                    if not ruangan or not nama_barang:
+                        st.error("Nama Ruangan dan Nama Barang wajib diisi.")
+                    else:
+                        # Data awal: diasumsikan semua unit dalam kondisi baik
+                        new_row = [
+                            ruangan, 
+                            nama_barang, 
+                            total_unit, 
+                            total_unit, # Baik = Total Unit
+                            0, # Rusak Sedang = 0
+                            0, # Rusak Berat = 0
+                            thn, 
+                            pd.to_datetime('today').strftime('%Y-%m-%d %H:%M')
+                        ]
+                    
+                        # Simpan ke Google Sheet
+                        if save_to_sheet("InventarisKelas", [new_row], append_only=True):
+                            st.success(f"✅ Data '{nama_barang}' di '{ruangan}' berhasil ditambahkan.")
+                            st.rerun()
+
+        # =======================================================
+        # TAB 2: AUDIT & UPDATE KONDISI
+        # =======================================================
+        with tab2:
+            st.subheader("Pembaruan Kondisi Inventaris")
+        
+            if df_inv.empty:
+                st.info("Belum ada data Inventaris Kelas. Silakan input data di tab 'Pendataan Awal'.")
+                return
+            
+            # 1. Pilih Ruangan
+            unique_rooms = df_inv['Kelas/Ruangan'].unique().tolist()
+            selected_room = st.selectbox("Pilih Kelas/Ruangan untuk Audit", unique_rooms)
+        
+            # Filter DataFrame berdasarkan ruangan yang dipilih
+            df_room = df_inv[df_inv['Kelas/Ruangan'] == selected_room].reset_index(drop=True)
+        
+            st.markdown(f"#### Data Inventaris Ruangan: **{selected_room}**")
+            st.info("Edit kolom Baik, Rusak Sedang, atau Rusak Berat di bawah ini.")
+        
+            # 2. Tampilkan Data Editor
+            # Catatan: Kolom 'Total_Unit' tidak dapat diedit
+            editable_df_room = st.data_editor(
+                df_room,
+                use_container_width=True,
+                hide_index=True,
+                key="inventaris_editor",
+                column_config={
+                    "Kelas/Ruangan": st.column_config.TextColumn(disabled=True),
+                    "Nama_Barang": st.column_config.TextColumn(disabled=True),
+                    "Total_Unit": st.column_config.NumberColumn(disabled=True),
+                    # Kolom yang dapat diedit
+                    "Baik": st.column_config.NumberColumn(min_value=0),
+                    "Rusak_Sedang": st.column_config.NumberColumn(min_value=0),
+                    "Rusak_Berat": st.column_config.NumberColumn(min_value=0),
+                    "Tahun_Perolehan": st.column_config.NumberColumn(disabled=True),
+                    "Terakhir_Diupdate": st.column_config.TextColumn(disabled=True)
+                }
+            )
+        
+            # 3. Tombol Simpan dan Validasi
+            if st.button("💾 Simpan Hasil Audit", type="primary"):
+            
+                # --- VALIDASI KRITIS ---
+                # Periksa apakah jumlah total kondisi (Baik+Sedang+Berat) > Total_Unit
+                total_kondisi = editable_df_room['Baik'] + editable_df_room['Rusak_Sedang'] + editable_df_room['Rusak_Berat']
+                total_unit = editable_df_room['Total_Unit']
+            
+                invalid_rows = editable_df_room[total_kondisi > total_unit]
+            
+                if not invalid_rows.empty:
+                    st.error("❌ Gagal Menyimpan! Jumlah unit kondisi (Baik+Rusak) melebihi Total Unit untuk item berikut:")
+                    st.dataframe(invalid_rows[['Nama_Barang', 'Total_Unit', 'Baik', 'Rusak_Sedang', 'Rusak_Berat']], hide_index=True)
+                else:
+                    # Update kolom timestamp
+                    editable_df_room['Terakhir_Diupdate'] = pd.to_datetime('today').strftime('%Y-%m-%d %H:%M')
+                
+                    # Gabungkan data yang diedit dengan data ruangan lain yang tidak diedit
+                    df_other_rooms = df_inv[df_inv['Kelas/Ruangan'] != selected_room]
+                    df_final = pd.concat([df_other_rooms, editable_df_room], ignore_index=True)
+                
+                    # Simpan data gabungan kembali ke Sheet
+                    if update_inventaris_kelas_sheet(df_final):
+                        st.rerun()
+
+            # 4. Tombol Cetak KIK
+            st.divider()
+            st.caption("Cetak Kartu Inventaris Kelas (KIK) untuk Ruangan ini.")
+            if st.button(f"🖨️ Cetak KIK Ruangan {selected_room}", disabled=df_room.empty):
+                html_output = generate_kik_html(df_room, selected_room)
+                trigger_print_js(html_output)
+                st.success("Tampilan cetak KIK berhasil dimuat. Silakan cetak melalui dialog browser.")
+    
+    elif st.session_state['menu'] == "Gudang (Stok)":
         st.title("🏭 Gudang"); 
         if st.session_state['role'] != 'view':
             with st.expander("➕ Transaksi"):
@@ -614,7 +875,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
             st.dataframe(bal, use_container_width=True, hide_index=True) 
             st.divider(); st.subheader("Riwayat"); st.dataframe(df, use_container_width=True, hide_index=True)
 
-    elif menu == "Jadwal Aula":
+    elif st.session_state['menu'] == "Jadwal Aula":
         st.title("📅 Jadwal")
         if st.session_state['role'] != 'view':
             with st.expander("➕ Booking"):
@@ -627,7 +888,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
         if not df.empty: df['Tanggal']=pd.to_datetime(df['Tanggal']); st.dataframe(df.sort_values('Tanggal', ascending=False), use_container_width=True, hide_index=True)
 
     # --- MENU AI YANG BARU (CERDAS) ---
-    elif menu == "Tanya AI":
+    elif st.session_state['menu'] == "Tanya AI":
         st.title("🤖 Chat Data")
         if st.button("🗑️ Hapus Chat"): st.session_state["chat_history"] = []; st.rerun()
         for msg in st.session_state["chat_history"]: st.chat_message(msg["role"]).write(msg["content"])
@@ -668,6 +929,3 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
-
-
-
