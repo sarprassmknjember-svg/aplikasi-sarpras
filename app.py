@@ -310,6 +310,24 @@ def local_css():
     </style>
     """, unsafe_allow_html=True)
 
+def update_aset_sheet(df_updated):
+    """Memperbarui seluruh data Aset kembali ke Google Sheet."""
+    try:
+        sh = connect_google_sheet()
+        wks = sh.worksheet("Aset")
+        
+        # Hapus semua data yang ada (kecuali header)
+        wks.clear()
+        
+        # Masukkan kembali header dan data yang sudah diedit
+        wks.update([df_updated.columns.values.tolist()] + df_updated.values.tolist())
+        st.cache_data.clear()
+        st.success("✅ Data Aset Berhasil Diperbarui!")
+        return True
+    except Exception as e:
+        st.error(f"Gagal memperbarui sheet: {e}")
+        return False
+
 # ===========================
 # 3. LOGIN & MAIN APP
 # ===========================
@@ -407,14 +425,74 @@ def main_app():
                             f_link = upload_to_drive_real(pic, f_name)
 
                         # Buat baris data untuk Google Sheet
-                        rows = [[f"{base}.{last+i:03d}", nama, merk, "Aset Tetap", pj, lok, "BOS", thn, "-", f_link] for i in range(1, vol+1)]
+                        rows = [[f"{base}.{last+i:03d}", nama, merk, "Aset Tetap", pj, lok, "BOS", thn, "-", f_link, "Baik"] for i in range(1, vol+1)]
                         if save_to_sheet("Aset", rows): st.success("Sukses!"); time.sleep(1); st.rerun()
                         
     elif menu == "Data Aset, Label & BAST":
         st.title("🖨️ Data Aset, Label & BAST")
         df = load_data("Aset")
-        event = st.dataframe(df, use_container_width=True, on_select="rerun", selection_mode="multi-row",
-            column_config={"Link_Foto": st.column_config.LinkColumn("Foto Aset", display_text="📸 Lihat Foto")})
+
+        # Definisikan daftar status yang mungkin
+        STATUS_OPTIONS = ["Baik", "Rusak Ringan", "Rusak Sedang", "Rusak Berat", "Hilang"]
+        
+        # --- PENGGUNAAN st.data_editor ---
+        # Hanya berikan izin edit jika peran bukan 'view'
+        if st.session_state['role'] != 'view':
+    
+            # Konfigurasi data_editor untuk membuat kolom 'Status' bisa dipilih (selectbox)
+            editable_df = st.data_editor(
+                df,
+                use_container_width=True,
+                hide_index=True,
+                key="aset_editor",
+                column_config={
+                    "Link_Foto": st.column_config.LinkColumn("Foto Aset", display_text="📸 Lihat Foto"),
+                    # KONFIGURASI PENTING UNTUK EDIT STATUS
+                    "Status": st.column_config.SelectboxColumn(
+                        "Status", 
+                        options=STATUS_OPTIONS, 
+                        required=True
+                    ),
+                    # Membuat Kode Aset dan Tahun tidak bisa diubah
+                    "Kode_Aset": st.column_config.TextColumn(disabled=True),
+                    "Tahun": st.column_config.NumberColumn(disabled=True),
+                }
+            )
+    
+             # Tombol untuk menyimpan perubahan
+            if st.button("💾 Simpan Perubahan Aset", type="primary"):
+                # Cek apakah ada perubahan
+                if not editable_df.equals(df):
+                    update_aset_sheet(editable_df)
+                    st.rerun()
+                else:
+                    st.warning("Tidak ada perubahan yang terdeteksi untuk disimpan.")
+
+            # Ambil data yang diedit untuk keperluan Label/BAST
+            df_for_selection = editable_df
+    
+        else:
+            # Jika peran adalah 'view', hanya tampilkan dataframe biasa
+            st.dataframe(
+                df, 
+                use_container_width=True, 
+                hide_index=True,
+                column_config={"Link_Foto": st.column_config.LinkColumn("Foto Aset", display_text="📸 Lihat Foto")}
+            )
+            df_for_selection = df
+
+        # Logika pemilihan baris untuk Label & BAST
+        event = st.dataframe(
+            df_for_selection, 
+            use_container_width=True, 
+            on_select="rerun", 
+            selection_mode="multi-row",
+            # Tampilkan hanya kolom yang diperlukan untuk pemilihan, tanpa data editor
+            # PENTING: Gunakan df_for_selection di sini, bukan df asli
+            column_config={"Link_Foto": st.column_config.LinkColumn("Foto Aset", display_text="📸 Lihat Foto")}
+        )
+
+        # Ambil index baris yang dipilih dari data yang sedang ditampilkan (baik editor atau dataframe)
         rows = event.selection.rows
         
         if rows:
