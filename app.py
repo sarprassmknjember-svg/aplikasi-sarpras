@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 import gspread
@@ -144,7 +145,7 @@ def load_data(sheet_name):
     except Exception as e:
         return pd.DataFrame()
 
-def save_to_sheet(sheet_name, new_row_list):
+def save_to_sheet(sheet_name, new_row_list, append_only=False):
     try:
         sh = connect_google_sheet()
         wks = sh.worksheet(sheet_name)
