@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 import gspread
@@ -307,6 +306,20 @@ def local_css():
         .lbl-code { font-family: 'Courier New'; font-weight: 900; background: #eee; padding: 2px; display:inline-block; margin: 3px 0; border: 1px solid #999; }
         .lbl-loc { font-size: 11px; font-weight: bold; }
         .lbl-year { font-size: 12px; font-weight: 900; text-align: right; border-top: 1px dotted #ccc; }
+
+        /* 1. Paksa tombol st.button menggunakan flexbox rata kiri */
+        [data-testid="stSidebarContent"] .stButton > button {
+            width: 100% !important;
+            display: flex !important;
+            justify-content: flex-start !important;
+            padding-left: 20px !important;
+        }
+        
+        /* 2. Opsional: Hapus margin/padding default dari teks dalam tombol */
+        [data-testid="stSidebarContent"] .stButton > button div {
+            padding: 0;
+        }
+                
     </style>
     """, unsafe_allow_html=True)
 
@@ -475,8 +488,8 @@ def main_app():
                 st.session_state['menu'] = 'Input Aset'
                 st.rerun()
 
-        if st.button("🖨️ Data Aset, Label & BAST", use_container_width=True):
-            st.session_state['menu'] = 'Data Aset, Label & BAST'
+        if st.button("🖨️ Data Aset", use_container_width=True):
+            st.session_state['menu'] = 'Data Aset'
             st.rerun()
             
         # <<< MENU BARU INVENTARIS KELAS >>>
@@ -572,8 +585,8 @@ def main_app():
                         rows = [[f"{base}.{last+i:03d}", nama, merk, "Aset Tetap", pj, lok, "BOS", thn, "-", f_link, "Baik"] for i in range(1, vol+1)]
                         if save_to_sheet("Aset", rows): st.success("Sukses!"); time.sleep(1); st.rerun()
     
-    elif st.session_state['menu'] == "Data Aset, Label & BAST":
-        st.title("🖨️ Data Aset, Label & BAST")
+    elif st.session_state['menu'] == "Data Aset":
+        st.title("🖨️ Data Aset")
         df = load_data("Aset")
 
         # Definisikan daftar status yang mungkin
