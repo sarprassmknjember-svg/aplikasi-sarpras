@@ -1,7 +1,9 @@
+
 import streamlit as st
 import pandas as pd
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
+from oauth2client.client import OAuth2Credentials
 import qrcode
 from PIL import Image
 import io
@@ -31,11 +33,17 @@ LOGO_FILE = "logo_jatim.png"
 
 # KEAMANAN API KEY
 try:
-    # Asumsi Anda menggunakan st.secrets untuk konfigurasi
+    # Service Account keys dihapus dari sini, diganti Oauth keys
     GEMINI_KEY = st.secrets["GEMINI_KEY"]
     PARENT_FOLDER_ID = st.secrets["PARENT_FOLDER_ID"]
-except:
-    st.error("❌ Konfigurasi Secrets Belum Lengkap! Pastikan GEMINI_KEY dan PARENT_FOLDER_ID ada di secrets.")
+    
+    # KUNCI BARU UNTUK OAUTH USER CREDENTIALS
+    OAUTH_CLIENT_ID = st.secrets["google_oauth"]["CLIENT_ID"]
+    OAUTH_CLIENT_SECRET = st.secrets["google_oauth"]["CLIENT_SECRET"]
+    OAUTH_REFRESH_TOKEN = st.secrets["google_oauth"]["REFRESH_TOKEN"]
+    
+except Exception as e:
+    st.error(f"❌ Konfigurasi Secrets Belum Lengkap! Error: {e}")
     st.stop()
 
 # DEFAULT PEJABAT
@@ -60,15 +68,23 @@ def get_gcp_creds():
         "https://spreadsheets.google.com/feeds",
         "https://www.googleapis.com/auth/drive"
     ]
-    if "gcp_service_account" in st.secrets:
-        creds = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["gcp_service_account"], scope)
-    else:
-        try:
-            creds = ServiceAccountCredentials.from_json_keyfile_name(AUTH_FILE, scope)
-        except:
-            st.error("File JSON tidak ditemukan.")
-            st.stop()
-    return creds
+    # ⚠️ Membuat objek kredensial menggunakan Refresh Token
+    try:
+        creds = OAuth2Credentials(
+            access_token=None,  # Tidak perlu Access Token
+            client_id=OAUTH_CLIENT_ID,
+            client_secret=OAUTH_CLIENT_SECRET,
+            refresh_token=OAUTH_REFRESH_TOKEN,
+            token_expiry=None,
+            token_uri="https://oauth2.googleapis.com/token",
+            user_agent="SarprasStreamlitApp",
+            scopes=scope
+        )
+        return creds
+        
+    except Exception as e:
+        st.error(f"Gagal memuat OAUTH credentials. Pastikan REFRESH_TOKEN benar. Error: {e}")
+        st.stop()
 
 def connect_google_sheet():
     creds = get_gcp_creds()
