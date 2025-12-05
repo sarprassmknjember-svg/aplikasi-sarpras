@@ -506,8 +506,8 @@ def main_app():
             st.session_state['menu'] = 'Inventaris Kelas'
             st.rerun()
         
-        if st.button("🖥️ Inventaris Lab Komputer", use_container_width=True):
-            st.session_state['menu'] = 'Inventaris Lab Komputer'
+        if st.button("🖥️ Inventaris Lab Komp", use_container_width=True):
+            st.session_state['menu'] = 'Inventaris Lab Komp'
             st.rerun()
 
         if st.button("🏭 Gudang (Stok)", use_container_width=True):
@@ -886,11 +886,11 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
                 trigger_print_js(html_output)
                 st.success("Tampilan cetak KIK berhasil dimuat. Silakan cetak melalui dialog browser.")
     
-    elif st.session_state['menu'] == 'Inventaris Lab Komputer':
+    elif st.session_state['menu'] == 'Inventaris Lab Komp':
         if st.session_state['role'] == 'view': 
             st.warning("View Only");
             
-        st.header("🖥️ Manajemen Inventaris Lab Komputer")
+        st.header("🖥️ Manajemen Inventaris Lab Komp")
         # Asumsikan Anda memiliki sheet 'InventarisLab'
         df_lab_inv = load_data("InventarisLab")
         
@@ -1070,3 +1070,4 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
