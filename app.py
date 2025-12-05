@@ -472,14 +472,32 @@ def main_app():
     if 'menu' not in st.session_state: st.session_state['menu'] = 'Dashboard' # Default ke Dashboard
 
     df_inv_kelas = load_data("InventarisKelas")
+    inv_kelas_barang_list = df_inv_kelas['Nama_Barang'].unique().tolist() if not df_inv_kelas.empty else []
+    unique_inv_kelas_items = ["-- PILIH NAMA BARANG --"] + sorted(inv_kelas_barang_list)
+    st.session_state['list_inv_kelas_barang'] = unique_inv_kelas_items # Simpan ke session state
+
     df_inv_lab = load_data("InventarisLab")
 
+    df_aset_all = load_data("Aset")
+    aset_barang_list = df_aset_all['Nama_Barang'].unique().tolist() if not df_aset_all.empty else []
+    unique_aset_items = ["-- PILIH NAMA BARANG --"] + sorted(aset_barang_list)
+    st.session_state['list_aset_barang'] = unique_aset_items # Simpan ke session state
+
+    aset_merk_list = df_aset_all['Merk'].unique().tolist() if not df_aset_all.empty else []
+    unique_aset_merks = ["-- PILIH MERK --"] + sorted(aset_merk_list)
+    st.session_state['list_aset_merks'] = unique_aset_merks # Simpan ke session state
+
+    df_stok_all = load_data("Stok") #pemuatan data stok
     kelas_list = df_inv_kelas['Kelas/Ruangan'].unique().tolist() if not df_inv_kelas.empty else []
     lab_list = df_inv_lab['Nama_Lab'].unique().tolist() if not df_inv_lab.empty else []
-
     unique_locations = ["-- PILIH LOKASI --"] + sorted(list(set(kelas_list + lab_list)))
-
     st.session_state['list_lokasi_aset'] = unique_locations
+
+    # --- LIST BARANG STOK (Untuk Menu Gudang Stok) ---
+    # Ambil semua nama barang unik dari sheet Stok
+    stok_barang_list = df_stok_all['Nama_Barang'].unique().tolist() if not df_stok_all.empty else []
+    unique_stok_items = ["-- PILIH NAMA BARANG --"] + sorted(stok_barang_list)
+    st.session_state['list_stok_barang'] = unique_stok_items # Simpan ke session state
 
     with st.sidebar:
         st.title(f"👤 {st.session_state['username'].upper()}")
@@ -506,9 +524,9 @@ def main_app():
             st.session_state['menu'] = 'Inventaris Kelas'
             st.rerun()
         
-        if st.button("🖥️ Inventaris Lab Komp", use_container_width=True):
-            st.session_state['menu'] = 'Inventaris Lab Komp'
-            st.rerun()
+        #if st.button("🖥️ Inventaris Lab Komputer", use_container_width=True):
+        #    st.session_state['menu'] = 'Inventaris Lab Komputer'
+        #    st.rerun()
 
         if st.button("🏭 Gudang (Stok)", use_container_width=True):
             st.session_state['menu'] = 'Gudang (Stok)'
@@ -564,10 +582,34 @@ def main_app():
     elif st.session_state['menu'] == "Input Aset":
         if st.session_state['role'] == 'view': st.warning("View Only"); st.stop()
         st.title("📦 Input Aset Massal")
+
+        # Ambil daftar dari session state
+        list_barang = st.session_state.get('list_aset_barang', ["-- PILIH NAMA BARANG --"])
+        list_merk = st.session_state.get('list_aset_merks', ["-- PILIH MERK --"])
+
         with st.form("input"):
             c1, c2 = st.columns(2)
             prefix = c1.text_input("Prefix*", placeholder="MEJA").upper(); vol = c2.number_input("Vol*", 1, 1000, 1)
-            nama = st.text_input("Nama Barang*"); merk = st.text_input("Merk*")
+            # <<< Nama Barang (Selectbox + Input Baru) >>>
+            selected_nama = st.selectbox("Pilih Nama Barang*", list_barang, key="aset_nama_select")
+            final_nama = selected_nama
+
+            if selected_nama == "-- PILIH NAMA BARANG --":
+                st.warning("Jika barang baru, silakan ketik nama barang di bawah.")
+                new_nama = st.text_input("Nama Barang Baru*", key="aset_nama_new")
+                if new_nama:
+                    final_nama = new_nama
+
+            # <<< Merk (Selectbox + Input Baru) >>>
+            selected_merk = st.selectbox("Pilih Merk*", list_merk, key="aset_merk_select")
+            final_merk = selected_merk
+
+            if selected_merk == "-- PILIH MERK --":
+                st.warning("Jika merk baru, silakan ketik merk di bawah.")
+                new_merk = st.text_input("Merk Baru*", key="aset_merk_new")
+                if new_merk:
+                    final_merk = new_merk
+
             c3, c4 = st.columns(2); 
             lok = c3.selectbox("Lokasi*", st.session_state['list_lokasi_aset'])
             pj = c4.text_input("PJ*")
@@ -576,8 +618,12 @@ def main_app():
             
             if st.form_submit_button("Simpan", type="primary"):
                 # --- VALIDASI INPUT WAJIB ---
-                if not prefix or not nama or not merk or not lok or not pj:
-                    st.error("⚠️ Error: Semua kolom bertanda bintang (*) WAJIB DIISI!")
+                # --- VALIDASI INPUT WAJIB ---
+                valid_nama = final_nama not in ["-- PILIH NAMA BARANG --", None, ""]
+                valid_merk = final_merk not in ["-- PILIH MERK --", None, ""]
+
+                if not prefix or not valid_nama or not valid_merk or lok == "-- PILIH LOKASI --" or not pj:
+                    st.error("⚠️ Error: Semua kolom bertanda bintang (*) WAJIB DIISI dan Lokasi harus dipilih!")
                 else:
                     with st.spinner("Menyimpan..."):
                         df = load_data("Aset")
@@ -597,8 +643,16 @@ def main_app():
                             f_link = upload_to_drive_real(pic, f_name)
 
                         # Buat baris data untuk Google Sheet
-                        rows = [[f"{base}.{last+i:03d}", nama, merk, "Aset Tetap", pj, lok, "BOS", thn, "-", f_link, "Baik"] for i in range(1, vol+1)]
-                        if save_to_sheet("Aset", rows): st.success("Sukses!"); time.sleep(1); st.rerun()
+                        rows = [[f"{base}.{last+i:03d}", final_nama, final_merk, "Aset Tetap", pj, lok, "BOS", thn, "-", f_link, "Baik"] for i in range(1, vol+1)]
+                        # Simpan data ke Google Sheet
+                        if save_to_sheet("Aset", rows): 
+                            st.success(f"✅ Input {vol} unit aset dengan kode awal {base}.{last+1:03d} berhasil!"); 
+                            
+                            # Set flag refresh untuk memuat ulang daftar barang dan merk di main_app
+                            st.session_state['refresh_aset'] = True
+                            
+                            time.sleep(1); 
+                            st.rerun()
     
     elif st.session_state['menu'] == "Data Aset":
         st.title("🖨️ Data Aset")
@@ -754,7 +808,7 @@ Foto: {r.get('Link_Foto','-')}"""
                             <tr><td style='width:100px;'>Nama</td><td>: {p2}</td></tr><tr><td>NIP</td><td>: {n2}</td></tr><tr><td>Jabatan</td><td>: {jab2} (PIHAK KEDUA)</td></tr>
                         </table>
                         <p class='bast-text'>PIHAK KESATU menyerahkan barang kepada PIHAK KEDUA, dan PIHAK KEDUA menyatakan menerima barang dari PIHAK PERTAMA berupa daftar terlampir :</p>
-                        <table class='bast-table'><thead><tr><th>No</th><th>Nama Barang</th><th>Jml</th><th><th>Harga</th><th>Ket</th><th>Sumber</th></tr></thead><tbody>{rows_html}</tbody></table>
+                        <table class='bast-table'><thead><tr><th>No</th><th>Nama Barang</th><th>Jml</th><th>Harga</th><th>Ket</th><th>Sumber</th></tr></thead><tbody>{rows_html}</tbody></table>
                         <p class='bast-text'>Berdasarkan Berita Acara Serah Terima Barang Inventaris gudang SMKN 6 Jember dari PIHAK PERTAMA kepada PIHAK KEDUA, adapun barang-barang tersebut dalam keadaan baik dan cukup,
 Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung jawab PIHAK KEDUA.</p>
                         <table class='bast-signature-table'>
@@ -773,54 +827,83 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
         st.header("🏢 Manajemen Inventaris Kelas/Ruangan")
         df_inv = load_data("InventarisKelas")
     
+        if 'inventaris_active_tab_index' not in st.session_state:
+            st.session_state['inventaris_active_tab_index'] = 0
+
+        tab_titles = ["➕ Pendataan Awal", "🔍 Audit & Update Kondisi"]
+
         # -----------------------------------------------------------
         # TABS: Pendataan Awal dan Audit/Update Kondisi
         # -----------------------------------------------------------
-        tab1, tab2 = st.tabs(["➕ Pendataan Awal", "🔍 Audit & Update Kondisi"])
+        tab1, tab2 = st.tabs(tab_titles)
+        
+        list_barang_kelas = st.session_state.get('list_inv_kelas_barang', ["-- PILIH NAMA BARANG --"])
     
         # =======================================================
         # TAB 1: FORM INPUT INVENTARIS BARU
         # =======================================================
         with tab1:
+            st.session_state['inventaris_active_tab_index'] = 0
             st.subheader("Input Item Inventaris Baru ke Ruangan")
         
             with st.form("form_inventaris_baru"):
-                ruangan = st.text_input("Nama Kelas/Ruangan (Misal: X PPLG 1)")
-                nama_barang = st.text_input("Nama Barang (Misal: Kursi Siswa)")
+                ruangan = st.text_input("Nama Kelas/Ruangan (Misal: X RPL 1)")
+                selected_nama = st.selectbox("Pilih Nama Barang*", list_barang_kelas, key="inv_kelas_nama_select")
+                final_nama_barang = selected_nama
+
+                if selected_nama == "-- PILIH NAMA BARANG --":
+                    st.warning("Jika barang baru, silakan ketik nama barang di bawah.")
+                    new_nama = st.text_input("Nama Barang Baru*", key="inv_kelas_nama_new")
+                    if new_nama:
+                        final_nama_barang = new_nama
+
                 total_unit = st.number_input("Total Unit Barang di Ruangan Ini", min_value=1, value=1)
                 thn = st.number_input("Tahun Perolehan/Pembelian", min_value=1990, value=pd.to_datetime('today').year)
             
                 submitted = st.form_submit_button("Simpan Data Inventaris", type="primary")
+
+                #nama_barang = st.text_input("Nama Barang (Misal: Kursi Siswa)")
+                #total_unit = st.number_input("Total Unit Barang di Ruangan Ini", min_value=1, value=1)
+                #thn = st.number_input("Tahun Perolehan/Pembelian", min_value=1990, value=pd.to_datetime('today').year)
+            
+                #submitted = st.form_submit_button("Simpan Data Inventaris", type="primary")
             
                 if submitted:
-                    if not ruangan or not nama_barang:
-                        st.error("Nama Ruangan dan Nama Barang wajib diisi.")
+                    valid_nama = final_nama_barang not in ["-- PILIH NAMA BARANG --", None, ""]
+                    if not ruangan or not valid_nama:
+                        st.error("Nama Ruangan dan Nama Barang wajib diisi/dipilih.")
                     else:
+                        with st.spinner("Menyimpan data..."):
                         # Data awal: diasumsikan semua unit dalam kondisi baik
-                        new_row = [
-                            ruangan, 
-                            nama_barang, 
-                            total_unit, 
-                            total_unit, # Baik = Total Unit
-                            0, # Rusak Sedang = 0
-                            0, # Rusak Berat = 0
-                            thn, 
-                            pd.to_datetime('today').strftime('%Y-%m-%d %H:%M')
-                        ]
+                            new_row = [
+                                ruangan, 
+                                final_nama_barang, 
+                                total_unit, 
+                                total_unit, # Baik = Total Unit
+                                0, # Rusak Sedang = 0
+                                0, # Rusak Berat = 0
+                                thn, 
+                                pd.to_datetime('today').strftime('%Y-%m-%d %H:%M')
+                            ]
                     
                         # Simpan ke Google Sheet
-                        if save_to_sheet("InventarisKelas", [new_row], append_only=True):
-                            st.success(f"✅ Data '{nama_barang}' di '{ruangan}' berhasil ditambahkan.")
-                            st.rerun()
+                            if save_to_sheet("InventarisKelas", [new_row], append_only=True):
+                                st.success(f"✅ Data '{final_nama_barang}' di '{ruangan}' berhasil ditambahkan.")
+                                st.session_state['inventaris_active_tab_index'] = 0
+                                # Set flag untuk refresh daftar barang kelas
+                                st.session_state['refresh_inv_kelas'] = True 
+                                st.rerun()
 
         # =======================================================
         # TAB 2: AUDIT & UPDATE KONDISI
         # =======================================================
         with tab2:
+            st.session_state['inventaris_active_tab_index'] = 1
             st.subheader("Pembaruan Kondisi Inventaris")
         
             if df_inv.empty:
                 st.info("Belum ada data Inventaris Kelas. Silakan input data di tab 'Pendataan Awal'.")
+                st.session_state['inventaris_active_tab_index'] = 0
                 return
             
             # 1. Pilih Ruangan
@@ -886,135 +969,211 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
                 trigger_print_js(html_output)
                 st.success("Tampilan cetak KIK berhasil dimuat. Silakan cetak melalui dialog browser.")
     
-    elif st.session_state['menu'] == 'Inventaris Lab Komp':
-        if st.session_state['role'] == 'view': 
-            st.warning("View Only");
+    #elif st.session_state['menu'] == 'Inventaris Lab Komputer':
+    #    if st.session_state['role'] == 'view': 
+    #        st.warning("View Only");
             
-        st.header("🖥️ Manajemen Inventaris Lab Komp")
-        # Asumsikan Anda memiliki sheet 'InventarisLab'
-        df_lab_inv = load_data("InventarisLab")
+    #    st.header("🖥️ Manajemen Inventaris Lab Komputer")
+    #    # Asumsikan Anda memiliki sheet 'InventarisLab'
+    #    df_lab_inv = load_data("InventarisLab")
         
-        tab_titles = ["➕ Input Data Baru", "🔍 Audit & Update Kondisi"]
+    #    tab_titles = ["➕ Input Data Baru", "🔍 Audit & Update Kondisi"]
         
         # Karena versi Streamlit Anda lama, kita tetap menggunakan st.tabs tanpa default_index
-        tab1, tab2 = st.tabs(tab_titles)
+    #    tab1, tab2 = st.tabs(tab_titles)
 
         # =======================================================
         # TAB 1: FORM INPUT INVENTARIS LAB BARU
         # =======================================================
-        with tab1:
+    #    with tab1:
             st.session_state['lab_inv_active_tab_index'] = 0 # Tetap di tab 1 saat ini
-            st.subheader("Input Item Komputer Baru ke Lab")
+    #        st.subheader("Input Item Komputer Baru ke Lab")
             
-            with st.form("form_inventaris_lab_baru"):
-                col_a, col_b = st.columns(2)
-                lab_name = col_a.text_input("Nama Lab/Ruangan*", placeholder="LAB RPL A")
-                asset_code = col_b.text_input("Kode Aset Unit*", placeholder="PC-LAB.1.001")
+    #        with st.form("form_inventaris_lab_baru"):
+    #            col_a, col_b = st.columns(2)
+    #            lab_name = col_a.text_input("Nama Lab/Ruangan*", placeholder="LAB RPL A")
+    #            asset_code = col_b.text_input("Kode Aset Unit*", placeholder="PC-LAB.1.001")
                 
-                device_type = st.selectbox("Jenis Perangkat", ["PC Desktop", "Monitor", "Laptop", "Printer", "Jaringan"], key="dev_type")
-                brand = st.text_input("Merk / Model")
-                sn = st.text_input("Serial Number (SN)*")
-                spec = st.text_area("Spesifikasi Singkat", placeholder="i5 Gen 10 / RAM 8GB / SSD 256GB")
+    #            device_type = st.selectbox("Jenis Perangkat", ["PC Desktop", "Monitor", "Laptop", "Printer", "Jaringan"], key="dev_type")
+    #            brand = st.text_input("Merk / Model")
+    #            sn = st.text_input("Serial Number (SN)*")
+    #            spec = st.text_area("Spesifikasi Singkat", placeholder="i5 Gen 10 / RAM 8GB / SSD 256GB")
                 
-                submitted = st.form_submit_button("Simpan Data Perangkat", type="primary")
+    #            submitted = st.form_submit_button("Simpan Data Perangkat", type="primary")
                 
-                if submitted:
-                    if not lab_name or not asset_code or not sn:
-                        st.error("Nama Lab, Kode Aset Unit, dan Serial Number wajib diisi.")
-                    else:
-                        with st.spinner("Menyimpan data..."):
-                            # Data awal
-                            new_row = [
-                                lab_name, 
-                                asset_code.upper(), 
-                                device_type,
-                                brand, 
-                                sn.upper(),
-                                spec,
-                                "Baik", # Status awal
-                                pd.to_datetime('today').strftime('%Y-%m-%d %H:%M')
-                            ]
+    #            if submitted:
+    #                if not lab_name or not asset_code or not sn:
+    #                    st.error("Nama Lab, Kode Aset Unit, dan Serial Number wajib diisi.")
+    #                else:
+    #                    with st.spinner("Menyimpan data..."):
+    #                        # Data awal
+    #                        new_row = [
+    #                            lab_name, 
+    #                            asset_code.upper(), 
+    #                            device_type,
+    #                            brand, 
+    #                            sn.upper(),
+    #                            spec,
+    #                            "Baik", # Status awal
+    #                            pd.to_datetime('today').strftime('%Y-%m-%d %H:%M')
+    #                        ]
                         
                             # Simpan ke Google Sheet 'InventarisLab'
-                            if save_to_sheet("InventarisLab", [new_row], append_only=True):
-                                st.success(f"✅ Data '{asset_code}' di '{lab_name}' berhasil ditambahkan.")
-                                st.rerun()
+    #                        if save_to_sheet("InventarisLab", [new_row], append_only=True):
+    #                            st.success(f"✅ Data '{asset_code}' di '{lab_name}' berhasil ditambahkan.")
+    #                            st.rerun()
 
-        # =======================================================
-        # TAB 2: AUDIT & UPDATE KONDISI LAB
-        # =======================================================
-        with tab2:
-            st.session_state['lab_inv_active_tab_index'] = 1 # Pindah ke tab 2
-            st.subheader("Pembaruan Kondisi Perangkat")
-        
-            if df_lab_inv.empty:
-                st.info("Belum ada data Inventaris Lab. Silakan input data di tab 'Input Data Baru'.")
-                st.session_state['lab_inv_active_tab_index'] = 0 
-                return
+    #    # =======================================================
+    #    # TAB 2: AUDIT & UPDATE KONDISI LAB
+    #    # =======================================================
+    #    with tab2:
+    #        st.session_state['lab_inv_active_tab_index'] = 1 # Pindah ke tab 2
+    #        st.subheader("Pembaruan Kondisi Perangkat")
+    ##    
+    #        if df_lab_inv.empty:
+    #            st.info("Belum ada data Inventaris Lab. Silakan input data di tab 'Input Data Baru'.")
+    #            st.session_state['lab_inv_active_tab_index'] = 0 
+    #            return
             
-            # 1. Pilih Lab
-            unique_labs = df_lab_inv['Nama_Lab'].unique().tolist()
-            selected_lab = st.selectbox("Pilih Lab untuk Audit", unique_labs, key="audit_lab_selector")
+    #        # 1. Pilih Lab
+    ##        unique_labs = df_lab_inv['Nama_Lab'].unique().tolist()
+    #        selected_lab = st.selectbox("Pilih Lab untuk Audit", unique_labs, key="audit_lab_selector")
         
             # Filter DataFrame berdasarkan lab yang dipilih
-            df_lab = df_lab_inv[df_lab_inv['Nama_Lab'] == selected_lab].reset_index(drop=True)
+    #        df_lab = df_lab_inv[df_lab_inv['Nama_Lab'] == selected_lab].reset_index(drop=True)
             
             # Definisikan daftar status yang mungkin untuk Lab
-            LAB_STATUS_OPTIONS = ["Baik", "Rusak Ringan", "Rusak Berat", "Tidak Ditemukan"]
+    #        LAB_STATUS_OPTIONS = ["Baik", "Rusak Ringan", "Rusak Berat", "Tidak Ditemukan"]
         
-            st.markdown(f"#### Data Perangkat Lab: **{selected_lab}**")
-            st.info("Edit kolom Status pada tabel di bawah ini.")
+    #        st.markdown(f"#### Data Perangkat Lab: **{selected_lab}**")
+    #        st.info("Edit kolom Status pada tabel di bawah ini.")
         
             # 2. Tampilkan Data Editor
-            editable_df_lab = st.data_editor(
-                df_lab,
-                use_container_width=True,
-                hide_index=True,
-                key="lab_editor",
-                column_config={
-                    "Nama_Lab": st.column_config.TextColumn(disabled=True),
-                    "Kode_Aset_Unit": st.column_config.TextColumn(disabled=True),
-                    "SN": st.column_config.TextColumn(disabled=True),
-                    "Terakhir_Diupdate": st.column_config.TextColumn(disabled=True),
-                    "Status": st.column_config.SelectboxColumn(
-                        "Status", 
-                        options=LAB_STATUS_OPTIONS, 
-                        required=True
-                    ),
-                }
-            )
+    #        editable_df_lab = st.data_editor(
+    #            df_lab,
+    #            use_container_width=True,
+    #            hide_index=True,
+    #            key="lab_editor",
+    #            column_config={
+    #                "Nama_Lab": st.column_config.TextColumn(disabled=True),
+    #                "Kode_Aset_Unit": st.column_config.TextColumn(disabled=True),
+    #                "SN": st.column_config.TextColumn(disabled=True),
+    #                "Terakhir_Diupdate": st.column_config.TextColumn(disabled=True),
+    #                "Status": st.column_config.SelectboxColumn(
+    #                    "Status", 
+    #                    options=LAB_STATUS_OPTIONS, 
+    #                    required=True
+    #                ),
+    #            }
+    #        )
             
-            # 3. Tombol Simpan
-            if st.button("💾 Simpan Hasil Audit Lab", type="primary"):
-                # Update kolom timestamp
-                editable_df_lab['Terakhir_Diupdate'] = pd.to_datetime('today').strftime('%Y-%m-%d %H:%M')
+    #        # 3. Tombol Simpan
+    #        if st.button("💾 Simpan Hasil Audit Lab", type="primary"):
+    #            # Update kolom timestamp
+    #            editable_df_lab['Terakhir_Diupdate'] = pd.to_datetime('today').strftime('%Y-%m-%d %H:%M')
                 
                 # Gabungkan data yang diedit dengan data lab lain
-                df_other_labs = df_lab_inv[df_lab_inv['Nama_Lab'] != selected_lab]
-                df_final_lab = pd.concat([df_other_labs, editable_df_lab], ignore_index=True)
+    #            df_other_labs = df_lab_inv[df_lab_inv['Nama_Lab'] != selected_lab]
+    #            df_final_lab = pd.concat([df_other_labs, editable_df_lab], ignore_index=True)
             
                 # Asumsi ada fungsi update_inventaris_lab_sheet()
-                if update_inventaris_lab_sheet(df_final_lab):
-                    st.success("✅ Audit Lab berhasil disimpan.")
-                    st.session_state['lab_inv_active_tab_index'] = 1
-                    st.rerun()
+    #            if update_inventaris_lab_sheet(df_final_lab):
+    #                st.success("✅ Audit Lab berhasil disimpan.")
+    #                st.session_state['lab_inv_active_tab_index'] = 1
+    #                st.rerun()
 
     elif st.session_state['menu'] == "Gudang (Stok)":
-        st.title("🏭 Gudang"); 
+        st.title("🏭 Gudang");
+        # -----------------------------------------------------------
+        # TRANSAKSI BARANG MASUK/KELUAR
+        # ----------------------------------------------------------- 
         if st.session_state['role'] != 'view':
-            with st.expander("➕ Transaksi"):
+            with st.expander("➕ Input Transaksi Baru", expanded=True):
                 with st.form("stok"):
-                    c1,c2=st.columns(2); d=c1.date_input("Tgl"); n=c2.text_input("Barang")
-                    c3,c4=st.columns(2); j=c3.radio("Aksi",["Masuk","Keluar"],horizontal=True); q=c4.number_input("Jml",1)
-                    c5,c6=st.columns(2); s=c5.text_input("Satuan"); k=c6.text_input("Ket")
-                    if st.form_submit_button("Simpan"): save_to_sheet("Stok",[[str(d),n,j,q,s,k]]); st.success("OK"); st.rerun()
-        df = load_data("Stok")
+                    col_date, col_item_select = st.columns(2)
+                    d = col_date.date_input("Tanggal Transaksi", key="stok_date")
+                
+                    # <<< PERBAIKAN KRITIS: Selectbox Nama Barang >>>
+                    # Gunakan daftar barang unik yang sudah dimuat di main_app
+                    selected_item = col_item_select.selectbox(
+                        "Pilih Nama Barang",
+                        options=st.session_state.get('list_stok_barang', ["-- PILIH NAMA BARANG --"]),
+                        key="stok_item_select"
+                    )
+                
+                    final_nama_barang = selected_item
+                
+                    # Logika untuk Barang Baru (jika tidak ada di daftar)
+                    if selected_item == "-- PILIH NAMA BARANG --":
+                        st.warning("Jika barang baru, silakan ketik nama barang di bawah ini.")
+                        new_item = st.text_input("Nama Barang Baru", key="stok_new_item")
+                        # Ganti nama barang yang akan disimpan jika input baru diisi
+                        if new_item:
+                            final_nama_barang = new_item
+                    # <<< AKHIR PERBAIKAN KRITIS >>>
+                
+                    col_action, col_qty = st.columns(2)
+                    j = col_action.radio("Aksi", ["Masuk", "Keluar"], horizontal=True, key="stok_action")
+                    q = col_qty.number_input("Jumlah (Jml)", min_value=1, key="stok_qty")
+                
+                    col_unit, col_notes = st.columns(2)
+                    s = col_unit.text_input("Satuan (Misal: Pcs, Unit, Rim)", key="stok_unit")
+                    k = col_notes.text_input("Keterangan Tambahan", key="stok_ket")
+                
+                    if st.form_submit_button("Simpan Transaksi", type="primary"):
+                        # --- VALIDASI INPUT ---
+                        # Cek apakah nama barang sudah dipilih atau diisi (jika baru)
+                        if final_nama_barang == "-- PILIH NAMA BARANG --" or not final_nama_barang:
+                            st.error("⚠️ Nama Barang harus dipilih atau diisi.")
+                        else:
+                            # Sesuaikan dengan urutan kolom sheet Anda: Tgl, Nama_Barang, Jenis_Transaksi, Jumlah, Satuan, Ket
+                            row_data = [
+                                str(d), 
+                                final_nama_barang, 
+                                j, 
+                                q, 
+                                s, 
+                                k
+                            ]
+                        
+                            if save_to_sheet("Stok", [row_data], append_only=True):
+                                st.success(f"✅ Transaksi {j} {q} {s} {final_nama_barang} berhasil dicatat.")
+                                st.session_state['refresh_stok'] = True # Set flag untuk refresh daftar barang
+                                st.rerun()
+                            else:
+                                st.error("Gagal menyimpan ke database.")
+
+        # -----------------------------------------------------------
+        # TAMPILAN DATA (STOK & RIWAYAT)
+        # -----------------------------------------------------------
+        # Muat ulang data jika ada transaksi baru (jika 'refresh_stok' True)
+        if st.session_state.get('refresh_stok', False):
+            # Asumsi load_data akan mengambil data terbaru,
+            # dan kita perlu memuat ulang daftar barang unik di main_app saat ini juga
+            df = load_data("Stok")
+            st.session_state['refresh_stok'] = False
+        else:
+            df = load_data("Stok") # Muat data jika tidak ada flag refresh
+
         if not df.empty:
-            bal = df.groupby(['Nama_Barang','Satuan']).apply(lambda x: x[x['Jenis_Transaksi']=='Masuk']['Jumlah'].sum() - x[x['Jenis_Transaksi']=='Keluar']['Jumlah'].sum()).reset_index(name='Sisa')
+            # Menghitung Saldo (Balance)
+            bal = df.groupby(['Nama_Barang','Satuan']).apply(
+                lambda x: x[x['Jenis_Transaksi']=='Masuk']['Jumlah'].sum() - x[x['Jenis_Transaksi']=='Keluar']['Jumlah'].sum()
+            ).reset_index(name='Sisa')
+        
+            # Penambahan filter untuk item dengan sisa > 0
+            bal = bal[bal['Sisa'] > 0] 
+
             bal['Status'] = bal['Sisa'].apply(lambda x: '🔴 Kritis' if x <= 5 else '🟢 Aman')
-            st.subheader("Stok")
+        
+            st.subheader("📚 Saldo Stok Saat Ini")
             st.dataframe(bal, use_container_width=True, hide_index=True) 
-            st.divider(); st.subheader("Riwayat"); st.dataframe(df, use_container_width=True, hide_index=True)
+        
+            st.divider()
+            st.subheader("⏱️ Riwayat Transaksi")
+            st.dataframe(df, use_container_width=True, hide_index=True)
+        else:
+            st.info("Belum ada data transaksi stok.")
 
     elif st.session_state['menu'] == "Jadwal Aula":
         st.title("📅 Jadwal")
@@ -1070,4 +1229,3 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
-
