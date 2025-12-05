@@ -1085,104 +1085,113 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
     elif st.session_state['menu'] == "Gudang (Stok)":
         st.title("🏭 Gudang");
     
-        # -----------------------------------------------------------
-        # TAMPILAN DATA (DI ATAS UNTUK MENGAMBIL DATA TERBARU)
-        # -----------------------------------------------------------
-        # Muat ulang data jika ada transaksi baru (jika 'refresh_stok' True)
-        if st.session_state.get('refresh_stok', False):
-            # Asumsi load_data akan mengambil data terbaru.
-            df = load_data("Stok")
-            st.session_state['refresh_stok'] = False
-        else:
-            df = load_data("Stok") # Muat data jika tidak ada flag refresh
+    # --- 1. MUAT DATA LENGKAP STOK (DF) ---
+    if st.session_state.get('refresh_stok', False):
+         df = load_data("Stok")
+         st.session_state['refresh_stok'] = False
+    else:
+         df = load_data("Stok") 
     
-        # Simpan ke df_stok_all agar mudah diakses di bagian input
-        df_stok_all = df 
+    df_stok_all = df 
 
-        # -----------------------------------------------------------
-        # 2. LOGIKA PENENTUAN DEFAULT SATUAN (BERDASARKAN STATE)
-        # -----------------------------------------------------------
+    # --- 2. LOGIKA PENENTUAN DEFAULT SATUAN ---
+    current_selected_item = st.session_state.get('stok_item_select', '-- PILIH NAMA BARANG --')
+    default_satuan = ""
+
+    if current_selected_item != "-- PILIH NAMA BARANG --" and not df_stok_all.empty:
+        try:
+            # 1. Siapkan item yang dicari (huruf kecil dan tanpa spasi)
+            target_item = current_selected_item.strip().lower()
+            
+            # 2. Filter DataFrame: Ubah kolom ke string, hapus spasi, dan jadikan huruf kecil
+            filtered_df = df_stok_all[df_stok_all['Nama_Barang'].astype(str).str.strip().str.lower() == target_item]
+
+            if not filtered_df.empty:
+                # 3. Ambil nilai Satuan yang pertama
+                satuan_found = filtered_df['Satuan'].iloc[0]
+                
+                if pd.notna(satuan_found) and str(satuan_found).strip() != "":
+                    default_satuan = str(satuan_found).strip()
+            
+        except KeyError:
+            # Ini berarti nama kolom 'Nama_Barang' atau 'Satuan' SALAH di Google Sheet Anda!
+            st.error("Gagal memuat Satuan. Cek apakah kolom 'Nama_Barang' dan 'Satuan' di Google Sheet sudah benar.")
+            default_satuan = "" 
+        except Exception:
+            default_satuan = ""
+    # -----------------------------------------------------------
     
-        # Ambil nilai yang saat ini dipilih (dari session state)
-        current_selected_item = st.session_state.get('stok_item_select', '-- PILIH NAMA BARANG --')
-        default_satuan = ""
-
-        if current_selected_item != "-- PILIH NAMA BARANG --" and not df_stok_all.empty:
-            try:
-                # Cari Satuan berdasarkan nilai di state
-                satuan_found = df_stok_all[df_stok_all['Nama_Barang'] == current_selected_item]['Satuan'].iloc[0]
-                if pd.notna(satuan_found) and satuan_found != "":
-                    default_satuan = str(satuan_found)
-            except:
-                default_satuan = ""
-        # -----------------------------------------------------------
-        # TRANSAKSI BARANG MASUK/KELUAR
-        # ----------------------------------------------------------- 
-        if st.session_state['role'] != 'view':
-            with st.expander("➕ Input Transaksi Baru", expanded=True):
-                with st.form("stok"):
-                    col_date, col_item_select = st.columns(2)
-                    d = col_date.date_input("Tanggal Transaksi", key="stok_date")
+    # -----------------------------------------------------------
+    # TRANSAKSI BARANG MASUK/KELUAR
+    # ----------------------------------------------------------- 
+    if st.session_state['role'] != 'view':
+        with st.expander("➕ Input Transaksi Baru", expanded=True):
+            
+            # --- WIDGET NAMA BARANG (LUAR FORM) ---
+            col_item_select_out, col_empty_out = st.columns(2)
+            
+            # SELECTBOX NAMA BARANG
+            selected_item = col_item_select_out.selectbox(
+                "Pilih Nama Barang*",
+                options=st.session_state.get('list_stok_barang', ["-- PILIH NAMA BARANG --"]),
+                key="stok_item_select" 
+            )
+            final_nama_barang = selected_item
+            
+            # Logika untuk Barang Baru
+            if selected_item == "-- PILIH NAMA BARANG --":
+                st.warning("Jika barang baru, silakan ketik nama barang di bawah.")
+                new_item = st.text_input("Nama Barang Baru*", key="stok_new_item")
+                if new_item:
+                    final_nama_barang = new_item
+            
+            # --- WIDGET DI DALAM FORM ---
+            with st.form("stok"):
+                col_date, col_empty_in = st.columns(2)
+                d = col_date.date_input("Tanggal Transaksi", key="stok_date")
                 
-                    # <<< Selectbox Nama Barang >>>
-                    selected_item = col_item_select.selectbox(
-                        "Pilih Nama Barang*",
-                        options=st.session_state.get('list_stok_barang', ["-- PILIH NAMA BARANG --"]),
-                        key="stok_item_select"
-                    )
-                    final_nama_barang = selected_item
+                col_action, col_qty = st.columns(2)
+                j = col_action.radio("Aksi", ["Masuk", "Keluar"], horizontal=True, key="stok_action")
+                q = col_qty.number_input("Jumlah (Jml)*", min_value=1, key="stok_qty")
                 
-                    # Logika untuk Barang Baru (jika tidak ada di daftar)
-                    if selected_item == "-- PILIH NAMA BARANG --":
-                        st.warning("Jika barang baru, silakan ketik nama barang di bawah.")
-                        new_item = st.text_input("Nama Barang Baru*", key="stok_new_item")
-                        if new_item:
-                            final_nama_barang = new_item
+                col_unit, col_notes = st.columns(2)
                 
-                    # Menggunakan final_nama_barang untuk menentukan Satuan di sini
-                    # Catatan: Karena selectbox di-render sebelum form submit, value 'default_satuan' 
-                    # di atas harusnya sudah terisi untuk selected_item saat ini (rerun berikutnya).
+                # INPUT SATUAN menggunakan nilai otomatis
+                s = col_unit.text_input(
+                    "Satuan*", 
+                    value=default_satuan, 
+                    key="stok_unit"
+                )
+                k = col_notes.text_input("Keterangan Tambahan", key="stok_ket")
                 
-                    col_action, col_qty = st.columns(2)
-                    j = col_action.radio("Aksi", ["Masuk", "Keluar"], horizontal=True, key="stok_action")
-                    q = col_qty.number_input("Jumlah (Jml)*", min_value=1, key="stok_qty")
-                
-                    col_unit, col_notes = st.columns(2)
-                
-                    # <<< PERUBAHAN: Satuan menggunakan value=default_satuan >>>
-                    s = col_unit.text_input(
-                        "Satuan*", 
-                        value=default_satuan, # Nilai otomatis dari logika di atas
-                        key="stok_unit"
-                    )
-                    k = col_notes.text_input("Keterangan Tambahan", key="stok_ket")
-                
-                    if st.form_submit_button("Simpan Transaksi", type="primary"):
-                        # --- VALIDASI INPUT ---
-                        valid_nama = final_nama_barang not in ["-- PILIH NAMA BARANG --", None, ""]
+                if st.form_submit_button("Simpan Transaksi", type="primary"):
+                    # VALIDASI DAN PENYIMPANAN
+                    valid_nama = final_nama_barang not in ["-- PILIH NAMA BARANG --", None, ""]
                     
-                        if not valid_nama or not s: # Validasi ditambahkan untuk Satuan (s)
-                            st.error("⚠️ Nama Barang dan Satuan wajib diisi.")
-                        else:
-                            with st.spinner("Menyimpan transaksi..."):
-                                # Sesuaikan dengan urutan kolom sheet Anda: Tgl, Nama_Barang, Jenis_Transaksi, Jumlah, Satuan, Ket
-                                row_data = [
-                                    str(d), 
-                                    final_nama_barang, 
-                                    j, 
-                                    q, 
-                                    s, 
-                                    k
-                                ]
-                        
-                                if save_to_sheet("Stok", [row_data], append_only=True):
-                                    st.success(f"✅ Transaksi {j} {q} {s} {final_nama_barang} berhasil dicatat.")
-                                    st.session_state['refresh_stok'] = True 
-                                    st.rerun()
-                                else:
-                                    st.error("Gagal menyimpan ke database.")
+                    if not valid_nama or not s: 
+                        st.error("⚠️ Nama Barang dan Satuan wajib diisi.")
+                    else:
+                        with st.spinner("Menyimpan transaksi..."):
+                            row_data = [
+                                str(d), final_nama_barang, j, q, s, k
+                            ]
+                            if save_to_sheet("Stok", [row_data], append_only=True):
+                                st.success(f"✅ Transaksi {j} {q} {s} {final_nama_barang} berhasil dicatat.")
+                                
+                                # Reset state agar input berikutnya bersih
+                                if 'stok_item_select' in st.session_state:
+                                    del st.session_state['stok_item_select'] # Hapus key agar default value terpakai
+                                st.session_state['refresh_stok'] = True 
+                                st.rerun()
+                            else:
+                                st.error("Gagal menyimpan ke database.")
 
-        # -----------------------------------------------------------
+    # -----------------------------------------------------------
+    # TAMPILAN DATA (STOK & RIWAYAT)
+    # -----------------------------------------------------------
+    # ... (lanjutan kode tampilan data) ...
+
+         # -----------------------------------------------------------
         # TAMPILAN DATA (STOK & RIWAYAT)
         # -----------------------------------------------------------
     
