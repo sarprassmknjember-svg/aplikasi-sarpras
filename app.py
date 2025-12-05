@@ -352,13 +352,13 @@ def update_inventaris_kelas_sheet(df_updated):
         # Masukkan kembali header dan data yang sudah diedit
         wks.update([df_updated.columns.values.tolist()] + df_updated.values.tolist())
         st.cache_data.clear()
-        st.success("✅ Data Inventaris Kelas Berhasil Diperbarui!")
+        st.success("✅ Data Inventaris Ruangan Berhasil Diperbarui!")
         return True
     except Exception as e:
-        st.error(f"Gagal memperbarui sheet Inventaris Kelas: {e}")
+        st.error(f"Gagal memperbarui sheet Inventaris Ruangan: {e}")
         return False
 def generate_kik_html(df_kik, ruangan):
-    """Menghasilkan HTML untuk Kartu Inventaris Kelas (KIK)."""
+    """Menghasilkan HTML untuk Kartu Inventaris Ruangan (KIK)."""
     
     # Hitung total rekapitulasi
     total_unit = df_kik['Total_Unit'].sum()
@@ -369,7 +369,7 @@ def generate_kik_html(df_kik, ruangan):
     html_content = f"""
     <html>
     <head>
-        <title>Kartu Inventaris Kelas - {ruangan}</title>
+        <title>Kartu Inventaris Ruangan - {ruangan}</title>
         <style>
             @media print {{
                 @page {{ size: A4 portrait; margin: 1cm; }}
@@ -384,7 +384,7 @@ def generate_kik_html(df_kik, ruangan):
         </style>
     </head>
     <body>
-        <h2>KARTU INVENTARIS KELAS</h2>
+        <h2>KARTU Inventaris Ruangan</h2>
         <table class="info-table">
             <tr><th style="width: 25%;">Ruangan/Kelas</th><td>: {ruangan}</td></tr>
             <tr><th>Tahun Pelaporan</th><td>: {pd.to_datetime('today').year}</td></tr>
@@ -520,8 +520,8 @@ def main_app():
             st.session_state['menu'] = 'Data Aset'
             st.rerun()
             
-        if st.button("🏢 Inventaris Kelas", use_container_width=True):
-            st.session_state['menu'] = 'Inventaris Kelas'
+        if st.button("🏢 Inventaris Ruangan", use_container_width=True):
+            st.session_state['menu'] = 'Inventaris Ruangan'
             st.rerun()
         
         #if st.button("🖥️ Inventaris Lab Komputer", use_container_width=True):
@@ -823,8 +823,8 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
                     st.success("✅ Surat Siap!")
                     st.download_button("💾 DOWNLOAD SURAT BAST (HTML)", full_html_bast, "BAST_Surat.html", "text/html", type="primary")
 
-    elif st.session_state['menu'] == 'Inventaris Kelas':
-        st.header("🏢 Manajemen Inventaris Kelas/Ruangan")
+    elif st.session_state['menu'] == 'Inventaris Ruangan':
+        st.header("🏢 Manajemen Inventaris Ruangan/Ruangan")
         df_inv = load_data("InventarisKelas")
     
         if 'inventaris_active_tab_index' not in st.session_state:
@@ -902,7 +902,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
             st.subheader("Pembaruan Kondisi Inventaris")
         
             if df_inv.empty:
-                st.info("Belum ada data Inventaris Kelas. Silakan input data di tab 'Pendataan Awal'.")
+                st.info("Belum ada data Inventaris Ruangan. Silakan input data di tab 'Pendataan Awal'.")
                 st.session_state['inventaris_active_tab_index'] = 0
                 return
             
@@ -963,7 +963,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 
             # 4. Tombol Cetak KIK
             st.divider()
-            st.caption("Cetak Kartu Inventaris Kelas (KIK) untuk Ruangan ini.")
+            st.caption("Cetak Kartu Inventaris Ruangan (KIK) untuk Ruangan ini.")
             if st.button(f"🖨️ Cetak KIK Ruangan {selected_room}", disabled=df_room.empty):
                 html_output = generate_kik_html(df_room, selected_room)
                 trigger_print_js(html_output)
@@ -1084,6 +1084,37 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 
     elif st.session_state['menu'] == "Gudang (Stok)":
         st.title("🏭 Gudang");
+    
+        # -----------------------------------------------------------
+        # TAMPILAN DATA (DI ATAS UNTUK MENGAMBIL DATA TERBARU)
+        # -----------------------------------------------------------
+        # Muat ulang data jika ada transaksi baru (jika 'refresh_stok' True)
+        if st.session_state.get('refresh_stok', False):
+            # Asumsi load_data akan mengambil data terbaru.
+            df = load_data("Stok")
+            st.session_state['refresh_stok'] = False
+        else:
+            df = load_data("Stok") # Muat data jika tidak ada flag refresh
+    
+        # Simpan ke df_stok_all agar mudah diakses di bagian input
+        df_stok_all = df 
+
+        # -----------------------------------------------------------
+        # 2. LOGIKA PENENTUAN DEFAULT SATUAN (BERDASARKAN STATE)
+        # -----------------------------------------------------------
+    
+        # Ambil nilai yang saat ini dipilih (dari session state)
+        current_selected_item = st.session_state.get('stok_item_select', '-- PILIH NAMA BARANG --')
+        default_satuan = ""
+
+        if current_selected_item != "-- PILIH NAMA BARANG --" and not df_stok_all.empty:
+            try:
+                # Cari Satuan berdasarkan nilai di state
+                satuan_found = df_stok_all[df_stok_all['Nama_Barang'] == current_selected_item]['Satuan'].iloc[0]
+                if pd.notna(satuan_found) and satuan_found != "":
+                    default_satuan = str(satuan_found)
+            except:
+                default_satuan = ""
         # -----------------------------------------------------------
         # TRANSAKSI BARANG MASUK/KELUAR
         # ----------------------------------------------------------- 
@@ -1093,71 +1124,71 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
                     col_date, col_item_select = st.columns(2)
                     d = col_date.date_input("Tanggal Transaksi", key="stok_date")
                 
-                    # <<< PERBAIKAN KRITIS: Selectbox Nama Barang >>>
-                    # Gunakan daftar barang unik yang sudah dimuat di main_app
+                    # <<< Selectbox Nama Barang >>>
                     selected_item = col_item_select.selectbox(
-                        "Pilih Nama Barang",
+                        "Pilih Nama Barang*",
                         options=st.session_state.get('list_stok_barang', ["-- PILIH NAMA BARANG --"]),
                         key="stok_item_select"
                     )
-                
                     final_nama_barang = selected_item
                 
                     # Logika untuk Barang Baru (jika tidak ada di daftar)
                     if selected_item == "-- PILIH NAMA BARANG --":
-                        st.warning("Jika barang baru, silakan ketik nama barang di bawah ini.")
-                        new_item = st.text_input("Nama Barang Baru", key="stok_new_item")
-                        # Ganti nama barang yang akan disimpan jika input baru diisi
+                        st.warning("Jika barang baru, silakan ketik nama barang di bawah.")
+                        new_item = st.text_input("Nama Barang Baru*", key="stok_new_item")
                         if new_item:
                             final_nama_barang = new_item
-                    # <<< AKHIR PERBAIKAN KRITIS >>>
+                
+                    # Menggunakan final_nama_barang untuk menentukan Satuan di sini
+                    # Catatan: Karena selectbox di-render sebelum form submit, value 'default_satuan' 
+                    # di atas harusnya sudah terisi untuk selected_item saat ini (rerun berikutnya).
                 
                     col_action, col_qty = st.columns(2)
                     j = col_action.radio("Aksi", ["Masuk", "Keluar"], horizontal=True, key="stok_action")
-                    q = col_qty.number_input("Jumlah (Jml)", min_value=1, key="stok_qty")
+                    q = col_qty.number_input("Jumlah (Jml)*", min_value=1, key="stok_qty")
                 
                     col_unit, col_notes = st.columns(2)
-                    s = col_unit.text_input("Satuan (Misal: Pcs, Unit, Rim)", key="stok_unit")
+                
+                    # <<< PERUBAHAN: Satuan menggunakan value=default_satuan >>>
+                    s = col_unit.text_input(
+                        "Satuan*", 
+                        value=default_satuan, # Nilai otomatis dari logika di atas
+                        key="stok_unit"
+                    )
                     k = col_notes.text_input("Keterangan Tambahan", key="stok_ket")
                 
                     if st.form_submit_button("Simpan Transaksi", type="primary"):
                         # --- VALIDASI INPUT ---
-                        # Cek apakah nama barang sudah dipilih atau diisi (jika baru)
-                        if final_nama_barang == "-- PILIH NAMA BARANG --" or not final_nama_barang:
-                            st.error("⚠️ Nama Barang harus dipilih atau diisi.")
+                        valid_nama = final_nama_barang not in ["-- PILIH NAMA BARANG --", None, ""]
+                    
+                        if not valid_nama or not s: # Validasi ditambahkan untuk Satuan (s)
+                            st.error("⚠️ Nama Barang dan Satuan wajib diisi.")
                         else:
-                            # Sesuaikan dengan urutan kolom sheet Anda: Tgl, Nama_Barang, Jenis_Transaksi, Jumlah, Satuan, Ket
-                            row_data = [
-                                str(d), 
-                                final_nama_barang, 
-                                j, 
-                                q, 
-                                s, 
-                                k
-                            ]
+                            with st.spinner("Menyimpan transaksi..."):
+                                # Sesuaikan dengan urutan kolom sheet Anda: Tgl, Nama_Barang, Jenis_Transaksi, Jumlah, Satuan, Ket
+                                row_data = [
+                                    str(d), 
+                                    final_nama_barang, 
+                                    j, 
+                                    q, 
+                                    s, 
+                                    k
+                                ]
                         
-                            if save_to_sheet("Stok", [row_data], append_only=True):
-                                st.success(f"✅ Transaksi {j} {q} {s} {final_nama_barang} berhasil dicatat.")
-                                st.session_state['refresh_stok'] = True # Set flag untuk refresh daftar barang
-                                st.rerun()
-                            else:
-                                st.error("Gagal menyimpan ke database.")
+                                if save_to_sheet("Stok", [row_data], append_only=True):
+                                    st.success(f"✅ Transaksi {j} {q} {s} {final_nama_barang} berhasil dicatat.")
+                                    st.session_state['refresh_stok'] = True 
+                                    st.rerun()
+                                else:
+                                    st.error("Gagal menyimpan ke database.")
 
         # -----------------------------------------------------------
         # TAMPILAN DATA (STOK & RIWAYAT)
         # -----------------------------------------------------------
-        # Muat ulang data jika ada transaksi baru (jika 'refresh_stok' True)
-        if st.session_state.get('refresh_stok', False):
-            # Asumsi load_data akan mengambil data terbaru,
-            # dan kita perlu memuat ulang daftar barang unik di main_app saat ini juga
-            df = load_data("Stok")
-            st.session_state['refresh_stok'] = False
-        else:
-            df = load_data("Stok") # Muat data jika tidak ada flag refresh
-
-        if not df.empty:
+    
+        if not df_stok_all.empty:
             # Menghitung Saldo (Balance)
-            bal = df.groupby(['Nama_Barang','Satuan']).apply(
+            bal = df_stok_all.groupby(['Nama_Barang','Satuan']).apply(
                 lambda x: x[x['Jenis_Transaksi']=='Masuk']['Jumlah'].sum() - x[x['Jenis_Transaksi']=='Keluar']['Jumlah'].sum()
             ).reset_index(name='Sisa')
         
@@ -1171,7 +1202,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
         
             st.divider()
             st.subheader("⏱️ Riwayat Transaksi")
-            st.dataframe(df, use_container_width=True, hide_index=True)
+            st.dataframe(df_stok_all, use_container_width=True, hide_index=True)
         else:
             st.info("Belum ada data transaksi stok.")
 
