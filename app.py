@@ -604,6 +604,8 @@ def main_app():
         # Ambil daftar dari session state
         list_barang = st.session_state.get('list_aset_barang', ["-- PILIH NAMA BARANG --"])
         list_merk = st.session_state.get('list_aset_merks', ["-- PILIH MERK --"])
+        SUMBER_DANA_OPTIONS = ["BOS", "BPOPP", "Komite", "PK", "TEFA", "Lain-lain"]
+        GOLONGAN_OPTIONS = ["-- PILIH GOLONGAN --", "Aset Tetap Berwujud", "Aset Tetap Tidak Berwujud"]
 
         with st.form("input"):
             col_tgl, col_empty = st.columns(2)
@@ -613,7 +615,7 @@ def main_app():
             # <<< Nama Barang (Selectbox + Input Baru) >>>
             selected_nama = st.selectbox("Pilih Nama Barang*", list_barang, key="aset_nama_select")
             final_nama = selected_nama
-
+        
             if selected_nama == "-- PILIH NAMA BARANG --":
                 st.warning("Jika barang baru, silakan ketik nama barang di bawah.")
                 new_nama = st.text_input("Nama Barang Baru*", key="aset_nama_new")
@@ -629,7 +631,9 @@ def main_app():
                 new_merk = st.text_input("Merk Baru*", key="aset_merk_new")
                 if new_merk:
                     final_merk = new_merk
-
+            col_gol, col_sum = st.columns(2)
+            golongan = col_gol.selectbox("Golongan Aset*", GOLONGAN_OPTIONS, key="aset_golongan")
+            sumber_dana = col_sum.selectbox("Sumber Dana*", SUMBER_DANA_OPTIONS, key="aset_sumber")
             c3, c4 = st.columns(2); 
             lok = c3.selectbox("Lokasi*", st.session_state['list_lokasi_aset'])
             pj = c4.text_input("PJ*")
@@ -663,7 +667,7 @@ def main_app():
                             f_link = upload_to_drive_real(pic, f_name)
 
                         # Buat baris data untuk Google Sheet
-                        rows = [[str(tgl_perolehan),f"{base}.{last+i:03d}", final_nama, final_merk, "Aset Tetap", pj, lok, "BOS", thn, ket_tambahan, f_link, "Baik"] for i in range(1, vol+1)]
+                        rows = [[str(tgl_perolehan),f"{base}.{last+i:03d}", final_nama, final_merk, golongan, pj, lok, sumber_dana, thn, ket_tambahan, f_link, "Baik"] for i in range(1, vol+1)]
                         # Simpan data ke Google Sheet
                         if save_to_sheet("Aset", rows): 
                             st.success(f"✅ Input {vol} unit aset dengan kode awal {base}.{last+1:03d} berhasil!"); 
