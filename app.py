@@ -606,6 +606,8 @@ def main_app():
         list_merk = st.session_state.get('list_aset_merks', ["-- PILIH MERK --"])
 
         with st.form("input"):
+            col_tgl, col_empty = st.columns(2)
+            tgl_perolehan = col_tgl.date_input("Tanggal Perolehan Aset*", key="aset_tgl")
             c1, c2 = st.columns(2)
             prefix = c1.text_input("Prefix*", placeholder="MEJA").upper(); vol = c2.number_input("Vol*", 1, 1000, 1)
             # <<< Nama Barang (Selectbox + Input Baru) >>>
@@ -632,10 +634,10 @@ def main_app():
             lok = c3.selectbox("Lokasi*", st.session_state['list_lokasi_aset'])
             pj = c4.text_input("PJ*")
             thn = st.number_input("Tahun*", value=2025)
+            ket_tambahan = st.text_area("Keterangan Tambahan (Opsional)", key="aset_ket_tambahan")
             pic = st.file_uploader("📸 Foto Aset")
             
             if st.form_submit_button("Simpan", type="primary"):
-                # --- VALIDASI INPUT WAJIB ---
                 # --- VALIDASI INPUT WAJIB ---
                 valid_nama = final_nama not in ["-- PILIH NAMA BARANG --", None, ""]
                 valid_merk = final_merk not in ["-- PILIH MERK --", None, ""]
@@ -661,7 +663,7 @@ def main_app():
                             f_link = upload_to_drive_real(pic, f_name)
 
                         # Buat baris data untuk Google Sheet
-                        rows = [[f"{base}.{last+i:03d}", final_nama, final_merk, "Aset Tetap", pj, lok, "BOS", thn, "-", f_link, "Baik"] for i in range(1, vol+1)]
+                        rows = [[str(tgl_perolehan),f"{base}.{last+i:03d}", final_nama, final_merk, "Aset Tetap", pj, lok, "BOS", thn, ket_tambahan, f_link, "Baik"] for i in range(1, vol+1)]
                         # Simpan data ke Google Sheet
                         if save_to_sheet("Aset", rows): 
                             st.success(f"✅ Input {vol} unit aset dengan kode awal {base}.{last+1:03d} berhasil!"); 
