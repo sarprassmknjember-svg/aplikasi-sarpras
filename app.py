@@ -440,6 +440,23 @@ def generate_kik_html(df_kik, ruangan):
     """
     return html_content
 
+# Tambahkan fungsi ini (atau sesuaikan fungsi yang ada) untuk membuat list pilihan
+def get_stok_list(df_stok_all):
+    if df_stok_all.empty:
+        return ["-- PILIH NAMA BARANG --"]
+    
+    # 1. Ambil kolom Nama_Barang
+    barang_list = df_stok_all['Nama_Barang'].astype(str).str.strip()
+    # 2. Hapus duplikat dan konversi ke list
+    unique_barang = sorted(barang_list.unique().tolist())
+    # 3. Tambahkan opsi default
+    return ["-- PILIH NAMA BARANG --"] + unique_barang
+
+# Di dalam main_app() atau di bagian inisialisasi Streamlit Anda:
+# if 'list_stok_barang' not in st.session_state:
+#     df_initial = load_data("Stok") # Muat data awal
+#     st.session_state['list_stok_barang'] = get_stok_list(df_initial)
+
 # ===========================
 # 3. LOGIN & MAIN APP
 # ===========================
@@ -968,180 +985,71 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
                 html_output = generate_kik_html(df_room, selected_room)
                 trigger_print_js(html_output)
                 st.success("Tampilan cetak KIK berhasil dimuat. Silakan cetak melalui dialog browser.")
-    
-    #elif st.session_state['menu'] == 'Inventaris Lab Komputer':
-    #    if st.session_state['role'] == 'view': 
-    #        st.warning("View Only");
-            
-    #    st.header("🖥️ Manajemen Inventaris Lab Komputer")
-    #    # Asumsikan Anda memiliki sheet 'InventarisLab'
-    #    df_lab_inv = load_data("InventarisLab")
-        
-    #    tab_titles = ["➕ Input Data Baru", "🔍 Audit & Update Kondisi"]
-        
-        # Karena versi Streamlit Anda lama, kita tetap menggunakan st.tabs tanpa default_index
-    #    tab1, tab2 = st.tabs(tab_titles)
-
-        # =======================================================
-        # TAB 1: FORM INPUT INVENTARIS LAB BARU
-        # =======================================================
-    #    with tab1:
-            st.session_state['lab_inv_active_tab_index'] = 0 # Tetap di tab 1 saat ini
-    #        st.subheader("Input Item Komputer Baru ke Lab")
-            
-    #        with st.form("form_inventaris_lab_baru"):
-    #            col_a, col_b = st.columns(2)
-    #            lab_name = col_a.text_input("Nama Lab/Ruangan*", placeholder="LAB RPL A")
-    #            asset_code = col_b.text_input("Kode Aset Unit*", placeholder="PC-LAB.1.001")
-                
-    #            device_type = st.selectbox("Jenis Perangkat", ["PC Desktop", "Monitor", "Laptop", "Printer", "Jaringan"], key="dev_type")
-    #            brand = st.text_input("Merk / Model")
-    #            sn = st.text_input("Serial Number (SN)*")
-    #            spec = st.text_area("Spesifikasi Singkat", placeholder="i5 Gen 10 / RAM 8GB / SSD 256GB")
-                
-    #            submitted = st.form_submit_button("Simpan Data Perangkat", type="primary")
-                
-    #            if submitted:
-    #                if not lab_name or not asset_code or not sn:
-    #                    st.error("Nama Lab, Kode Aset Unit, dan Serial Number wajib diisi.")
-    #                else:
-    #                    with st.spinner("Menyimpan data..."):
-    #                        # Data awal
-    #                        new_row = [
-    #                            lab_name, 
-    #                            asset_code.upper(), 
-    #                            device_type,
-    #                            brand, 
-    #                            sn.upper(),
-    #                            spec,
-    #                            "Baik", # Status awal
-    #                            pd.to_datetime('today').strftime('%Y-%m-%d %H:%M')
-    #                        ]
-                        
-                            # Simpan ke Google Sheet 'InventarisLab'
-    #                        if save_to_sheet("InventarisLab", [new_row], append_only=True):
-    #                            st.success(f"✅ Data '{asset_code}' di '{lab_name}' berhasil ditambahkan.")
-    #                            st.rerun()
-
-    #    # =======================================================
-    #    # TAB 2: AUDIT & UPDATE KONDISI LAB
-    #    # =======================================================
-    #    with tab2:
-    #        st.session_state['lab_inv_active_tab_index'] = 1 # Pindah ke tab 2
-    #        st.subheader("Pembaruan Kondisi Perangkat")
-    ##    
-    #        if df_lab_inv.empty:
-    #            st.info("Belum ada data Inventaris Lab. Silakan input data di tab 'Input Data Baru'.")
-    #            st.session_state['lab_inv_active_tab_index'] = 0 
-    #            return
-            
-    #        # 1. Pilih Lab
-    ##        unique_labs = df_lab_inv['Nama_Lab'].unique().tolist()
-    #        selected_lab = st.selectbox("Pilih Lab untuk Audit", unique_labs, key="audit_lab_selector")
-        
-            # Filter DataFrame berdasarkan lab yang dipilih
-    #        df_lab = df_lab_inv[df_lab_inv['Nama_Lab'] == selected_lab].reset_index(drop=True)
-            
-            # Definisikan daftar status yang mungkin untuk Lab
-    #        LAB_STATUS_OPTIONS = ["Baik", "Rusak Ringan", "Rusak Berat", "Tidak Ditemukan"]
-        
-    #        st.markdown(f"#### Data Perangkat Lab: **{selected_lab}**")
-    #        st.info("Edit kolom Status pada tabel di bawah ini.")
-        
-            # 2. Tampilkan Data Editor
-    #        editable_df_lab = st.data_editor(
-    #            df_lab,
-    #            use_container_width=True,
-    #            hide_index=True,
-    #            key="lab_editor",
-    #            column_config={
-    #                "Nama_Lab": st.column_config.TextColumn(disabled=True),
-    #                "Kode_Aset_Unit": st.column_config.TextColumn(disabled=True),
-    #                "SN": st.column_config.TextColumn(disabled=True),
-    #                "Terakhir_Diupdate": st.column_config.TextColumn(disabled=True),
-    #                "Status": st.column_config.SelectboxColumn(
-    #                    "Status", 
-    #                    options=LAB_STATUS_OPTIONS, 
-    #                    required=True
-    #                ),
-    #            }
-    #        )
-            
-    #        # 3. Tombol Simpan
-    #        if st.button("💾 Simpan Hasil Audit Lab", type="primary"):
-    #            # Update kolom timestamp
-    #            editable_df_lab['Terakhir_Diupdate'] = pd.to_datetime('today').strftime('%Y-%m-%d %H:%M')
-                
-                # Gabungkan data yang diedit dengan data lab lain
-    #            df_other_labs = df_lab_inv[df_lab_inv['Nama_Lab'] != selected_lab]
-    #            df_final_lab = pd.concat([df_other_labs, editable_df_lab], ignore_index=True)
-            
-                # Asumsi ada fungsi update_inventaris_lab_sheet()
-    #            if update_inventaris_lab_sheet(df_final_lab):
-    #                st.success("✅ Audit Lab berhasil disimpan.")
-    #                st.session_state['lab_inv_active_tab_index'] = 1
-    #                st.rerun()
 
     elif st.session_state['menu'] == "Gudang (Stok)":
         st.title("🏭 Gudang");
-    
-        # -----------------------------------------------------------
-        # TAMPILAN DATA (DI ATAS UNTUK MENGAMBIL DATA TERBARU)
-        # -----------------------------------------------------------
-        # Muat ulang data jika ada transaksi baru (jika 'refresh_stok' True)
-        if st.session_state.get('refresh_stok', False):
-            # Asumsi load_data akan mengambil data terbaru.
-            df = load_data("Stok")
-            st.session_state['refresh_stok'] = False
-        else:
-            df = load_data("Stok") # Muat data jika tidak ada flag refresh
-    
-        # Simpan ke df_stok_all agar mudah diakses di bagian input
-        df_stok_all = df 
 
-        # -----------------------------------------------------------
-        # 2. LOGIKA PENENTUAN DEFAULT SATUAN (BERDASARKAN STATE)
-        # -----------------------------------------------------------
+        # --- 1. MUAT DATA LENGKAP STOK (DF) ---
+        # Pastikan pemuatan data dilakukan di sini
+        df_stok_all = load_data("Stok")
     
-        # Ambil nilai yang saat ini dipilih (dari session state)
-        current_selected_item = st.session_state.get('stok_item_select', '-- PILIH NAMA BARANG --')
+        # Ambil daftar barang yang sudah ada
+        stok_barang_list = df_stok_all['Nama_Barang'].unique().tolist() if not df_stok_all.empty else []
+        unique_stok_items = ["-- PILIH NAMA BARANG --"] + sorted(stok_barang_list)
+        st.session_state['list_stok_barang'] = unique_stok_items # Simpan ke session state
+
+        # --- 2. WIDGET NAMA BARANG (LUAR FORM) ---
+        # Pindahkan selectbox ke luar form agar default_satuan bisa dihitung DULU
+        col_item_select_out, col_empty_out = st.columns(2)
+    
+        # SELECTBOX NAMA BARANG
+        selected_item = col_item_select_out.selectbox(
+            "Pilih Nama Barang*",
+            options=st.session_state.get('list_stok_barang', ["-- PILIH NAMA BARANG --"]),
+            key="stok_item_select" 
+        )
+        final_nama_barang = selected_item
+    
+        # --- 3. LOGIKA PENENTUAN DEFAULT SATUAN ---
         default_satuan = ""
-
+        current_selected_item = selected_item # Gunakan selected_item yang baru dipilih
+    
         if current_selected_item != "-- PILIH NAMA BARANG --" and not df_stok_all.empty:
             try:
-                # Cari Satuan berdasarkan nilai di state
-                satuan_found = df_stok_all[df_stok_all['Nama_Barang'] == current_selected_item]['Satuan'].iloc[0]
-                if pd.notna(satuan_found) and satuan_found != "":
-                    default_satuan = str(satuan_found)
-            except:
+                selected_item_stripped = current_selected_item.strip()
+                # Cari Satuan berdasarkan Nama_Barang yang dipilih
+                # Pastikan hanya mengambil data dengan Nama_Barang yang benar-benar sama
+                filtered_df = df_stok_all[df_stok_all['Nama_Barang'].astype(str).str.strip() == selected_item_stripped]
+
+                if not filtered_df.empty:
+                    # Ambil nilai Satuan yang paling sering muncul atau yang pertama ditemukan
+                    satuan_found = filtered_df['Satuan'].iloc[0]
+                
+                    if pd.notna(satuan_found) and str(satuan_found).strip() != "":
+                        default_satuan = str(satuan_found).strip()
+            
+            except KeyError:
+                # Ini hanya untuk debug, asumsikan nama kolom sudah benar
                 default_satuan = ""
+            except Exception:
+                default_satuan = ""
+
+        # Logika untuk Barang Baru
+        if selected_item == "-- PILIH NAMA BARANG --":
+            st.warning("Jika barang baru, silakan ketik nama barang di bawah.")
+            new_item = st.text_input("Nama Barang Baru*", key="stok_new_item")
+            if new_item:
+                final_nama_barang = new_item
+                default_satuan = "" # Kosongkan satuan jika input barang baru
+
         # -----------------------------------------------------------
         # TRANSAKSI BARANG MASUK/KELUAR
         # ----------------------------------------------------------- 
         if st.session_state['role'] != 'view':
             with st.expander("➕ Input Transaksi Baru", expanded=True):
                 with st.form("stok"):
-                    col_date, col_item_select = st.columns(2)
+                    col_date, col_empty_in = st.columns(2)
                     d = col_date.date_input("Tanggal Transaksi", key="stok_date")
-                
-                    # <<< Selectbox Nama Barang >>>
-                    selected_item = col_item_select.selectbox(
-                        "Pilih Nama Barang*",
-                        options=st.session_state.get('list_stok_barang', ["-- PILIH NAMA BARANG --"]),
-                        key="stok_item_select"
-                    )
-                    final_nama_barang = selected_item
-                
-                    # Logika untuk Barang Baru (jika tidak ada di daftar)
-                    if selected_item == "-- PILIH NAMA BARANG --":
-                        st.warning("Jika barang baru, silakan ketik nama barang di bawah.")
-                        new_item = st.text_input("Nama Barang Baru*", key="stok_new_item")
-                        if new_item:
-                            final_nama_barang = new_item
-                
-                    # Menggunakan final_nama_barang untuk menentukan Satuan di sini
-                    # Catatan: Karena selectbox di-render sebelum form submit, value 'default_satuan' 
-                    # di atas harusnya sudah terisi untuk selected_item saat ini (rerun berikutnya).
                 
                     col_action, col_qty = st.columns(2)
                     j = col_action.radio("Aksi", ["Masuk", "Keluar"], horizontal=True, key="stok_action")
@@ -1149,34 +1057,29 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
                 
                     col_unit, col_notes = st.columns(2)
                 
-                    # <<< PERUBAHAN: Satuan menggunakan value=default_satuan >>>
+                    # INPUT SATUAN menggunakan nilai otomatis (default_satuan)
                     s = col_unit.text_input(
                         "Satuan*", 
-                        value=default_satuan, # Nilai otomatis dari logika di atas
+                        value=default_satuan, 
                         key="stok_unit"
                     )
                     k = col_notes.text_input("Keterangan Tambahan", key="stok_ket")
                 
                     if st.form_submit_button("Simpan Transaksi", type="primary"):
-                        # --- VALIDASI INPUT ---
+                        # ... (Lanjutan logika validasi dan penyimpanan) ...
                         valid_nama = final_nama_barang not in ["-- PILIH NAMA BARANG --", None, ""]
                     
-                        if not valid_nama or not s: # Validasi ditambahkan untuk Satuan (s)
+                        if not valid_nama or not s: 
                             st.error("⚠️ Nama Barang dan Satuan wajib diisi.")
                         else:
                             with st.spinner("Menyimpan transaksi..."):
-                                # Sesuaikan dengan urutan kolom sheet Anda: Tgl, Nama_Barang, Jenis_Transaksi, Jumlah, Satuan, Ket
                                 row_data = [
-                                    str(d), 
-                                    final_nama_barang, 
-                                    j, 
-                                    q, 
-                                    s, 
-                                    k
+                                    str(d), final_nama_barang, j, q, s, k
                                 ]
-                        
                                 if save_to_sheet("Stok", [row_data], append_only=True):
                                     st.success(f"✅ Transaksi {j} {q} {s} {final_nama_barang} berhasil dicatat.")
+                                
+                                    # Set flag refresh untuk memuat ulang daftar barang dan saldo
                                     st.session_state['refresh_stok'] = True 
                                     st.rerun()
                                 else:
@@ -1185,21 +1088,20 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
         # -----------------------------------------------------------
         # TAMPILAN DATA (STOK & RIWAYAT)
         # -----------------------------------------------------------
-    
         if not df_stok_all.empty:
             # Menghitung Saldo (Balance)
+            # ... (lanjutan kode saldo dan riwayat, tidak perlu diubah) ...
             bal = df_stok_all.groupby(['Nama_Barang','Satuan']).apply(
                 lambda x: x[x['Jenis_Transaksi']=='Masuk']['Jumlah'].sum() - x[x['Jenis_Transaksi']=='Keluar']['Jumlah'].sum()
             ).reset_index(name='Sisa')
         
-            # Penambahan filter untuk item dengan sisa > 0
             bal = bal[bal['Sisa'] > 0] 
 
             bal['Status'] = bal['Sisa'].apply(lambda x: '🔴 Kritis' if x <= 5 else '🟢 Aman')
-        
+    
             st.subheader("📚 Saldo Stok Saat Ini")
             st.dataframe(bal, use_container_width=True, hide_index=True) 
-        
+    
             st.divider()
             st.subheader("⏱️ Riwayat Transaksi")
             st.dataframe(df_stok_all, use_container_width=True, hide_index=True)
