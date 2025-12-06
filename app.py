@@ -65,6 +65,7 @@ except:
 def get_gcp_creds():
     scope = [
         "https://spreadsheets.google.com/feeds",
+        "https://www.googleapis.com/auth/spreadsheets",
         "https://www.googleapis.com/auth/drive"
     ]
     # ⚠️ Membuat objek kredensial menggunakan Refresh Token
@@ -990,58 +991,58 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
         st.title("🏭 Gudang");
 
         # --- 1. MUAT DATA LENGKAP STOK (DF) ---
-        # Pastikan pemuatan data dilakukan di sini
         df_stok_all = load_data("Stok")
     
-        # Ambil daftar barang yang sudah ada
+        # Ambil daftar barang yang sudah ada untuk dropdown
         stok_barang_list = df_stok_all['Nama_Barang'].unique().tolist() if not df_stok_all.empty else []
         unique_stok_items = ["-- PILIH NAMA BARANG --"] + sorted(stok_barang_list)
-        st.session_state['list_stok_barang'] = unique_stok_items # Simpan ke session state
+        st.session_state['list_stok_barang'] = unique_stok_items
 
         # --- 2. WIDGET NAMA BARANG (LUAR FORM) ---
-        # Pindahkan selectbox ke luar form agar default_satuan bisa dihitung DULU
         col_item_select_out, col_empty_out = st.columns(2)
     
-        # SELECTBOX NAMA BARANG
         selected_item = col_item_select_out.selectbox(
             "Pilih Nama Barang*",
-            options=st.session_state.get('list_stok_barang', ["-- PILIH NAMA BARANG --"]),
+        options=st.session_state.get('list_stok_barang', ["-- PILIH NAMA BARANG --"]),
             key="stok_item_select" 
         )
         final_nama_barang = selected_item
     
-        # --- 3. LOGIKA PENENTUAN DEFAULT SATUAN ---
-        default_satuan = ""
-        current_selected_item = selected_item # Gunakan selected_item yang baru dipilih
-    
-        if current_selected_item != "-- PILIH NAMA BARANG --" and not df_stok_all.empty:
-            try:
-                selected_item_stripped = current_selected_item.strip()
-                # Cari Satuan berdasarkan Nama_Barang yang dipilih
-                # Pastikan hanya mengambil data dengan Nama_Barang yang benar-benar sama
-                filtered_df = df_stok_all[df_stok_all['Nama_Barang'].astype(str).str.strip() == selected_item_stripped]
-
-                if not filtered_df.empty:
-                    # Ambil nilai Satuan yang paling sering muncul atau yang pertama ditemukan
-                    satuan_found = filtered_df['Satuan'].iloc[0]
-                
-                    if pd.notna(satuan_found) and str(satuan_found).strip() != "":
-                        default_satuan = str(satuan_found).strip()
-            
-            except KeyError:
-                # Ini hanya untuk debug, asumsikan nama kolom sudah benar
-                default_satuan = ""
-            except Exception:
-                default_satuan = ""
-
-        # Logika untuk Barang Baru
+        # --- 3. LOGIKA PENENTUAN DEFAULT SATUAN & ITEM BARU/LAMA ---
+        efault_satuan = ""
+        is_new_item_mode = False # Flag untuk barang yang diketik, bukan dipilih
+        default_satuan = "" 
+        is_new_item_mode = False
+        # A. Mode Barang Baru (Typed-in)
         if selected_item == "-- PILIH NAMA BARANG --":
             st.warning("Jika barang baru, silakan ketik nama barang di bawah.")
             new_item = st.text_input("Nama Barang Baru*", key="stok_new_item")
+        
             if new_item:
                 final_nama_barang = new_item
-                default_satuan = "" # Kosongkan satuan jika input barang baru
+                is_new_item_mode = True # Ini barang baru, Satuan harus diisi manual
+            else:
+                final_nama_barang = selected_item # Placeholder
+    
+        # B. Mode Barang Lama (Selected) - Cari Satuan Otomatis
+        if not is_new_item_mode and final_nama_barang != "-- PILIH NAMA BARANG --" and not df_stok_all.empty:
+            try:
+                current_selected_item = final_nama_barang.strip()
+                # Lakukan filter robust
+                filtered_df = df_stok_all[df_stok_all['Nama_Barang'].astype(str).str.strip() == current_selected_item]
 
+                if not filtered_df.empty:
+                    satuan_found = filtered_df['Satuan'].iloc[0]
+                    if pd.notna(satuan_found) and str(satuan_found).strip() != "":
+                        default_satuan = str(satuan_found).strip()
+            
+            except Exception:
+            # Jika terjadi error saat mencari (e.g., KeyError, data kosong), default_satuan tetap ""
+                pass
+
+        # C. Tentukan apakah Satuan sudah ditemukan untuk item yang dipilih (item lama)
+        satuan_sudah_ada = bool(default_satuan) and not is_new_item_mode
+    
         # -----------------------------------------------------------
         # TRANSAKSI BARANG MASUK/KELUAR
         # ----------------------------------------------------------- 
@@ -1055,23 +1056,34 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
                     j = col_action.radio("Aksi", ["Masuk", "Keluar"], horizontal=True, key="stok_action")
                     q = col_qty.number_input("Jumlah (Jml)*", min_value=1, key="stok_qty")
                 
+                    # --- PERUBAHAN KRITIS: CONDITIONAL RENDERING SATUAN ---
                     col_unit, col_notes = st.columns(2)
+                    s = None # Inisialisasi variabel satuan yang akan dikirim
                 
-                    # INPUT SATUAN menggunakan nilai otomatis (default_satuan)
-                    s = col_unit.text_input(
-                        "Satuan*", 
-                        value=default_satuan, 
-                        key="stok_unit"
-                    )
+                    if satuan_sudah_ada:
+                        # Item LAMA: HANYA TAMPILKAN Satuan sebagai info, ambil nilainya dari default_satuan
+                        col_unit.markdown(f"**Satuan (Auto):** {default_satuan}")
+                        s = default_satuan
+                    else:
+                        # Item BARU atau Item Lama tanpa satuan: TAMPILKAN INPUT
+                        s = col_unit.text_input(
+                            "Satuan*", 
+                            value=default_satuan, # Gunakan default_satuan (kosong jika barang baru)
+                            key="stok_unit_manual"
+                        )
+                    # --------------------------------------------------------
+                
                     k = col_notes.text_input("Keterangan Tambahan", key="stok_ket")
                 
                     if st.form_submit_button("Simpan Transaksi", type="primary"):
-                        # ... (Lanjutan logika validasi dan penyimpanan) ...
+                        # VALIDASI DAN PENYIMPANAN
                         valid_nama = final_nama_barang not in ["-- PILIH NAMA BARANG --", None, ""]
                     
+                        # Validasi: Satuan harus terisi jika itu barang baru (atau jika Satuan tidak terdeteksi)
                         if not valid_nama or not s: 
                             st.error("⚠️ Nama Barang dan Satuan wajib diisi.")
                         else:
+                            # Logika penyimpanan menggunakan s (nilai satuan final)
                             with st.spinner("Menyimpan transaksi..."):
                                 row_data = [
                                     str(d), final_nama_barang, j, q, s, k
@@ -1079,7 +1091,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
                                 if save_to_sheet("Stok", [row_data], append_only=True):
                                     st.success(f"✅ Transaksi {j} {q} {s} {final_nama_barang} berhasil dicatat.")
                                 
-                                    # Set flag refresh untuk memuat ulang daftar barang dan saldo
+                                    # Set flag refresh dan rerun
                                     st.session_state['refresh_stok'] = True 
                                     st.rerun()
                                 else:
@@ -1090,7 +1102,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
         # -----------------------------------------------------------
         if not df_stok_all.empty:
             # Menghitung Saldo (Balance)
-            # ... (lanjutan kode saldo dan riwayat, tidak perlu diubah) ...
+            # Menambahkan include_groups=False untuk menenangkan FutureWarning
             bal = df_stok_all.groupby(['Nama_Barang','Satuan']).apply(
                 lambda x: x[x['Jenis_Transaksi']=='Masuk']['Jumlah'].sum() - x[x['Jenis_Transaksi']=='Keluar']['Jumlah'].sum()
             ).reset_index(name='Sisa')
