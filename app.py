@@ -453,11 +453,6 @@ def get_stok_list(df_stok_all):
     # 3. Tambahkan opsi default
     return ["-- PILIH NAMA BARANG --"] + unique_barang
 
-# Di dalam main_app() atau di bagian inisialisasi Streamlit Anda:
-# if 'list_stok_barang' not in st.session_state:
-#     df_initial = load_data("Stok") # Muat data awal
-#     st.session_state['list_stok_barang'] = get_stok_list(df_initial)
-
 # ===========================
 # 3. LOGIN & MAIN APP
 # ===========================
@@ -569,33 +564,81 @@ def main_app():
     # --- TAMPILKAN KONTEN BERDASARKAN SESSION STATE ---
     if st.session_state['menu'] == "Dashboard":
         st.title("📊 Dashboard Utama")
-        df_aset = load_data("Aset"); df_stok = load_data("Stok"); df_jadwal = load_data("Jadwal")
+    
+        # 1. Muat Data
+        df_aset = load_data("Aset")
+        df_stok = load_data("Stok")
+        df_jadwal = load_data("Jadwal")
+    
+        # --- CARD 1, 2, 3 (KPI) ---
         c1, c2, c3 = st.columns(3)
+    
+        # Card 1: Total Aset
         with c1: dashboard_card("Total Aset", f"{len(df_aset)} Unit", "blue", "🏫")
-        stok_alert = 0
+    
+        # Card 2: Stok Menipis
+        tok_alert = 0
         df_saldo_menipis = pd.DataFrame()
         if not df_stok.empty:
-            saldo_df = df_stok.groupby('Nama_Barang')['Jumlah'].apply(lambda x: x[df_stok['Jenis_Transaksi'] == 'Masuk'].sum() - x[df_stok['Jenis_Transaksi'] == 'Keluar'].sum()).reset_index(name='Sisa')
+        # PENTING: Menggunakan reset_index(name='Sisa') untuk menjamin nama kolom
+        # Perhatikan penggunaan x[df_stok['Jenis_Transaksi']...] harus diubah menjadi x[x['Jenis_Transaksi']...]
+        # agar filtering hanya terjadi dalam grup saat ini.
+            saldo_df = df_stok.groupby('Nama_Barang')['Jumlah'].apply(
+                lambda x: x[df_stok.loc[x.index, 'Jenis_Transaksi'] == 'Masuk'].sum() - x[df_stok.loc[x.index, 'Jenis_Transaksi'] == 'Keluar'].sum()
+            ).reset_index(name='Sisa') # <--- SOLUSI: JAMIN NAMA KOLOM ADALAH 'Sisa'
+        
+        # Jika Anda menggunakan Pandas > 2.0.0, bisa disederhanakan:
+        # saldo_df = df_stok.groupby('Nama_Barang').apply(
+        #     lambda x: x[x['Jenis_Transaksi'] == 'Masuk']['Jumlah'].sum() - x[x['Jenis_Transaksi'] == 'Keluar']['Jumlah'].sum()
+        # ).reset_index(name='Sisa')
+
             df_saldo_menipis = saldo_df[saldo_df['Sisa'] <= 5].sort_values('Sisa')
             stok_alert = len(df_saldo_menipis)
+        
         with c2: dashboard_card("Stok Menipis", f"{stok_alert} Item", "red", "📉")
+    
+    # Card 3: Agenda Terdekat
         agenda = "Tidak ada"
         if not df_jadwal.empty:
-            df_jadwal['Tanggal'] = pd.to_datetime(df_jadwal['Tanggal'])
+            df_jadwal['Tanggal'] = pd.to_datetime(df_jadwal['Tanggal'], errors='coerce')
             upcoming = df_jadwal[df_jadwal['Tanggal'].dt.date >= datetime.now().date()].sort_values('Tanggal')
             if not upcoming.empty: agenda = f"{upcoming.iloc[0]['Kegiatan']} ({upcoming.iloc[0]['Tanggal'].strftime('%d/%m')})"
+        
         with c3: dashboard_card("Agenda Terdekat", agenda, "purple", "📅")
+    
         st.divider()
+    
+    # --- TAMPILAN DATA (ASET TERBARU & STOK) ---
         c_kiri, c_kanan = st.columns(2)
+    
         with c_kiri:
             st.subheader("📋 Aset Terbaru")
             if not df_aset.empty:
-                cols = [c for c in ['Kode_Aset', 'Nama_Barang', 'Posisi'] if c in df_aset.columns]
-                st.dataframe(df_aset[cols].tail(5), use_container_width=True, hide_index=True, column_config={"Link_Foto": st.column_config.LinkColumn("Foto", display_text="📸 Foto")})
+                df_aset['Tanggal Perolehan'] = pd.to_datetime(df_aset['Tanggal Perolehan'], errors='coerce')
+                df_terbaru = df_aset.sort_values(by='Tanggal Perolehan', ascending=False)
+            
+            # Kolom Lokasi: coba 'Posisi' lalu fallback ke 'Lokasi Penempatan'
+                location_col = 'Posisi' if 'Posisi' in df_aset.columns else 'Lokasi Penempatan'
+            
+            # Kolom yang ditampilkan: pastikan 'Tanggal Perolehan' ada
+                cols_to_display = ['Tanggal Perolehan', 'Kode_Aset', 'Nama_Barang', location_col]
+                final_cols = [c for c in cols_to_display if c in df_aset.columns]
+
+                st.dataframe(
+                    df_terbaru.head(5)[final_cols], 
+                    use_container_width=True, 
+                    hide_index=True, 
+                    column_config={"Link_Foto": st.column_config.LinkColumn("Foto", display_text="📸 Foto")} if 'Link_Foto' in df_aset.columns else {}
+                )
+            else:
+                st.info("Data aset belum tersedia.")
+            
         with c_kanan:
             st.subheader("⚠️ Stok Perlu Restock")
-            if stok_alert > 0: st.dataframe(df_saldo_menipis.head(5), use_container_width=True, hide_index=True)
-            else: st.success("Stok Aman")
+            if stok_alert > 0: 
+                st.dataframe(df_saldo_menipis.head(5), use_container_width=True, hide_index=True)
+            else: 
+                st.success("Stok habis pakai aman.")
 
     elif st.session_state['menu'] == "Input Aset":
         if st.session_state['role'] == 'view': st.warning("View Only"); st.stop()
