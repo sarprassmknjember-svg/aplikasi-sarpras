@@ -635,12 +635,31 @@ def main_app():
         with c2: dashboard_card("Stok Menipis", f"{stok_alert} Item", "red", "📉")
     
         # Card 3: Agenda Terdekat
+        # Card 3: Agenda Terdekat
         agenda = "Tidak ada"
         if not df_jadwal.empty:
+            # Pastikan kolom Tanggal berformat datetime
             df_jadwal['Tanggal'] = pd.to_datetime(df_jadwal['Tanggal'], errors='coerce')
+
+            # Filter acara yang akan datang, lalu urutkan
             upcoming = df_jadwal[df_jadwal['Tanggal'].dt.date >= datetime.now().date()].sort_values('Tanggal')
-            if not upcoming.empty: agenda = f"{upcoming.iloc[0]['Kegiatan']} ({upcoming.iloc[0]['Tanggal'].strftime('%d/%m')})"
-        
+
+            if not upcoming.empty:
+                # Ambil 2 acara teratas
+                top_2_events = upcoming.head(2)
+
+                # Format acara pertama
+                event_1 = f"{top_2_events.iloc[0]['Kegiatan']} ({top_2_events.iloc[0]['Tanggal'].strftime('%d/%m')})"
+                agenda = event_1
+
+                # Jika ada acara kedua, tambahkan ke teks
+                if len(top_2_events) > 1:
+                    event_2 = f"{top_2_events.iloc[1]['Kegiatan']} ({top_2_events.iloc[1]['Tanggal'].strftime('%d/%m')})"
+                    # Gabungkan kedua acara dengan pemisah baris HTML
+                    agenda = f"{event_1} <br> {event_2}" 
+
+        # Menggunakan dashboard_card dengan agenda yang sudah berisi 1 atau 2 acara
+        # (Note: dashboard_card menggunakan HTML, jadi <br> akan berfungsi)
         with c3: dashboard_card("Agenda Terdekat", agenda, "purple", "📅")
     
         st.divider()
@@ -1300,4 +1319,5 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
