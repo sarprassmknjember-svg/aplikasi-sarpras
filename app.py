@@ -45,7 +45,7 @@ except Exception as e:
     st.error(f"❌ Konfigurasi Secrets Belum Lengkap! Error: {e}")
     st.stop()
 
-# DEFAULT PEJABAT
+# DEFAULT PEJABAT (Fallback jika sheet 'Pejabat' kosong)
 DEF_WAKA_NAMA = "Ahmad Syaiful Rizal, S.Pd., M.Stat."
 DEF_WAKA_NIP = "19930406 202012 1 018"
 DEF_KS_NAMA = "Evi Silviana, S.Pd., M.M."
@@ -167,8 +167,6 @@ def generate_qr_base64(text):
     img_str = base64.b64encode(buffer.getvalue()).decode()
     return f"data:image/png;base64,{img_str}"
 
-# FUNGSI handle_image_upload DIHAPUS karena logikanya dipindahkan langsung ke main_app
-
 def ask_gemini(prompt):
     genai.configure(api_key=GEMINI_KEY)
     model = genai.GenerativeModel('gemini-2.5-flash')
@@ -234,7 +232,7 @@ def trigger_print_js(html_content):
                 body {{ font-family: Arial, sans-serif; padding: 20px; -webkit-print-color-adjust: exact; }}
                 .batch-container {{ display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-start; }}
                 
-                /* LABEL CARD UPDATE: FLEXBOX UNTUK TAHUN DI BAWAH */
+                /* LABEL CARD UPDATE: FLEXBOX UTAMA */
                 .label-card {{ 
                     width: 320px; height: 150px; 
                     border: 3px solid black; 
@@ -244,25 +242,25 @@ def trigger_print_js(html_content):
                 }}
                 .qr-img {{ width: 110px; height: 110px; margin-right: 10px; }}
                 
-                /* Container Info Kanan */
-                .label-info {{ 
+                /* Container Info Kanan: Menggunakan flex column untuk menempatkan Tahun di bawah */
+                .label-info-container {{ 
                     font-family: Arial; 
                     text-align: left; 
-                    width: 100%; height: 120px;
+                    width: 100%; height: 130px;
                     display: flex; flex-direction: column; justify-content: space-between;
                 }}
                 
                 /* Bagian Atas Info */
-                .lbl-top {{ display: block; }}
+                .lbl-top {{ display: flex; flex-direction: column; flex-grow: 1; }}
                 .lbl-title {{ font-weight: 900; font-size: 14px; text-decoration: underline; text-transform: uppercase; }}
                 .lbl-name {{ font-weight: bold; font-size: 13px; margin-top: 3px; line-height: 1.1; }}
                 .lbl-code {{ font-family: 'Courier New'; font-weight: 900; background: #eee; padding: 2px; display:inline-block; margin: 3px 0; border: 1px solid #999; font-size: 13px; }}
                 .lbl-loc {{ font-size: 11px; font-weight: bold; }}
                 
-                /* Bagian Bawah (Tahun) */
+                /* Bagian Bawah (Tahun) - PERBAIKAN: Posisi di Kanan Bawah */
                 .lbl-year {{ 
                     font-size: 12px; font-weight: 900; 
-                    text-align: right; /* Tahun di Kanan Bawah */
+                    text-align: right; 
                     border-top: 1px dotted #ccc;
                     padding-top: 2px;
                 }}
@@ -298,15 +296,16 @@ def local_css():
         .stDataFrame div[data-testid="stTable"] { overflow-x: auto; }
         .batch-container { display: flex; flex-wrap: wrap; gap: 15px; justify-content: flex-start; }
         
-        /* CSS PREVIEW DALAM APLIKASI (MIRIP PRINT) */
+        /* CSS PREVIEW DALAM APLIKASI (MIRIP PRINT) - PERBAIKAN TAHUN */
         .label-card { width: 320px; height: 150px; border: 3px solid black; display: flex; align-items: center; padding: 8px; margin-bottom: 10px; background: white; color: black; }
         .qr-img { width: 110px; height: 110px; margin-right: 10px; }
-        .label-info { font-family: Arial; line-height: 1.2; text-align: left; width: 100%; height: 120px; display: flex; flex-direction: column; justify-content: space-between; }
+        .label-info-container { font-family: Arial; line-height: 1.2; text-align: left; width: 100%; height: 130px; display: flex; flex-direction: column; justify-content: space-between; }
+        .lbl-top { display: flex; flex-direction: column; flex-grow: 1; }
         .lbl-title { font-weight: 900; font-size: 14px; text-decoration: underline; text-transform: uppercase; }
         .lbl-name { font-weight: bold; font-size: 13px; margin-top: 3px; }
         .lbl-code { font-family: 'Courier New'; font-weight: 900; background: #eee; padding: 2px; display:inline-block; margin: 3px 0; border: 1px solid #999; }
         .lbl-loc { font-size: 11px; font-weight: bold; }
-        .lbl-year { font-size: 12px; font-weight: 900; text-align: right; border-top: 1px dotted #ccc; }
+        .lbl-year { font-size: 12px; font-weight: 900; text-align: right; border-top: 1px dotted #ccc; padding-top: 2px; }
 
         /* 1. Paksa tombol st.button menggunakan flexbox rata kiri */
         [data-testid="stSidebarContent"] .stButton > button {
@@ -341,6 +340,7 @@ def update_aset_sheet(df_updated):
     except Exception as e:
         st.error(f"Gagal memperbarui sheet: {e}")
         return False
+        
 def update_inventaris_kelas_sheet(df_updated):
     """Memperbarui seluruh data InventarisKelas kembali ke Google Sheet."""
     try:
@@ -358,6 +358,7 @@ def update_inventaris_kelas_sheet(df_updated):
     except Exception as e:
         st.error(f"Gagal memperbarui sheet Inventaris Ruangan: {e}")
         return False
+        
 def generate_kik_html(df_kik, ruangan):
     """Menghasilkan HTML untuk Kartu Inventaris Ruangan (KIK)."""
     
@@ -441,7 +442,6 @@ def generate_kik_html(df_kik, ruangan):
     """
     return html_content
 
-# Tambahkan fungsi ini (atau sesuaikan fungsi yang ada) untuk membuat list pilihan
 def get_stok_list(df_stok_all):
     if df_stok_all.empty:
         return ["-- PILIH NAMA BARANG --"]
@@ -452,6 +452,51 @@ def get_stok_list(df_stok_all):
     unique_barang = sorted(barang_list.unique().tolist())
     # 3. Tambahkan opsi default
     return ["-- PILIH NAMA BARANG --"] + unique_barang
+    
+# --- FUNGSI BARU UNTUK MENGAMBIL DETAIL PEJABAT/STAF DARI SHEET ---
+def get_pejabat_details(df_pejabat, nama_pejabat):
+    """
+    Mencari NIP dan Jabatan berdasarkan Nama Pejabat/Staf.
+    df_pejabat: DataFrame dari Sheet 'Pejabat'
+    nama_pejabat: Nama yang dicari (string)
+    Mengembalikan tuple (NIP, Jabatan) atau (None, None) jika tidak ditemukan.
+    """
+    if df_pejabat.empty or not nama_pejabat:
+        return None, None
+        
+    try:
+        # Mencari baris yang Nama-nya cocok
+        # Lakukan strip() untuk menghilangkan spasi berlebih
+        nama_pejabat_strip = str(nama_pejabat).strip()
+        df_filtered = df_pejabat[df_pejabat['Nama'].astype(str).str.strip() == nama_pejabat_strip]
+        
+        if not df_filtered.empty:
+            # Mengambil NIP dan Jabatan dari baris pertama yang cocok
+            nip = df_filtered['NIP'].iloc[0] if 'NIP' in df_filtered.columns else None
+            jabatan = df_filtered['Jabatan'].iloc[0] if 'Jabatan' in df_filtered.columns else None
+            return str(nip).strip() if nip else "-", str(jabatan).strip() if jabatan else "-"
+        else:
+            return "-", "-" # Tidak ditemukan
+            
+    except Exception as e:
+        # st.warning(f"Error mencari pejabat {nama_pejabat}: {e}") # Debugging
+        return "-", "-"
+
+# --- FUNGSI UNTUK MENGAMBIL PREFIX PENUH ---
+def extract_full_prefix(kode_aset):
+    """
+    Ekstrak bagian Prefix penuh dari Kode Aset.
+    Contoh: AC.2.0206.2025.001 -> AC.2.0206 (Menghapus dua bagian terakhir: Tahun dan Nomor Urut)
+    """
+    if pd.isna(kode_aset) or not isinstance(kode_aset, str):
+        return None
+    parts = kode_aset.split('.')
+    # Asumsi format: [PREFIX_PENUH] . [TAHUN] . [NOMOR_URUT]
+    # Ambil semua bagian kecuali dua terakhir (Tahun dan Nomor Urut)
+    if len(parts) >= 3:
+        return ".".join(parts[:-2])
+    # Jika kurang dari 3 bagian, asumsikan itu adalah prefix itu sendiri
+    return kode_aset
 
 # ===========================
 # 3. LOGIN & MAIN APP
@@ -484,81 +529,82 @@ def main_app():
     # Inisialisasi st.session_state['menu'] jika belum ada
     if 'menu' not in st.session_state: st.session_state['menu'] = 'Dashboard' # Default ke Dashboard
 
+    # --- MEMUAT DATA SHEET UTAMA ---
     df_inv_kelas = load_data("InventarisKelas")
+    df_inv_lab = load_data("InventarisLab")
+    df_aset_all = load_data("Aset")
+    df_stok_all = load_data("Stok")
+    df_pejabat_all = load_data("Pejabat") # <-- MEMUAT DATA PEJABAT BARU
+
+    # --- DAFTAR PILIHAN DINAMIS ---
+    
+    # Inventaris Kelas
     inv_kelas_barang_list = df_inv_kelas['Nama_Barang'].unique().tolist() if not df_inv_kelas.empty else []
     unique_inv_kelas_items = ["-- PILIH NAMA BARANG --"] + sorted(inv_kelas_barang_list)
-    st.session_state['list_inv_kelas_barang'] = unique_inv_kelas_items # Simpan ke session state
+    st.session_state['list_inv_kelas_barang'] = unique_inv_kelas_items
 
-    df_inv_lab = load_data("InventarisLab")
-
-    df_aset_all = load_data("Aset")
+    # Aset Tetap
     aset_barang_list = df_aset_all['Nama_Barang'].unique().tolist() if not df_aset_all.empty else []
     unique_aset_items = ["-- PILIH NAMA BARANG --"] + sorted(aset_barang_list)
-    st.session_state['list_aset_barang'] = unique_aset_items # Simpan ke session state
+    st.session_state['list_aset_barang'] = unique_aset_items
 
     aset_merk_list = df_aset_all['Merk'].unique().tolist() if not df_aset_all.empty else []
     unique_aset_merks = ["-- PILIH MERK --"] + sorted(aset_merk_list)
-    st.session_state['list_aset_merks'] = unique_aset_merks # Simpan ke session state
+    st.session_state['list_aset_merks'] = unique_aset_merks
 
-    df_stok_all = load_data("Stok") #pemuatan data stok
+    # LOGIKA BARU (Perubahan): Buat mapping Nama_Barang -> Prefix
+    aset_prefix_map = {}
+    if not df_aset_all.empty:
+        df_temp = df_aset_all.copy()
+        # --- PERBAIKAN: Gunakan fungsi extract_full_prefix untuk mengambil prefix penuh ---
+        df_temp['Prefix'] = df_temp['Kode_Aset'].apply(extract_full_prefix)
+        
+        # Group by Nama_Barang dan ambil Prefix yang paling sering muncul (mode)
+        prefix_groups = df_temp.groupby('Nama_Barang')['Prefix'].agg(lambda x: x.mode().iloc[0] if not x.mode().empty else None).dropna()
+        aset_prefix_map = prefix_groups.to_dict()
+    st.session_state['aset_prefix_map'] = aset_prefix_map # Simpan mapping
+
+    # Lokasi
     kelas_list = df_inv_kelas['Kelas/Ruangan'].unique().tolist() if not df_inv_kelas.empty else []
     lab_list = df_inv_lab['Nama_Lab'].unique().tolist() if not df_inv_lab.empty else []
     unique_locations = ["-- PILIH LOKASI --"] + sorted(list(set(kelas_list + lab_list)))
     st.session_state['list_lokasi_aset'] = unique_locations
 
-    # --- LIST BARANG STOK (Untuk Menu Gudang Stok) ---
-    # Ambil semua nama barang unik dari sheet Stok
+    # Stok
     stok_barang_list = df_stok_all['Nama_Barang'].unique().tolist() if not df_stok_all.empty else []
     unique_stok_items = ["-- PILIH NAMA BARANG --"] + sorted(stok_barang_list)
-    st.session_state['list_stok_barang'] = unique_stok_items # Simpan ke session state
+    st.session_state['list_stok_barang'] = unique_stok_items
 
+    # Pejabat/Staf (Digunakan di Input Aset dan BAST)
+    pejabat_nama_list = df_pejabat_all['Nama'].unique().tolist() if not df_pejabat_all.empty else []
+    unique_pejabat_names = ["-- PILIH PENANGGUNG JAWAB --"] + sorted(pejabat_nama_list)
+    st.session_state['list_pejabat_names'] = unique_pejabat_names
+    
+    # --- SIDEBAR MENU ---
     with st.sidebar:
         st.title(f"👤 {st.session_state['username'].upper()}")
         st.caption(f"Role: {st.session_state['role'].upper()}")
         st.divider()
         
-        # --- MENU BERBASIS BUTTON ---
-        # Membuat tombol menu yang menyimpan pilihan ke st.session_state['menu']
-        if st.button("📊 Dashboard", use_container_width=True):
-            st.session_state['menu'] = 'Dashboard'
-            st.rerun()
+        if st.button("📊 Dashboard", use_container_width=True): st.session_state['menu'] = 'Dashboard'; st.rerun()
 
-        # Menu yang hanya muncul untuk role tertentu
         if st.session_state['role'] != 'view':
-            if st.button("📦 Input Aset", use_container_width=True):
-                st.session_state['menu'] = 'Input Aset'
-                st.rerun()
+            if st.button("📦 Input Aset", use_container_width=True): st.session_state['menu'] = 'Input Aset'; st.rerun()
 
-        if st.button("🖨️ Data Aset", use_container_width=True):
-            st.session_state['menu'] = 'Data Aset'
-            st.rerun()
+        if st.button("🖨️ Data Aset", use_container_width=True): st.session_state['menu'] = 'Data Aset'; st.rerun()
             
-        if st.button("🏢 Inventaris Ruangan", use_container_width=True):
-            st.session_state['menu'] = 'Inventaris Ruangan'
-            st.rerun()
-        
-        #if st.button("🖥️ Inventaris Lab Komputer", use_container_width=True):
-        #    st.session_state['menu'] = 'Inventaris Lab Komputer'
-        #    st.rerun()
+        if st.button("🏢 Inventaris Ruangan", use_container_width=True): st.session_state['menu'] = 'Inventaris Ruangan'; st.rerun()
 
-        if st.button("🏭 Gudang (Stok)", use_container_width=True):
-            st.session_state['menu'] = 'Gudang (Stok)'
-            st.rerun()
+        if st.button("🏭 Gudang (Stok)", use_container_width=True): st.session_state['menu'] = 'Gudang (Stok)'; st.rerun()
         
-        if st.button("📅 Jadwal Aula", use_container_width=True):
-            st.session_state['menu'] = 'Jadwal Aula'
-            st.rerun()
+        if st.button("📅 Jadwal Aula", use_container_width=True): st.session_state['menu'] = 'Jadwal Aula'; st.rerun()
 
-        if st.button("🤖 Tanya AI", use_container_width=True):
-            st.session_state['menu'] = 'Tanya AI'
-            st.rerun()
+        if st.button("🤖 Tanya AI", use_container_width=True): st.session_state['menu'] = 'Tanya AI'; st.rerun()
 
         st.divider()
         if st.button("Logout", use_container_width=True):
             st.session_state['logged_in'] = False
-            # Clear session state saat logout (opsional, tapi baik untuk keamanan)
-            for key in list(st.session_state.keys()):
-                 del st.session_state[key]
+            for key in list(st.session_state.keys()): del st.session_state[key]
             st.rerun()
 
     # --- TAMPILKAN KONTEN BERDASARKAN SESSION STATE ---
@@ -577,27 +623,18 @@ def main_app():
         with c1: dashboard_card("Total Aset", f"{len(df_aset)} Unit", "blue", "🏫")
     
         # Card 2: Stok Menipis
-        tok_alert = 0
+        stok_alert = 0
         df_saldo_menipis = pd.DataFrame()
         if not df_stok.empty:
-        # PENTING: Menggunakan reset_index(name='Sisa') untuk menjamin nama kolom
-        # Perhatikan penggunaan x[df_stok['Jenis_Transaksi']...] harus diubah menjadi x[x['Jenis_Transaksi']...]
-        # agar filtering hanya terjadi dalam grup saat ini.
             saldo_df = df_stok.groupby('Nama_Barang')['Jumlah'].apply(
                 lambda x: x[df_stok.loc[x.index, 'Jenis_Transaksi'] == 'Masuk'].sum() - x[df_stok.loc[x.index, 'Jenis_Transaksi'] == 'Keluar'].sum()
-            ).reset_index(name='Sisa') # <--- SOLUSI: JAMIN NAMA KOLOM ADALAH 'Sisa'
-        
-        # Jika Anda menggunakan Pandas > 2.0.0, bisa disederhanakan:
-        # saldo_df = df_stok.groupby('Nama_Barang').apply(
-        #     lambda x: x[x['Jenis_Transaksi'] == 'Masuk']['Jumlah'].sum() - x[x['Jenis_Transaksi'] == 'Keluar']['Jumlah'].sum()
-        # ).reset_index(name='Sisa')
-
+            ).reset_index(name='Sisa')
             df_saldo_menipis = saldo_df[saldo_df['Sisa'] <= 5].sort_values('Sisa')
             stok_alert = len(df_saldo_menipis)
         
         with c2: dashboard_card("Stok Menipis", f"{stok_alert} Item", "red", "📉")
     
-    # Card 3: Agenda Terdekat
+        # Card 3: Agenda Terdekat
         agenda = "Tidak ada"
         if not df_jadwal.empty:
             df_jadwal['Tanggal'] = pd.to_datetime(df_jadwal['Tanggal'], errors='coerce')
@@ -617,10 +654,8 @@ def main_app():
                 df_aset['Tanggal Perolehan'] = pd.to_datetime(df_aset['Tanggal Perolehan'], errors='coerce')
                 df_terbaru = df_aset.sort_values(by='Tanggal Perolehan', ascending=False)
             
-            # Kolom Lokasi: coba 'Posisi' lalu fallback ke 'Lokasi Penempatan'
                 location_col = 'Posisi' if 'Posisi' in df_aset.columns else 'Lokasi Penempatan'
             
-            # Kolom yang ditampilkan: pastikan 'Tanggal Perolehan' ada
                 cols_to_display = ['Tanggal Perolehan', 'Kode_Aset', 'Nama_Barang', location_col]
                 final_cols = [c for c in cols_to_display if c in df_aset.columns]
 
@@ -644,95 +679,134 @@ def main_app():
         if st.session_state['role'] == 'view': st.warning("View Only"); st.stop()
         st.title("📦 Input Aset Massal")
 
-        # Ambil daftar dari session state
         list_barang = st.session_state.get('list_aset_barang', ["-- PILIH NAMA BARANG --"])
         list_merk = st.session_state.get('list_aset_merks', ["-- PILIH MERK --"])
+        list_pejabat = st.session_state.get('list_pejabat_names', ["-- PILIH PENANGGUNG JAWAB --"])
+
         SUMBER_DANA_OPTIONS = ["BOS", "BPOPP", "Komite", "PK", "TEFA", "Lain-lain"]
         GOLONGAN_OPTIONS = ["-- PILIH GOLONGAN --", "Aset Tetap Berwujud", "Aset Tetap Tidak Berwujud"]
 
         with st.form("input"):
             col_tgl, col_empty = st.columns(2)
             tgl_perolehan = col_tgl.date_input("Tanggal Perolehan Aset*", key="aset_tgl")
-            c1, c2 = st.columns(2)
-            prefix = c1.text_input("Prefix*", placeholder="MEJA").upper(); vol = c2.number_input("Vol*", 1, 1000, 1)
+            
             # <<< Nama Barang (Selectbox + Input Baru) >>>
             selected_nama = st.selectbox("Pilih Nama Barang*", list_barang, key="aset_nama_select")
             final_nama = selected_nama
-        
             if selected_nama == "-- PILIH NAMA BARANG --":
                 st.warning("Jika barang baru, silakan ketik nama barang di bawah.")
                 new_nama = st.text_input("Nama Barang Baru*", key="aset_nama_new")
-                if new_nama:
-                    final_nama = new_nama
+                if new_nama: final_nama = new_nama
+
+            # --- LOGIKA PREFIX KODE ASET (Otomatis atau Manual) ---
+            aset_prefix_map = st.session_state.get('aset_prefix_map', {})
+            # Prefix yang disimpulkan dari data yang ada
+            inferred_prefix = aset_prefix_map.get(final_nama, "") 
+            
+            col_prefix_sel, col_vol = st.columns(2)
+            
+            # 1. Tentukan apakah Prefix bisa diisi otomatis atau harus manual
+            if inferred_prefix != "":
+                # KASUS 1: Prefix Otomatis Terisi
+                final_prefix = inferred_prefix
+                col_prefix_sel.markdown("**Prefix (Kode Awal) Terisi Otomatis:**")
+                # Tampilkan sebagai Text Input yang non-editable (disabled)
+                col_prefix_sel.text_input(
+                    "Prefix (Kode Awal) Terisi Otomatis",
+                    value=final_prefix,
+                    key="aset_prefix_auto",
+                    disabled=True,
+                    label_visibility="collapsed"
+                )
+            else:
+                # KASUS 2: Prefix Harus Diisi Manual (Barang Baru atau Data Prefix tidak ada)
+                # Tampilkan input manual di kolom yang sama
+                new_prefix = col_prefix_sel.text_input(
+                    "Prefix (Kode Awal)* (Contoh: MEJA.1.0101, AC.2.0206)", 
+                    key="aset_prefix_new",
+                    placeholder="Wajib diisi jika tidak terisi otomatis"
+                ).upper()
+                
+                final_prefix = new_prefix
+
+            vol = col_vol.number_input("Vol*", 1, 1000, 1) # Di kolom kedua
 
             # <<< Merk (Selectbox + Input Baru) >>>
             selected_merk = st.selectbox("Pilih Merk*", list_merk, key="aset_merk_select")
             final_merk = selected_merk
-
             if selected_merk == "-- PILIH MERK --":
                 st.warning("Jika merk baru, silakan ketik merk di bawah.")
                 new_merk = st.text_input("Merk Baru*", key="aset_merk_new")
-                if new_merk:
-                    final_merk = new_merk
-            col_gol, col_sum = st.columns(2)
+                if new_merk: final_merk = new_merk
+                
+            col_gol, col_sum = st.columns(2); col_lok, col_thn = st.columns(2)
             golongan = col_gol.selectbox("Golongan Aset*", GOLONGAN_OPTIONS, key="aset_golongan")
             sumber_dana = col_sum.selectbox("Sumber Dana*", SUMBER_DANA_OPTIONS, key="aset_sumber")
-            c3, c4 = st.columns(2); 
-            lok = c3.selectbox("Lokasi*", st.session_state['list_lokasi_aset'])
-            pj = c4.text_input("PJ*")
-            thn = st.number_input("Tahun*", value=2025)
+            lok = col_lok.selectbox("Lokasi*", st.session_state['list_lokasi_aset'])
+            thn = col_thn.number_input("Tahun*", value=2025)
+            
+            # --- LOGIKA BARU: PENANGGUNG JAWAB DARI SHEET 'PEJABAT' ---
+            selected_pj = st.selectbox("Penanggung Jawab*", list_pejabat, key="aset_pj_select")
+            # Ambil NIP berdasarkan nama yang dipilih
+            pj_nip, _ = get_pejabat_details(df_pejabat_all, selected_pj)
+            # Tampilkan NIP (Non-editable)
+            st.markdown(f"**NIP Penanggung Jawab:** `{pj_nip if pj_nip and pj_nip != '-' else 'NIP Otomatis dari Sheet Pejabat'}`")
+            
             ket_tambahan = st.text_area("Keterangan Tambahan (Opsional)", key="aset_ket_tambahan")
             pic = st.file_uploader("📸 Foto Aset")
             
             if st.form_submit_button("Simpan", type="primary"):
                 # --- VALIDASI INPUT WAJIB ---
+                # Cek jika final_prefix masih kosong/invalid setelah logic otomatis/manual
+                valid_prefix = final_prefix not in [None, ""]
                 valid_nama = final_nama not in ["-- PILIH NAMA BARANG --", None, ""]
                 valid_merk = final_merk not in ["-- PILIH MERK --", None, ""]
+                valid_pj = selected_pj not in ["-- PILIH PENANGGUNG JAWAB --", None, ""]
 
-                if not prefix or not valid_nama or not valid_merk or lok == "-- PILIH LOKASI --" or not pj:
-                    st.error("⚠️ Error: Semua kolom bertanda bintang (*) WAJIB DIISI dan Lokasi harus dipilih!")
+                if not valid_prefix or not valid_nama or not valid_merk or lok == "-- PILIH LOKASI --" or not valid_pj:
+                    st.error("⚠️ Error: Semua kolom bertanda bintang (*) WAJIB DIISI dan Lokasi/PJ/Prefix harus dipilih/diisi!")
                 else:
                     with st.spinner("Menyimpan..."):
                         df = load_data("Aset")
-                        base = f"{prefix}.{thn}"
+                        # Base adalah Prefix Penuh + Tahun
+                        base = f"{final_prefix}.{thn}"
                         existing = df[df['Kode_Aset'].astype(str).str.startswith(base)]
                         last = 0
                         if not existing.empty:
-                            try: last = existing['Kode_Aset'].str.split('.').str[-1].astype(int).max()
+                            try: 
+                                # Mencari nomor urut tertinggi (bagian terakhir setelah split)
+                                last_num_str = existing['Kode_Aset'].apply(lambda x: str(x).split('.')[-1])
+                                last = pd.to_numeric(last_num_str, errors='coerce').max()
                             except: pass
                         
-                        # --- LOGIKA PERBAIKAN UPLOAD FOTO KE DRIVE ---
                         f_link = "-"
                         if pic:
-                            # Tentukan nama file unik
-                            f_name = f"{prefix}_{thn}_{last+1}_{int(time.time())}.jpg"
-                            # Lakukan proses upload ke Drive
+                            f_name = f"{final_prefix}_{thn}_{last+1}_{int(time.time())}.jpg"
                             f_link = upload_to_drive_real(pic, f_name)
 
-                        # Buat baris data untuk Google Sheet
-                        rows = [[str(tgl_perolehan),f"{base}.{last+i:03d}", final_nama, final_merk, golongan, pj, lok, sumber_dana, thn, ket_tambahan, f_link, "Baik"] for i in range(1, vol+1)]
-                        # Simpan data ke Google Sheet
+                        # Ambil NIP yang sudah dicari di atas
+                        rows = [[str(tgl_perolehan),f"{base}.{last+i:03d}", final_nama, final_merk, golongan, selected_pj, pj_nip, lok, sumber_dana, thn, ket_tambahan, f_link, "Baik"] for i in range(1, vol+1)]
+                        # Catatan: Kolom NIP (Index 6) sudah ditambahkan di baris di atas
+                        
                         if save_to_sheet("Aset", rows): 
                             st.success(f"✅ Input {vol} unit aset dengan kode awal {base}.{last+1:03d} berhasil!"); 
-                            
-                            # Set flag refresh untuk memuat ulang daftar barang dan merk di main_app
-                            st.session_state['refresh_aset'] = True
-                            
+                            st.cache_data.clear() # Clear cache agar data baru terbaca
                             time.sleep(1); 
                             st.rerun()
     
     elif st.session_state['menu'] == "Data Aset":
         st.title("🖨️ Data Aset")
+        # MUAT ULANG DATA TANPA CACHE
         df = load_data("Aset")
 
-        # Definisikan daftar status yang mungkin
         STATUS_OPTIONS = ["Baik", "Rusak Ringan", "Rusak Sedang", "Rusak Berat", "Hilang"]
         
+        # Penanganan kolom 'NIP_PJ' yang mungkin belum ada di sheet lama
+        if 'NIP_PJ' not in df.columns:
+            df.insert(6, 'NIP_PJ', '-')
+            
         # --- PENGGUNAAN st.data_editor ---
-        # Hanya berikan izin edit jika peran bukan 'view'
         if st.session_state['role'] != 'view':
-    
-            # Konfigurasi data_editor untuk membuat kolom 'Status' bisa dipilih (selectbox)
             editable_df = st.data_editor(
                 df,
                 use_container_width=True,
@@ -740,32 +814,23 @@ def main_app():
                 key="aset_editor",
                 column_config={
                     "Link_Foto": st.column_config.LinkColumn("Foto Aset", display_text="📸 Lihat Foto"),
-                    # KONFIGURASI PENTING UNTUK EDIT STATUS
-                    "Status": st.column_config.SelectboxColumn(
-                        "Status", 
-                        options=STATUS_OPTIONS, 
-                        required=True
-                    ),
-                    # Membuat Kode Aset dan Tahun tidak bisa diubah
+                    "Status": st.column_config.SelectboxColumn("Status", options=STATUS_OPTIONS, required=True),
                     "Kode_Aset": st.column_config.TextColumn(disabled=True),
                     "Tahun": st.column_config.NumberColumn(disabled=True),
+                    "NIP_PJ": st.column_config.TextColumn(disabled=True), # NIP tidak boleh diedit manual
                 }
             )
     
-             # Tombol untuk menyimpan perubahan
             if st.button("💾 Simpan Perubahan Aset", type="primary"):
-                # Cek apakah ada perubahan
                 if not editable_df.equals(df):
                     update_aset_sheet(editable_df)
                     st.rerun()
                 else:
                     st.warning("Tidak ada perubahan yang terdeteksi untuk disimpan.")
 
-            # Ambil data yang diedit untuk keperluan Label/BAST
             df_for_selection = editable_df
     
         else:
-            # Jika peran adalah 'view', hanya tampilkan dataframe biasa
             st.dataframe(
                 df, 
                 use_container_width=True, 
@@ -780,12 +845,9 @@ def main_app():
             use_container_width=True, 
             on_select="rerun", 
             selection_mode="multi-row",
-            # Tampilkan hanya kolom yang diperlukan untuk pemilihan, tanpa data editor
-            # PENTING: Gunakan df_for_selection di sini, bukan df asli
             column_config={"Link_Foto": st.column_config.LinkColumn("Foto Aset", display_text="📸 Lihat Foto")}
         )
 
-        # Ambil index baris yang dipilih dari data yang sedang ditampilkan (baik editor atau dataframe)
         rows = event.selection.rows
         
         if rows:
@@ -795,31 +857,41 @@ def main_app():
 
             if sub_menu == "🏷️ LABEL":
                 html_labels = "<div class='batch-container'>"
+                
+                # --- HAPUS WARNING TENTANG PERGESERAN KOLOM ---
+                # st.warning("⚠️ **CATATAN PENTING**: Lokasi dan Tahun di Label ini mengambil data dari kolom yang tergeser di Sheet ('Sumber_Dana' dan 'Keterangan') untuk mengatasi data yang salah. Harap segera perbaiki urutan header di Google Sheet 'Aset' Anda.")
+                
                 for i in rows:
                     r = df.iloc[i]
-                    # ISI QR LENGKAP
+                    
+                    # PERBAIKAN AKHIR: MENGGUNAKAN KOLOM YANG SEHARUSNYA KARENA SHEET SUDAH DIPERBAIKI
+                    # Lokasi yang benar = r['Posisi']
+                    # Tahun yang benar = r['Tahun']
+                    
+                    # ISI QR LENGKAP - Menggunakan kolom yang benar
                     qr_text = f"""SMKN 6 JEMBER
 Kode: {r['Kode_Aset']}
 Nama: {r['Nama_Barang']}
 Merk: {r.get('Merk','-')}
 PJ: {r.get('Penanggung_Jawab','-')}
-Lokasi: {r['Posisi']}
+NIP_PJ: {r.get('NIP_PJ','-')}
+Lokasi: {r.get('Posisi','-')} 
 Sumber: {r.get('Sumber_Dana','-')}
-Tahun: {r['Tahun']}
+Tahun: {r.get('Tahun','-')}
 Foto: {r.get('Link_Foto','-')}"""
                     
                     qr = generate_qr_base64(qr_text)
                     
-                    # DESAIN LABEL DENGAN TAHUN DI BAWAH
+                    # DESAIN LABEL
                     html_labels += f"""
                     <div class='label-card'>
                         <img src='{qr}' class='qr-img'>
-                        <div class='label-info'>
+                        <div class='label-info-container'>
                             <div class='lbl-top'>
                                 <div class='lbl-title'>SMKN 6 JEMBER</div>
                                 <div class='lbl-name'>{r['Nama_Barang']}</div>
                                 <div class='lbl-code'>{r['Kode_Aset']}</div>
-                                <div class='lbl-loc'>Lokasi: {r['Posisi']}</div>
+                                <div class='lbl-loc'>Lokasi: {r['Posisi']}</div> 
                             </div>
                             <div class='lbl-year'>
                                 Tahun: {r['Tahun']}
@@ -831,19 +903,33 @@ Foto: {r.get('Link_Foto','-')}"""
                 if st.button("🖨️ CETAK LABEL (POP-UP)", type="primary"): trigger_print_js(html_labels)
             elif sub_menu == "📄 BUAT SURAT BAST":
                 st.subheader("Form Berita Acara")
+                list_pejabat = st.session_state.get('list_pejabat_names', ["-- PILIH PENANGGUNG JAWAB --"])
+
                 with st.form("bast"):
-                    col_a, col_b = st.columns(2)
-                    st.markdown("**PIHAK KESATU (Yang Menyerahkan)**")
-                    p1 = col_a.text_input("Nama Waka Sarpras", DEF_WAKA_NAMA)
-                    n1 = col_b.text_input("NIP Waka", DEF_WAKA_NIP)
+                    # --- PIHAK KESATU (WAKA SARPRAS) ---
+                    st.markdown("**PIHAK KESATU (Yang Menyerahkan: Waka Sarpras)**")
+                    p1 = st.selectbox("Nama Waka Sarpras", list_pejabat, index=0) # Asumsi Waka Sarpras ada di baris pertama
+                    n1, _ = get_pejabat_details(df_pejabat_all, p1)
+                    if n1 == '-': n1 = DEF_WAKA_NIP
+                    st.markdown(f"**NIP Waka:** `{n1}`")
+                    
+                    # --- PIHAK KEDUA (Penerima) ---
                     st.markdown("**PIHAK KEDUA (Yang Menerima)**")
-                    p2 = col_a.text_input("Nama Penerima", "")
-                    n2 = col_b.text_input("NIP Penerima", "")
-                    jab2 = st.text_input("Jabatan Penerima", "")
+                    p2 = st.selectbox("Nama Penerima", list_pejabat, key="bast_p2")
+                    n2, jab2 = get_pejabat_details(df_pejabat_all, p2)
+                    st.markdown(f"**NIP Penerima:** `{n2}`")
+                    st.markdown(f"**Jabatan Penerima:** `{jab2}`")
+
+                    # --- MENGETAHUI (Kepala Sekolah) ---
                     st.markdown("**MENGETAHUI**")
-                    ks = col_a.text_input("Kepala Sekolah", DEF_KS_NAMA)
-                    nks = col_b.text_input("NIP Kepsek", DEF_KS_NIP)
-                    saksi = st.text_input("Saksi", "")
+                    ks = st.selectbox("Kepala Sekolah", list_pejabat, key="bast_ks")
+                    nks, _ = get_pejabat_details(df_pejabat_all, ks)
+                    if nks == '-': nks = DEF_KS_NIP
+                    st.markdown(f"**NIP Kepsek:** `{nks}`")
+                    
+                    # --- SAKSI ---
+                    saksi = st.selectbox("Saksi", list_pejabat, key="bast_saksi")
+                    
                     tgl = st.date_input("Tanggal BAST")
                     create = st.form_submit_button("GENERATE & DOWNLOAD")
                 
@@ -928,12 +1014,6 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
                 thn = st.number_input("Tahun Perolehan/Pembelian", min_value=1990, value=pd.to_datetime('today').year)
             
                 submitted = st.form_submit_button("Simpan Data Inventaris", type="primary")
-
-                #nama_barang = st.text_input("Nama Barang (Misal: Kursi Siswa)")
-                #total_unit = st.number_input("Total Unit Barang di Ruangan Ini", min_value=1, value=1)
-                #thn = st.number_input("Tahun Perolehan/Pembelian", min_value=1990, value=pd.to_datetime('today').year)
-            
-                #submitted = st.form_submit_button("Simpan Data Inventaris", type="primary")
             
                 if submitted:
                     valid_nama = final_nama_barang not in ["-- PILIH NAMA BARANG --", None, ""]
@@ -957,8 +1037,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
                             if save_to_sheet("InventarisKelas", [new_row], append_only=True):
                                 st.success(f"✅ Data '{final_nama_barang}' di '{ruangan}' berhasil ditambahkan.")
                                 st.session_state['inventaris_active_tab_index'] = 0
-                                # Set flag untuk refresh daftar barang kelas
-                                st.session_state['refresh_inv_kelas'] = True 
+                                st.cache_data.clear()
                                 st.rerun()
 
         # =======================================================
@@ -984,7 +1063,6 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
             st.info("Edit kolom Baik, Rusak Sedang, atau Rusak Berat di bawah ini.")
         
             # 2. Tampilkan Data Editor
-            # Catatan: Kolom 'Total_Unit' tidak dapat diedit
             editable_df_room = st.data_editor(
                 df_room,
                 use_container_width=True,
@@ -1007,7 +1085,6 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
             if st.button("💾 Simpan Hasil Audit", type="primary"):
             
                 # --- VALIDASI KRITIS ---
-                # Periksa apakah jumlah total kondisi (Baik+Sedang+Berat) > Total_Unit
                 total_kondisi = editable_df_room['Baik'] + editable_df_room['Rusak_Sedang'] + editable_df_room['Rusak_Berat']
                 total_unit = editable_df_room['Total_Unit']
             
@@ -1058,10 +1135,9 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
         final_nama_barang = selected_item
     
         # --- 3. LOGIKA PENENTUAN DEFAULT SATUAN & ITEM BARU/LAMA ---
-        efault_satuan = ""
-        is_new_item_mode = False # Flag untuk barang yang diketik, bukan dipilih
         default_satuan = "" 
         is_new_item_mode = False
+        
         # A. Mode Barang Baru (Typed-in)
         if selected_item == "-- PILIH NAMA BARANG --":
             st.warning("Jika barang baru, silakan ketik nama barang di bawah.")
@@ -1069,15 +1145,14 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
         
             if new_item:
                 final_nama_barang = new_item
-                is_new_item_mode = True # Ini barang baru, Satuan harus diisi manual
+                is_new_item_mode = True 
             else:
-                final_nama_barang = selected_item # Placeholder
+                final_nama_barang = selected_item 
     
         # B. Mode Barang Lama (Selected) - Cari Satuan Otomatis
         if not is_new_item_mode and final_nama_barang != "-- PILIH NAMA BARANG --" and not df_stok_all.empty:
             try:
                 current_selected_item = final_nama_barang.strip()
-                # Lakukan filter robust
                 filtered_df = df_stok_all[df_stok_all['Nama_Barang'].astype(str).str.strip() == current_selected_item]
 
                 if not filtered_df.empty:
@@ -1086,7 +1161,6 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
                         default_satuan = str(satuan_found).strip()
             
             except Exception:
-            # Jika terjadi error saat mencari (e.g., KeyError, data kosong), default_satuan tetap ""
                 pass
 
         # C. Tentukan apakah Satuan sudah ditemukan untuk item yang dipilih (item lama)
@@ -1107,17 +1181,15 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
                 
                     # --- PERUBAHAN KRITIS: CONDITIONAL RENDERING SATUAN ---
                     col_unit, col_notes = st.columns(2)
-                    s = None # Inisialisasi variabel satuan yang akan dikirim
+                    s = None 
                 
                     if satuan_sudah_ada:
-                        # Item LAMA: HANYA TAMPILKAN Satuan sebagai info, ambil nilainya dari default_satuan
                         col_unit.markdown(f"**Satuan (Auto):** {default_satuan}")
                         s = default_satuan
                     else:
-                        # Item BARU atau Item Lama tanpa satuan: TAMPILKAN INPUT
                         s = col_unit.text_input(
                             "Satuan*", 
-                            value=default_satuan, # Gunakan default_satuan (kosong jika barang baru)
+                            value=default_satuan, 
                             key="stok_unit_manual"
                         )
                     # --------------------------------------------------------
@@ -1125,23 +1197,18 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
                     k = col_notes.text_input("Keterangan Tambahan", key="stok_ket")
                 
                     if st.form_submit_button("Simpan Transaksi", type="primary"):
-                        # VALIDASI DAN PENYIMPANAN
                         valid_nama = final_nama_barang not in ["-- PILIH NAMA BARANG --", None, ""]
                     
-                        # Validasi: Satuan harus terisi jika itu barang baru (atau jika Satuan tidak terdeteksi)
                         if not valid_nama or not s: 
                             st.error("⚠️ Nama Barang dan Satuan wajib diisi.")
                         else:
-                            # Logika penyimpanan menggunakan s (nilai satuan final)
                             with st.spinner("Menyimpan transaksi..."):
                                 row_data = [
                                     str(d), final_nama_barang, j, q, s, k
                                 ]
                                 if save_to_sheet("Stok", [row_data], append_only=True):
                                     st.success(f"✅ Transaksi {j} {q} {s} {final_nama_barang} berhasil dicatat.")
-                                
-                                    # Set flag refresh dan rerun
-                                    st.session_state['refresh_stok'] = True 
+                                    st.cache_data.clear()
                                     st.rerun()
                                 else:
                                     st.error("Gagal menyimpan ke database.")
@@ -1151,7 +1218,6 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
         # -----------------------------------------------------------
         if not df_stok_all.empty:
             # Menghitung Saldo (Balance)
-            # Menambahkan include_groups=False untuk menenangkan FutureWarning
             bal = df_stok_all.groupby(['Nama_Barang','Satuan']).apply(
                 lambda x: x[x['Jenis_Transaksi']=='Masuk']['Jumlah'].sum() - x[x['Jenis_Transaksi']=='Keluar']['Jumlah'].sum()
             ).reset_index(name='Sisa')
@@ -1177,7 +1243,9 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
                     d=st.date_input("Tgl"); nm=st.text_input("Kegiatan")
                     t=[f"{h:02}:00" for h in range(7,17)]; c1,c2=st.columns(2); m=c1.selectbox("Mulai",t); s=c2.selectbox("Selesai",t)
                     p=st.text_input("Peminjam"); k=st.text_area("Ket")
-                    if st.form_submit_button("Simpan"): save_to_sheet("Jadwal",[[str(d),nm,m,s,p,"Booked",k]]); st.success("OK"); st.rerun()
+                    if st.form_submit_button("Simpan"): 
+                        if save_to_sheet("Jadwal",[[str(d),nm,m,s,p,"Booked",k]]): 
+                            st.success("OK"); st.cache_data.clear(); st.rerun()
         df = load_data("Jadwal"); 
         if not df.empty: df['Tanggal']=pd.to_datetime(df['Tanggal']); st.dataframe(df.sort_values('Tanggal', ascending=False), use_container_width=True, hide_index=True)
 
