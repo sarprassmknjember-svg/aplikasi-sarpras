@@ -1225,7 +1225,16 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
             bal = bal[bal['Sisa'] > 0] 
 
             bal['Status'] = bal['Sisa'].apply(lambda x: '🔴 Kritis' if x <= 5 else '🟢 Aman')
-    
+
+            # 1. Buat kolom untuk sorting prioritas (0=Kritis, 1=Aman)
+            bal['Sort_Key'] = bal['Status'].apply(lambda x: 0 if x == '🔴 Kritis' else 1)
+            
+            # 2. Sorting: berdasarkan Sort_Key (Kritis di atas), lalu berdasarkan Sisa (terkecil di atas)
+            bal_sorted = bal.sort_values(by=['Sort_Key', 'Sisa'], ascending=[True, True])
+            
+            # 3. Hapus kolom Sort_Key sebelum ditampilkan
+            bal_final = bal_sorted.drop(columns=['Sort_Key'])
+
             st.subheader("📚 Saldo Stok Saat Ini")
             st.dataframe(bal, use_container_width=True, hide_index=True) 
     
