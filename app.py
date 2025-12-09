@@ -1236,7 +1236,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
             bal_final = bal_sorted.drop(columns=['Sort_Key'])
 
             st.subheader("📚 Saldo Stok Saat Ini")
-            st.dataframe(bal, use_container_width=True, hide_index=True) 
+            st.dataframe(bal_final, use_container_width=True, hide_index=True) 
     
             st.divider()
             st.subheader("⏱️ Riwayat Transaksi")
@@ -1300,3 +1300,4 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
