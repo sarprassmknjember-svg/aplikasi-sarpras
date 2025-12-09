@@ -214,7 +214,7 @@ def dashboard_card(title, value, color, icon):
             <div style="width: 80%;">
                 <h4 style="margin: 0; font-size: 14px; opacity: 0.9; color: white;">{title}</h4>
                 <h2 style="margin: 5px 0; 
-                           font-size: 20px; /* <--- UKURAN FONT DIKECILKAN */
+                           font-size: 20px; /* <--- UKURAN FONT DIKECILKAN (20px) */
                            font-weight: bold; 
                            color: white; 
                            line-height: 1.1; /* <--- KETINGGIAN BARIS DIRAPATKAN */
@@ -661,9 +661,10 @@ def main_app():
                     
                 # Jika ada acara kedua, tambahkan ke teks
                 if len(top_2_events) > 1:
+                    # Format acara kedua (dibatasi 20 karakter)
                     keg_2 = top_2_events.iloc[1]['Kegiatan'][:20] + '...' if len(top_2_events.iloc[1]['Kegiatan']) > 20 else top_2_events.iloc[1]['Kegiatan']
                     event_2 = f"{keg_2} ({top_2_events.iloc[1]['Tanggal'].strftime('%d/%m')})"
-                    # Gabungkan kedua acara, memastikan tidak ada spasi berlebih
+                    # Gabungkan kedua acara dengan tag <br>
                     agenda = f"{event_1}<br>{event_2}" 
                 
             with c3: dashboard_card("Agenda Terdekat", agenda, "purple", "📅")
