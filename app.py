@@ -209,7 +209,7 @@ def dashboard_card(title, value, color, icon):
     }
     bg = colors.get(color, "#6c757d")
     html = f"""
-    <div style="background: {bg}; padding: 20px; border-radius: 15px; color: white; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); height: 120px;">
+    <div style="background: {bg}; padding: 20px; border-radius: 15px; color: white; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); height: 145px;">
         <div style="display: flex; justify-content: space-between; align-items: center; height: 100%;">
             <div style="width: 80%;">
                 <h4 style="margin: 0; font-size: 14px; opacity: 0.9; color: white;">{title}</h4>
@@ -1326,6 +1326,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
 
