@@ -640,32 +640,31 @@ def main_app():
         
         with c2: dashboard_card("Stok Menipis", f"{stok_alert} Item", "red", "📉")
 
-        # Card 3: Agenda Terdekat
         # Card 3: Agenda Terdekat (2 Acara)
-            agenda = "Tidak ada"
-            if not df_jadwal.empty:
-                # Pastikan kolom Tanggal berformat datetime
-                df_jadwal['Tanggal'] = pd.to_datetime(df_jadwal['Tanggal'], errors='coerce')
+        agenda = "Tidak ada"
+        if not df_jadwal.empty:
+            # Pastikan kolom Tanggal berformat datetime
+            df_jadwal['Tanggal'] = pd.to_datetime(df_jadwal['Tanggal'], errors='coerce')
                 
-                # Filter acara yang akan datang, lalu urutkan
-                upcoming = df_jadwal[df_jadwal['Tanggal'].dt.date >= datetime.now().date()].sort_values('Tanggal')
+            # Filter acara yang akan datang, lalu urutkan
+            upcoming = df_jadwal[df_jadwal['Tanggal'].dt.date >= datetime.now().date()].sort_values('Tanggal')
                 
-                if not upcoming.empty:
-                    # Ambil 2 acara teratas
-                    top_2_events = upcoming.head(2)
+            if not upcoming.empty:
+                # Ambil 2 acara teratas
+                top_2_events = upcoming.head(2)
                     
-                    # Format acara pertama
-                    # Membatasi nama kegiatan agar tidak terlalu panjang (misal 20 karakter)
-                    keg_1 = top_2_events.iloc[0]['Kegiatan'][:20] + '...' if len(top_2_events.iloc[0]['Kegiatan']) > 20 else top_2_events.iloc[0]['Kegiatan']
-                    event_1 = f"{keg_1} ({top_2_events.iloc[0]['Tanggal'].strftime('%d/%m')})"
-                    agenda = event_1
+                # Format acara pertama
+                # Membatasi nama kegiatan agar tidak terlalu panjang (misal 20 karakter)
+                keg_1 = top_2_events.iloc[0]['Kegiatan'][:20] + '...' if len(top_2_events.iloc[0]['Kegiatan']) > 20 else top_2_events.iloc[0]['Kegiatan']
+                event_1 = f"{keg_1} ({top_2_events.iloc[0]['Tanggal'].strftime('%d/%m')})"
+                agenda = event_1
                     
-                    # Jika ada acara kedua, tambahkan ke teks
-                    if len(top_2_events) > 1:
-                        keg_2 = top_2_events.iloc[1]['Kegiatan'][:20] + '...' if len(top_2_events.iloc[1]['Kegiatan']) > 20 else top_2_events.iloc[1]['Kegiatan']
-                        event_2 = f"{keg_2} ({top_2_events.iloc[1]['Tanggal'].strftime('%d/%m')})"
-                        # Gabungkan kedua acara, memastikan tidak ada spasi berlebih
-                        agenda = f"{event_1}<br>{event_2}" 
+                # Jika ada acara kedua, tambahkan ke teks
+                if len(top_2_events) > 1:
+                    keg_2 = top_2_events.iloc[1]['Kegiatan'][:20] + '...' if len(top_2_events.iloc[1]['Kegiatan']) > 20 else top_2_events.iloc[1]['Kegiatan']
+                    event_2 = f"{keg_2} ({top_2_events.iloc[1]['Tanggal'].strftime('%d/%m')})"
+                    # Gabungkan kedua acara, memastikan tidak ada spasi berlebih
+                    agenda = f"{event_1}<br>{event_2}" 
                 
             with c3: dashboard_card("Agenda Terdekat", agenda, "purple", "📅")
     
@@ -1326,6 +1325,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
 
