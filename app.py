@@ -35,6 +35,7 @@ try:
     # Service Account keys dihapus dari sini, diganti Oauth keys
     GEMINI_KEY = st.secrets["GEMINI_KEY"]
     PARENT_FOLDER_ID = st.secrets["PARENT_FOLDER_ID"]
+    RENOVASI_FOLDER_ID = st.secrets["RENOVASI_FOLDER_ID"]
     
     # KUNCI BARU UNTUK OAUTH USER CREDENTIALS
     OAUTH_CLIENT_ID = st.secrets["google_oauth"]["CLIENT_ID"]
@@ -93,7 +94,8 @@ def connect_google_sheet():
     return sheet
 
 # --- FUNGSI UPLOAD KE GOOGLE DRIVE ---
-def upload_to_drive_real(uploaded_file, filename):
+# Definisikan ulang fungsi ini: Tambahkan parameter 'target_folder_id'
+def upload_to_drive_real(uploaded_file, filename, target_folder_id):
     try:
         creds = get_gcp_creds()
         # Membangun service Drive API
@@ -101,7 +103,8 @@ def upload_to_drive_real(uploaded_file, filename):
         
         file_metadata = {
             'name': filename,
-            'parents': [PARENT_FOLDER_ID] # Upload ke Folder ID Spesifik
+            # Ganti dengan folder ID yang diterima sebagai parameter
+            'parents': [target_folder_id] 
         }
         
         # Konversi file buffer
@@ -125,7 +128,6 @@ def upload_to_drive_real(uploaded_file, filename):
         ).execute()
         
         # 3. GENERATE DIRECT LINK
-        # Link ini yang digunakan untuk menampilkan gambar di Streamlit/HTML
         return f"https://drive.google.com/uc?export=view&id={file_id}"
         
     except Exception as e:
@@ -504,6 +506,25 @@ def extract_full_prefix(kode_aset):
     # Jika kurang dari 3 bagian, asumsikan itu adalah prefix itu sendiri
     return kode_aset
 
+# --- FUNGSI BANTUAN UPLOAD RENOVASI (TAMBAHAN BARU) ---
+def upload_renovasi_photo(uploaded_file, file_type):
+    """Mengupload foto renovasi dengan prefix RENOVASI_ dan timestamp ke folder spesifik."""
+    # Pastikan RENOVASI_FOLDER_ID sudah dimuat dari secrets
+    if 'RENOVASI_FOLDER_ID' not in st.secrets:
+         st.error("Konfigurasi RENOVASI_FOLDER_ID belum ditemukan di secrets.")
+         return "-"
+         
+    if not uploaded_file:
+        return "-"
+    
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    # Menggunakan prefix RENOVASI_ sesuai permintaan
+    filename = f"RENOVASI_{file_type}_{timestamp}_{uploaded_file.name}"
+    
+    # Upload menggunakan folder ID spesifik
+    link = upload_to_drive_real(uploaded_file, filename, st.secrets["RENOVASI_FOLDER_ID"])
+    return link
+
 # ===========================
 # 3. LOGIN & MAIN APP
 # ===========================
@@ -808,7 +829,8 @@ def main_app():
                         f_link = "-"
                         if pic:
                             f_name = f"{final_prefix}_{thn}_{last+1}_{int(time.time())}.jpg"
-                            f_link = upload_to_drive_real(pic, f_name)
+                            # Ganti: upload_to_drive_real(pic, f_name)
+                            f_link = upload_to_drive_real(pic, f_name, PARENT_FOLDER_ID)
 
                         # Ambil NIP yang sudah dicari di atas
                         rows = [[str(tgl_perolehan),f"{base}.{last+i:03d}", final_nama, final_merk, golongan, selected_pj, pj_nip, lok, sumber_dana, thn, ket_tambahan, f_link, "Baik"] for i in range(1, vol+1)]
@@ -1270,6 +1292,115 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
         else:
             st.info("Belum ada data transaksi stok.")
 
+        # Tambahkan blok ini setelah menu Gudang (Stok)
+    elif st.session_state['menu'] == "Data Renovasi":
+        st.title("🔨 Data Renovasi")
+    
+        # Load data lokasi yang sudah ada dari InventarisKelas dan Lab
+        list_lokasi = st.session_state.get('list_lokasi_aset', ["-- PILIH LOKASI --"])
+    
+        # --- MUAT DATA RENOVASI DARI AWAL APP ---
+        df_renovasi_all = load_data("Renovasi")
+
+        with st.form("form_renovasi_input"):
+            st.subheader("Input Data Renovasi Baru")
+        
+            col1, col2 = st.columns(2)
+        
+            tgl = col1.date_input("Tanggal Renovasi/Perbaikan*", value="today")
+            jenis = col2.text_input("Jenis Perbaikan*", placeholder="Contoh: Pengecatan ulang, Perbaikan atap bocor")
+        
+            # Dropdown Lokasi Perbaikan menggunakan data lokasi yang sudah ada
+            lok = st.selectbox("Lokasi Perbaikan*", list_lokasi, key="renovasi_lokasi")
+        
+            # Kolom untuk upload foto
+            st.markdown("---")
+            st.markdown("**Unggah Foto (Maks. 5MB per file)**")
+            col_foto_sebelum, col_foto_sesudah = st.columns(2)
+        
+            foto_sebelum = col_foto_sebelum.file_uploader(
+                "📸 Foto Sebelum Perbaikan*", 
+                type=['png', 'jpg', 'jpeg'], 
+                key="foto_sebelum"
+            )
+        
+            foto_sesudah = col_foto_sesudah.file_uploader(
+                "📸 Foto Sesudah Perbaikan*", 
+                type=['png', 'jpg', 'jpeg'], 
+                key="foto_sesudah"
+            )
+            st.caption("Setelah diunggah, foto akan diupload ke Google Drive Folder **'RENOVASI'** dan link akan tersimpan.")
+            st.markdown("---")
+        
+            submitted = st.form_submit_button("Simpan Data Renovasi", type="primary", use_container_width=True)
+        
+            if submitted:
+                if lok == "-- PILIH LOKASI --" or not jenis or not foto_sebelum or not foto_sesudah:
+                    st.error("⚠️ Semua kolom wajib diisi, termasuk kedua foto.")
+                else:
+                    with st.spinner("Mengupload foto dan menyimpan data..."):
+                    
+                        # 1. Upload Foto Sebelum (Menggunakan fungsi yang sudah dimodifikasi)
+                        link_sebelum = upload_renovasi_photo(foto_sebelum, "SEBELUM")
+                    
+                        # 2. Upload Foto Sesudah (Menggunakan fungsi yang sudah dimodifikasi)
+                        link_sesudah = upload_renovasi_photo(foto_sesudah, "SESUDAH")
+                    
+                        if link_sebelum == "-" or link_sesudah == "-":
+                            st.error("❌ Gagal mendapatkan link foto. Harap coba lagi.")
+                        else:
+                            # 3. Simpan data ke Google Sheet "Renovasi"
+                            row_data = [
+                                str(tgl),
+                                jenis.strip(),
+                                lok,
+                                link_sebelum,
+                                link_sesudah,
+                                datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                            ]
+                        
+                            if save_to_sheet("Renovasi", [row_data], append_only=True):
+                                st.success("✅ Data Renovasi Berhasil Disimpan!")
+                                st.cache_data.clear() # Kosongkan cache agar tabel di bawah terupdate
+                                time.sleep(1); st.rerun()
+                            
+        st.divider()
+        st.subheader("Tabel Data Hasil Renovasi")
+    
+        # Reload data untuk tampilan terbaru
+        df_renovasi_display = load_data("Renovasi")
+    
+        if df_renovasi_display.empty:
+            st.info("Belum ada data renovasi yang tercatat.")
+        else:
+            # PENTING: Gunakan st.column_config.LinkColumn agar foto bisa diklik
+            col_config = {
+                "Link_Foto_Sebelum": st.column_config.LinkColumn("Foto Sebelum", display_text="📸 Klik Lihat"),
+                "Link_Foto_Sesudah": st.column_config.LinkColumn("Foto Sesudah", display_text="📸 Klik Lihat"),
+                "Tanggal": st.column_config.DateColumn("Tanggal", format="YYYY/MM/DD"),
+                "Jenis_Perbaikan": "Jenis Perbaikan",
+                "Lokasi_Perbaikan": "Lokasi Perbaikan",
+                "Waktu_Input": st.column_config.DatetimeColumn("Waktu Input", format="YYYY-MM-DD HH:mm:ss", disabled=True)
+            }
+        
+            # Urutkan berdasarkan waktu input terbaru
+            if 'Waktu_Input' in df_renovasi_display.columns:
+                # Karena di input data Waktu_Input menggunakan format string, kita harus parse ke datetime
+                df_renovasi_display['Waktu_Input'] = pd.to_datetime(df_renovasi_display['Waktu_Input'], errors='coerce')
+                df_renovasi_display = df_renovasi_display.sort_values(by='Waktu_Input', ascending=False)
+                df_renovasi_display['Waktu_Input'] = df_renovasi_display['Waktu_Input'].dt.strftime("%Y-%m-%d %H:%M:%S") # Format ulang untuk tampilan
+            
+            # Isi NaN/NaT dengan string kosong/strip agar tampilan bersih
+            df_renovasi_display = df_renovasi_display.fillna('-')
+
+            st.dataframe(
+                df_renovasi_display,
+                use_container_width=True,
+                hide_index=True,
+                column_order=["Tanggal", "Jenis_Perbaikan", "Lokasi_Perbaikan", "Link_Foto_Sebelum", "Link_Foto_Sesudah", "Waktu_Input"],
+                column_config=col_config
+            )
+    
     elif st.session_state['menu'] == "Jadwal Aula":
         st.title("📅 Jadwal")
         if st.session_state['role'] != 'view':
@@ -1326,10 +1457,3 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
-
-
-
-
-
-
-
