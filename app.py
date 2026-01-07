@@ -171,7 +171,7 @@ def generate_qr_base64(text):
 
 def ask_gemini(prompt):
     genai.configure(api_key=GEMINI_KEY)
-    model = genai.GenerativeModel('gemini-2.5-flash')
+    model = genai.GenerativeModel('gemini-flash-latest')
     try:
         response = model.generate_content(prompt)
         return response.text
@@ -1459,4 +1459,5 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
