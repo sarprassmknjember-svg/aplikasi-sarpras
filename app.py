@@ -628,7 +628,7 @@ def main_app():
 
         if st.button("🔨 Data Renovasi", use_container_width=True): st.session_state['menu'] = 'Data Renovasi'; st.rerun()
         
-        if st.button("📅 Jadwal Aula", use_container_width=True): st.session_state['menu'] = 'Jadwal Aula'; st.rerun()
+        if st.button("📆 Peminjaman", use_container_width=True): st.session_state['menu'] = 'Peminjaman'; st.rerun()
 
         if st.button("🤖 Tanya AI", use_container_width=True): st.session_state['menu'] = 'Tanya AI'; st.rerun()
 
@@ -1670,6 +1670,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
 
