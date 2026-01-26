@@ -1529,7 +1529,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
                 df_ruang = load_data(nama_sheet_ruang) 
                 
                 # Sesuaikan nama kolom ini dengan sheet Anda
-                kolom_sumber_ruang = "Kelas"  
+                kolom_sumber_ruang = "Kelas/Ruangan"  
                 
                 if df_ruang.empty:
                     opsi_objek = ["-- Data InventarisKelas Kosong --"]
@@ -1665,6 +1665,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
 
