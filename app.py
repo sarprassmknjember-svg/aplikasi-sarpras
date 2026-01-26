@@ -619,6 +619,8 @@ def main_app():
             if st.button("📦 Input Aset", use_container_width=True): st.session_state['menu'] = 'Input Aset'; st.rerun()
 
         if st.button("🖨️ Data Aset", use_container_width=True): st.session_state['menu'] = 'Data Aset'; st.rerun()
+
+        if st.button("🛠️ Pemeliharaan", use_container_width=True): st.session_state['menu'] = 'Pemeliharaan'; st.rerun()
             
         if st.button("🏢 Inventaris Ruangan", use_container_width=True): st.session_state['menu'] = 'Inventaris Ruangan'; st.rerun()
 
@@ -1026,6 +1028,37 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
                     st.success("✅ Surat Siap!")
                     st.download_button("💾 DOWNLOAD SURAT BAST (HTML)", full_html_bast, "BAST_Surat.html", "text/html", type="primary")
 
+    elif st.session_state['menu'] == "Pemeliharaan":
+        st.header("🛠️ Pemeliharaan & Perbaikan Aset")
+        df_maint = load_data("Pemeliharaan")
+        
+        with st.expander("➕ Input Riwayat Pemeliharaan Baru"):
+            if df_aset_all.empty:
+                st.warning("Data Aset kosong.")
+            else:
+                with st.form("form_maint", clear_on_submit=True):
+                    # Dropdown mengambil dari menu Data Aset
+                    aset_list = df_aset_all['Nama_Barang'] + " (" + df_aset_all['Kode_Aset'] + ")"
+                    pilihan = st.selectbox("Pilih Aset", options=aset_list)
+                    
+                    pelaksana = st.text_input("Pihak Pelaksana (Vendor/Teknisi)")
+                    tgl_m = st.date_input("Tanggal Pemeliharaan")
+                    detail = st.text_area("Detail Perbaikan")
+                    foto = st.file_uploader("Upload Foto Bukti", type=['jpg','png','jpeg'])
+                    
+                    if st.form_submit_button("Simpan Data"):
+                        link_f = "-"
+                        if foto:
+                            link_f = upload_to_drive_real(foto, f"MAINT_{datetime.now().strftime('%Y%m%d')}_{foto.name}", PARENT_FOLDER_ID)
+                        
+                        save_to_sheet("Pemeliharaan", [pilihan, pelaksana, str(tgl_m), detail, link_f])
+                        st.success("Data pemeliharaan dicatat!")
+                        time.sleep(1); st.rerun()
+
+        st.subheader("📜 Riwayat Pemeliharaan")
+        if not df_maint.empty:
+            st.dataframe(df_maint, use_container_width=True)
+    
     elif st.session_state['menu'] == 'Inventaris Ruangan':
         st.header("🏢 Manajemen Inventaris Ruangan/Ruangan")
         df_inv = load_data("InventarisKelas")
@@ -1459,6 +1492,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
 
