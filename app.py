@@ -1028,56 +1028,36 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
                     st.success("✅ Surat Siap!")
                     st.download_button("💾 DOWNLOAD SURAT BAST (HTML)", full_html_bast, "BAST_Surat.html", "text/html", type="primary")
 
-    elif menu == "🛠️ Pemeliharaan":
+    elif st.session_state['menu'] == "Pemeliharaan":
         st.header("🛠️ Pemeliharaan & Perbaikan Aset")
-            
-        # Load data aset (Pastikan nama sheetnya 'Aset' sesuai file asli anda)
-        df_aset = load_data("Aset")
         df_maint = load_data("Pemeliharaan")
-
+        
         with st.expander("➕ Input Riwayat Pemeliharaan Baru"):
-            if df_aset.empty:
-                st.warning("Data Aset tidak ditemukan. Pastikan sheet 'Aset' sudah terisi.")
+            if df_aset_all.empty:
+                st.warning("Data Aset kosong.")
             else:
-                with st.form("form_maint"):
-                    # Dropdown mengambil data dari sheet Aset
-                    aset_options = df_aset['Nama_Barang'] + " [" + df_aset['Kode_Aset'] + "]"
-                    pilihan = st.selectbox("Pilih Aset", options=aset_options)
-                        
+                with st.form("form_maint", clear_on_submit=True):
+                    # Dropdown mengambil dari menu Data Aset
+                    aset_list = df_aset_all['Nama_Barang'] + " (" + df_aset_all['Kode_Aset'] + ")"
+                    pilihan = st.selectbox("Pilih Aset", options=aset_list)
+                    
                     pelaksana = st.text_input("Pihak Pelaksana (Vendor/Teknisi)")
                     tgl_m = st.date_input("Tanggal Pemeliharaan")
                     detail = st.text_area("Detail Perbaikan")
-                    foto_file = st.file_uploader("Upload Foto Bukti", type=['jpg', 'png', 'jpeg'])
+                    foto = st.file_uploader("Upload Foto Bukti", type=['jpg','png','jpeg'])
+                    
+                    if st.form_submit_button("Simpan Data"):
+                        link_f = "-"
+                        if foto:
+                            link_f = upload_to_drive_real(foto, f"MAINT_{datetime.now().strftime('%Y%m%d')}_{foto.name}", PARENT_FOLDER_ID)
                         
-                    submit_btn = st.form_submit_button("Simpan Data")
-                        
-                    if submit_btn:
-                        if pelaksana and detail:
-                            with st.spinner("Sedang menyimpan..."):
-                                # Handle foto jika ada
-                                link_f = "-"
-                                if foto_file:
-                                    # Gunakan PARENT_FOLDER_ID dari secrets
-                                    link_f = upload_to_drive_real(foto_file, f"MAINT_{pilihan}_{datetime.now().strftime('%Y%m%d')}", PARENT_FOLDER_ID)
-                                   
-                                # DATA YANG DIKIRIM (Harus urut sesuai kolom A, B, C, D, E)
-                                row_data = [pilihan, pelaksana, str(tgl_m), detail, link_f]
-                                    
-                                # Kirim ke sheet
-                                success = save_to_sheet("Pemeliharaan", row_data)
-                                    
-                                if success:
-                                    st.success("✅ Data Berhasil Masuk ke Google Sheet!")
-                                    time.sleep(1)
-                                    st.rerun()
-                        else:
-                            st.error("Tolong isi Pelaksana dan Detail Perbaikan!")
+                        save_to_sheet("Pemeliharaan", [pilihan, pelaksana, str(tgl_m), detail, link_f])
+                        st.success("Data pemeliharaan dicatat!")
+                        time.sleep(1); st.rerun()
 
         st.subheader("📜 Riwayat Pemeliharaan")
         if not df_maint.empty:
             st.dataframe(df_maint, use_container_width=True)
-        else:
-            st.info("Belum ada riwayat di sheet Pemeliharaan.")
     
     elif st.session_state['menu'] == 'Inventaris Ruangan':
         st.header("🏢 Manajemen Inventaris Ruangan/Ruangan")
@@ -1512,6 +1492,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
 
