@@ -1158,69 +1158,120 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
         else:
             st.info("Belum ada data pemeliharaan yang tercatat.")
     
-    elif st.session_state['menu'] == 'Inventaris Ruangan':
-        st.header("🏢 Manajemen Inventaris Ruangan/Ruangan")
-        df_inv = load_data("InventarisKelas")
-    
-        if 'inventaris_active_tab_index' not in st.session_state:
-            st.session_state['inventaris_active_tab_index'] = 0
-
-        tab_titles = ["➕ Pendataan Awal", "🔍 Audit & Update Kondisi"]
-
-        # -----------------------------------------------------------
-        # TABS: Pendataan Awal dan Audit/Update Kondisi
-        # -----------------------------------------------------------
-        tab1, tab2 = st.tabs(tab_titles)
+    elif st.session_state['menu'] == "Inventaris Ruangan":
+        st.title("🏫 Input Inventaris Ruangan")
         
-        list_barang_kelas = st.session_state.get('list_inv_kelas_barang', ["-- PILIH NAMA BARANG --"])
-    
-        # =======================================================
-        # TAB 1: FORM INPUT INVENTARIS BARU
-        # =======================================================
+        tab1, tab2 = st.tabs(["📝 Input Data Baru", "📋 Lihat Data Kelas"])
+        
+        # === TAB 1: FORM INPUT ===
         with tab1:
-            st.session_state['inventaris_active_tab_index'] = 0
-            st.subheader("Input Item Inventaris Baru ke Ruangan")
-        
-            with st.form("form_inventaris_baru"):
-                ruangan = st.text_input("Nama Kelas/Ruangan (Misal: X RPL 1)")
-                selected_nama = st.selectbox("Pilih Nama Barang*", list_barang_kelas, key="inv_kelas_nama_select")
-                final_nama_barang = selected_nama
-
-                if selected_nama == "-- PILIH NAMA BARANG --":
-                    st.warning("Jika barang baru, silakan ketik nama barang di bawah.")
-                    new_nama = st.text_input("Nama Barang Baru*", key="inv_kelas_nama_new")
-                    if new_nama:
-                        final_nama_barang = new_nama
-
-                total_unit = st.number_input("Total Unit Barang di Ruangan Ini", min_value=1, value=1)
-                thn = st.number_input("Tahun Perolehan/Pembelian", min_value=1990, value=pd.to_datetime('today').year)
+            st.info("Masukkan data barang yang ada di dalam kelas/ruangan.")
             
-                submitted = st.form_submit_button("Simpan Data Inventaris", type="primary")
-            
-                if submitted:
-                    valid_nama = final_nama_barang not in ["-- PILIH NAMA BARANG --", None, ""]
-                    if not ruangan or not valid_nama:
-                        st.error("Nama Ruangan dan Nama Barang wajib diisi/dipilih.")
+            with st.form("form_inv_kelas"):
+                st.subheader("1. Lokasi Ruangan")
+                
+                # --- LOGIKA PILIHAN RUANGAN ---
+                mode_ruangan = st.radio("Opsi Ruangan:", ["Pilih Ruangan Lama", "Buat Ruangan Baru (+)"], horizontal=True)
+                
+                df_inv = load_data("InventarisKelas")
+                
+                # Sesuaikan nama kolom di sini dengan Sheet Anda
+                COL_RUANG = "Kelas/Ruangan" 
+                
+                nama_ruang_final = ""
+                
+                if mode_ruangan == "Pilih Ruangan Lama":
+                    if df_inv.empty or COL_RUANG not in df_inv.columns:
+                        st.warning("Data kosong atau Nama Kolom tidak sesuai. Pilih 'Buat Ruangan Baru'.")
+                        pilihan_ruang = []
                     else:
-                        with st.spinner("Menyimpan data..."):
-                        # Data awal: diasumsikan semua unit dalam kondisi baik
-                            new_row = [
-                                ruangan, 
-                                final_nama_barang, 
-                                total_unit, 
-                                total_unit, # Baik = Total Unit
-                                0, # Rusak Sedang = 0
-                                0, # Rusak Berat = 0
-                                thn, 
-                                pd.to_datetime('today').strftime('%Y-%m-%d %H:%M')
-                            ]
+                        # Ambil daftar ruangan unik
+                        raw_ruang = df_inv[COL_RUANG].astype(str).dropna().unique().tolist()
+                        pilihan_ruang = sorted([r for r in raw_ruang if r.strip() != "" and r != "-"])
                     
-                        # Simpan ke Google Sheet
-                            if save_to_sheet("InventarisKelas", [new_row], append_only=True):
-                                st.success(f"✅ Data '{final_nama_barang}' di '{ruangan}' berhasil ditambahkan.")
-                                st.session_state['inventaris_active_tab_index'] = 0
-                                st.cache_data.clear()
-                                st.rerun()
+                    selected_ruang = st.selectbox("Pilih Ruangan*", ["-- Pilih --"] + pilihan_ruang)
+                    if selected_ruang != "-- Pilih --":
+                        nama_ruang_final = selected_ruang
+                
+                else: # Mode Buat Baru
+                    input_baru = st.text_input("Nama Ruangan Baru*", placeholder="Contoh: X RPL 1, Lab Fisika")
+                    nama_ruang_final = input_baru.upper() if input_baru else ""
+
+                st.divider()
+                st.subheader("2. Detail Barang & Kondisi")
+                
+                nama_barang = st.text_input("Nama Barang*", placeholder="Meja Siswa, Kursi Guru, AC...")
+                tahun = st.number_input("Tahun Perolehan", min_value=2000, max_value=datetime.now().year, value=datetime.now().year)
+                
+                st.caption("Masukkan jumlah barang berdasarkan kondisinya:")
+                c1, c2, c3 = st.columns(3)
+                with c1:
+                    jml_baik = st.number_input("Jumlah BAIK", min_value=0, value=0)
+                with c2:
+                    jml_rs = st.number_input("Rusak SEDANG", min_value=0, value=0)
+                with c3:
+                    jml_rb = st.number_input("Rusak BERAT", min_value=0, value=0)
+                
+                # Hitung Total Otomatis
+                total_unit = jml_baik + jml_rs + jml_rb
+                st.markdown(f"**Total Unit: {total_unit}**")
+                
+                submit_inv = st.form_submit_button("💾 Simpan Data", type="primary")
+                
+                if submit_inv:
+                    # Validasi
+                    if not nama_ruang_final:
+                        st.error("⚠️ Nama Ruangan harus diisi!")
+                    elif not nama_barang:
+                        st.error("⚠️ Nama Barang harus diisi!")
+                    elif total_unit == 0:
+                        st.error("⚠️ Jumlah barang tidak boleh 0!")
+                    else:
+                        with st.spinner("Menyimpan ke Sheet InventarisKelas..."):
+                            # SUSUN DATA SESUAI URUTAN KOLOM GOOGLE SHEET ANDA
+                            # 1. Kelas/Ruangan
+                            # 2. Nama_Barang
+                            # 3. Total_Unit
+                            # 4. Baik
+                            # 5. Rusak_Sedang
+                            # 6. Rusak_Berat
+                            # 7. Tahun_Perolehan
+                            # 8. Terakhir_Diupdate
+                            
+                            new_row = [
+                                nama_ruang_final,
+                                nama_barang,
+                                total_unit,
+                                jml_baik,
+                                jml_rs,
+                                jml_rb,
+                                str(tahun),
+                                datetime.now().strftime("%Y-%m-%d %H:%M:%S") # Terakhir_Diupdate
+                            ]
+                            
+                            save_to_sheet("InventarisKelas", [new_row])
+                            st.success(f"✅ Data '{nama_barang}' ({total_unit} unit) berhasil disimpan ke {nama_ruang_final}!")
+                            time.sleep(1.5)
+                            st.rerun()
+
+        # === TAB 2: LIHAT DATA ===
+        with tab2:
+            st.subheader("📋 Data Inventaris Kelas")
+            df_view = load_data("InventarisKelas")
+            
+            col_target = "Kelas/Ruangan" # Nama kolom filter
+            
+            if not df_view.empty and col_target in df_view.columns:
+                # Filter Ruangan
+                list_ruang = sorted(df_view[col_target].astype(str).unique().tolist())
+                filter_ruang = st.selectbox("🔍 Filter Berdasarkan Ruangan:", ["-- SEMUA --"] + list_ruang)
+                
+                if filter_ruang != "-- SEMUA --":
+                    df_view = df_view[df_view[col_target] == filter_ruang]
+                
+                st.dataframe(df_view, use_container_width=True, hide_index=True)
+            else:
+                st.info("Belum ada data di sheet InventarisKelas atau nama kolom tidak sesuai.")
 
         # =======================================================
         # TAB 2: AUDIT & UPDATE KONDISI
@@ -1694,6 +1745,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
 
