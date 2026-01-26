@@ -1506,20 +1506,128 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
                 column_config=col_config
             )
     
-    elif st.session_state['menu'] == "Jadwal Aula":
-        st.title("📅 Jadwal")
-        if st.session_state['role'] != 'view':
-            with st.expander("➕ Booking"):
-                with st.form("jadwal"):
-                    d=st.date_input("Tgl"); nm=st.text_input("Kegiatan")
-                    t=[f"{h:02}:00" for h in range(7,17)]; c1,c2=st.columns(2); m=c1.selectbox("Mulai",t); s=c2.selectbox("Selesai",t)
-                    p=st.text_input("Peminjam"); k=st.text_area("Ket")
-                    if st.form_submit_button("Simpan"): 
-                        if save_to_sheet("Jadwal",[[str(d),nm,m,s,p,"Booked",k]]): 
-                            st.success("OK"); st.cache_data.clear(); st.rerun()
-        df = load_data("Jadwal"); 
-        if not df.empty: df['Tanggal']=pd.to_datetime(df['Tanggal']); st.dataframe(df.sort_values('Tanggal', ascending=False), use_container_width=True, hide_index=True)
+    elif st.session_state['menu'] == "Peminjaman":
+        st.title("📆 Jadwal Peminjaman (Ruang & Aset)")
 
+        # --- TABS UNTUK INPUT & LIHAT DATA ---
+        tab1, tab2 = st.tabs(["📝 Input Peminjaman", "📋 Riwayat Peminjaman"])
+
+        # === TAB 1: FORM INPUT ===
+        with tab1:
+            st.subheader("Form Peminjaman")
+            
+            with st.form("form_peminjaman"):
+                # 1. Pilih Kategori: Ruangan atau Barang
+                jenis_pinjam = st.radio("Apa yang ingin dipinjam?", ["Ruangan", "Barang / Aset"], horizontal=True)
+                
+                c1, c2 = st.columns(2)
+                
+                with c1:
+                    # LOGIKA DINAMIS: Isi Dropdown berubah sesuai radio button
+                    if jenis_pinjam == "Ruangan":
+                        # --- UPDATE: AMBIL DATA DARI SHEET 'InventarisKelas' ---
+                        nama_sheet_ruang = "InventarisKelas"
+                        df_ruang = load_data(nama_sheet_ruang) 
+                        
+                        # ⚠️ PENTING: Ganti tulisan "Kelas" di bawah ini sesuai 
+                        # JUDUL KOLOM di Google Sheet Anda yang berisi nama ruangan.
+                        kolom_sumber_ruang = "Kelas"  
+                        
+                        if df_ruang.empty:
+                            opsi_ruang = ["-- Data InventarisKelas Kosong --"]
+                            st.warning(f"⚠️ Sheet '{nama_sheet_ruang}' tidak ditemukan atau kosong.")
+                        elif kolom_sumber_ruang not in df_ruang.columns:
+                            opsi_ruang = [f"⚠️ Kolom '{kolom_sumber_ruang}' tidak ditemukan"]
+                            st.error(f"Header kolom '{kolom_sumber_ruang}' tidak ada di sheet {nama_sheet_ruang}. Mohon cek penulisan (Huruf Besar/Kecil berpengaruh)!")
+                        else:
+                            # Ambil data unik (Unique) agar nama kelas tidak muncul dobel
+                            raw_list = df_ruang[kolom_sumber_ruang].astype(str).dropna().unique().tolist()
+                            # Bersihkan data (hapus yang kosong atau strip)
+                            opsi_ruang = sorted([r for r in raw_list if r.strip() != "" and r != "-"])
+                        
+                        objek_pilihan = st.selectbox("Pilih Ruangan/Kelas*", opsi_ruang)
+                        
+                    else:
+                        # Ambil data dari DataFrame Aset
+                        if df_aset_all.empty:
+                            objek_pilihan = "Data Aset Kosong"
+                        else:
+                            df_aset_all['Nama_Barang'] = df_aset_all['Nama_Barang'].fillna("Tanpa Nama")
+                            df_aset_all['Kode_Aset'] = df_aset_all['Kode_Aset'].fillna("-")
+                            # Buat label unik
+                            pilihan_aset = sorted((df_aset_all['Nama_Barang'] + " | " + df_aset_all['Kode_Aset'].astype(str)).unique().tolist())
+                            objek_pilihan = st.selectbox("Pilih Barang/Aset*", pilihan_aset)
+
+                    tgl_pinjam = st.date_input("Tanggal Dipinjam*", value=datetime.now())
+
+                with c2:
+                    peminjam = st.text_input("Nama Peminjam*", placeholder="Nama Guru / Siswa / Organisasi")
+                    kegiatan = st.text_area("Keperluan / Kegiatan*", placeholder="Rapat Guru, Shooting Video, KBM, dll.")
+
+                submit_pinjam = st.form_submit_button("✅ Catat Peminjaman", type="primary")
+
+                if submit_pinjam:
+                    valid_check = True
+                    # Validasi input
+                    if not peminjam or not kegiatan:
+                        st.error("⚠️ Nama Peminjam dan Kegiatan wajib diisi!")
+                        valid_check = False
+                    if str(objek_pilihan).startswith("--") or str(objek_pilihan).startswith("⚠️"):
+                        st.error("⚠️ Pilihan Ruangan/Aset tidak valid (Data Kosong/Error)!")
+                        valid_check = False
+                        
+                    if valid_check:
+                        with st.spinner("Menyimpan Jadwal..."):
+                            # Siapkan Data
+                            new_row = [
+                                datetime.now().strftime("%Y-%m-%d %H:%M:%S"), # Timestamp
+                                tgl_pinjam.strftime("%Y-%m-%d"),              # Tanggal
+                                jenis_pinjam,                                   # Kategori
+                                objek_pilihan,                                  # Nama Objek
+                                peminjam,                                       # Peminjam
+                                kegiatan,                                       # Kegiatan
+                                "Dipinjam",                                     # Status Awal
+                                st.session_state['username']                    # Admin Input
+                            ]
+                            
+                            # Simpan ke Sheet 'Peminjaman'
+                            save_to_sheet("Peminjaman", [new_row])
+                            st.success(f"✅ Berhasil mencatat peminjaman: {objek_pilihan}")
+                            time.sleep(1)
+                            st.rerun()
+
+        # === TAB 2: TABEL RIWAYAT ===
+        with tab2:
+            st.subheader("📅 Daftar Peminjaman")
+            df_pinjam = load_data("Peminjaman")
+            
+            if not df_pinjam.empty:
+                df_pinjam = df_pinjam.iloc[::-1].reset_index(drop=True)
+                
+                col_filter1, col_filter2 = st.columns(2)
+                with col_filter1:
+                    filter_kategori = st.multiselect("Filter Kategori", df_pinjam["Kategori"].unique(), default=df_pinjam["Kategori"].unique())
+                
+                if filter_kategori:
+                    df_show = df_pinjam[df_pinjam["Kategori"].isin(filter_kategori)]
+                    
+                    st.dataframe(
+                        df_show,
+                        column_order=["Tanggal Pinjam", "Kategori", "Nama Objek", "Peminjam", "Kegiatan", "Status"],
+                        column_config={
+                            "Tanggal Pinjam": st.column_config.DateColumn("Tanggal"),
+                            "Kategori": st.column_config.TextColumn("Jenis", width="small"),
+                            "Nama Objek": st.column_config.TextColumn("Ruang / Barang", width="medium"),
+                            "Status": st.column_config.TextColumn("Status", width="small")
+                        },
+                        use_container_width=True,
+                        hide_index=True
+                    )
+                else:
+                    st.info("Silakan pilih kategori filter.")
+            else:
+                st.info("Belum ada data peminjaman.")
+        
     # --- MENU AI YANG BARU (CERDAS) ---
     elif st.session_state['menu'] == "Tanya AI":
         st.title("🤖 Chat Data")
@@ -1562,6 +1670,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
 
