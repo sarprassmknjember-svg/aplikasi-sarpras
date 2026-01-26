@@ -1029,82 +1029,89 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
                     st.download_button("💾 DOWNLOAD SURAT BAST (HTML)", full_html_bast, "BAST_Surat.html", "text/html", type="primary")
 
     elif st.session_state['menu'] == "Pemeliharaan":
-        st.title("🛠️ Input Data Pemeliharaan Aset")
+        st.title("🛠️ Input & Riwayat Pemeliharaan")
         
-        # 1. Persiapkan Data Dropdown
+        # --- BAGIAN 1: FORM INPUT ---
         if df_aset_all.empty:
             st.warning("Data Aset kosong. Belum ada aset yang bisa dipilih.")
         else:
-            # Buat kolom label gabungan untuk dropdown (Nama + Kode)
-            # Pastikan kolom ada, gunakan fillna
             df_aset_all['Kode_Aset'] = df_aset_all['Kode_Aset'].fillna("-")
             df_aset_all['Nama_Barang'] = df_aset_all['Nama_Barang'].fillna("Tanpa Nama")
-            
             df_aset_all['Label_Pilihan'] = df_aset_all['Nama_Barang'] + " | " + df_aset_all['Kode_Aset'].astype(str)
             pilihan_aset = ["-- PILIH ASET --"] + sorted(df_aset_all['Label_Pilihan'].unique().tolist())
             
-            with st.form("form_pemeliharaan"):
-                st.subheader("Form Perbaikan / Service")
-                
-                # Input 1: Dropdown Aset
-                selected_asset_label = st.selectbox("Pilih Aset yang Dipelihara*", pilihan_aset)
-                
-                c_form1, c_form2 = st.columns(2)
-                
-                # Input 2: Tanggal
-                with c_form1:
-                    tgl_mtc = st.date_input("Tanggal Pemeliharaan*", value=datetime.now())
-                
-                # Input 3: Pihak Pelaksana
-                with c_form2:
-                    pelaksana = st.text_input("Pihak Pelaksana (Teknisi/Bengkel)*", placeholder="Contoh: Teknisi Sekolah / CV. Service Jaya")
-                
-                # Input 4: Foto
-                foto_mtc = st.file_uploader("Foto Dokumentasi Perbaikan", type=['png', 'jpg', 'jpeg'])
-                
-                # Tambahan: Keterangan
-                keterangan = st.text_area("Keterangan / Detail Pengerjaan", placeholder="Ganti sparepart, instal ulang, pembersihan AC, dll.")
-                
-                submit_mtc = st.form_submit_button("💾 Simpan Data Pemeliharaan", type="primary")
-                
-                if submit_mtc:
-                    if selected_asset_label == "-- PILIH ASET --" or not pelaksana:
-                        st.error("⚠️ Mohon pilih Aset dan isi Pihak Pelaksana!")
-                    else:
-                        with st.spinner("Mengupload & Menyimpan Data..."):
-                            # Parse data dari label pilihan
-                            parts = selected_asset_label.split(" | ")
-                            nama_barang_selected = parts[0]
-                            kode_aset_selected = parts[1] if len(parts) > 1 else "-"
-                            
-                            # Upload Foto jika ada
-                            link_foto = "-"
-                            if foto_mtc:
-                                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                                filename = f"MTC_{timestamp}_{foto_mtc.name}"
-                                # Menggunakan RENOVASI_FOLDER_ID atau PARENT_FOLDER_ID
-                                target_folder = st.secrets.get("RENOVASI_FOLDER_ID", st.secrets.get("PARENT_FOLDER_ID"))
-                                link_foto = upload_to_drive_real(foto_mtc, filename, target_folder)
-                            
-                            # Siapkan baris data untuk disimpan
-                            new_row = [
-                                datetime.now().strftime("%Y-%m-%d %H:%M:%S"), # Timestamp
-                                tgl_mtc.strftime("%Y-%m-%d"),                 # Tanggal Maint
-                                kode_aset_selected,
-                                nama_barang_selected,
-                                pelaksana,
-                                keterangan,
-                                link_foto,
-                                st.session_state['username']
-                            ]
-                            
-                            # Simpan ke Sheet "Pemeliharaan"
-                            success = save_to_sheet("Pemeliharaan", [new_row])
-                            
-                            if success:
-                                st.success(f"✅ Data pemeliharaan untuk {nama_barang_selected} berhasil disimpan!")
-                                time.sleep(1.5)
+            with st.expander("📝 Form Input Perbaikan Baru", expanded=True):
+                with st.form("form_pemeliharaan"):
+                    c_form1, c_form2 = st.columns(2)
+                    with c_form1:
+                        selected_asset_label = st.selectbox("Pilih Aset*", pilihan_aset)
+                        tgl_mtc = st.date_input("Tanggal Pemeliharaan*", value=datetime.now())
+                    with c_form2:
+                        pelaksana = st.text_input("Pihak Pelaksana*", placeholder="Contoh: Teknisi Sekolah / CV. Service Jaya")
+                        foto_mtc = st.file_uploader("Upload Foto Bukti", type=['png', 'jpg', 'jpeg'])
+                    
+                    keterangan = st.text_area("Keterangan Pengerjaan", placeholder="Detail perbaikan...")
+                    submit_mtc = st.form_submit_button("💾 Simpan Data", type="primary")
+                    
+                    if submit_mtc:
+                        if selected_asset_label == "-- PILIH ASET --" or not pelaksana:
+                            st.error("⚠️ Mohon lengkapi Aset dan Pelaksana!")
+                        else:
+                            with st.spinner("Menyimpan Data..."):
+                                parts = selected_asset_label.split(" | ")
+                                nama_barang_selected = parts[0]
+                                kode_aset_selected = parts[1] if len(parts) > 1 else "-"
+                                
+                                link_foto = ""  # Default kosong biar rapi di tabel
+                                if foto_mtc:
+                                    target_folder = st.secrets.get("RENOVASI_FOLDER_ID", st.secrets.get("PARENT_FOLDER_ID"))
+                                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                                    link_foto = upload_to_drive_real(foto_mtc, f"MTC_{timestamp}_{foto_mtc.name}", target_folder)
+                                
+                                new_row = [
+                                    datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                                    tgl_mtc.strftime("%Y-%m-%d"),
+                                    kode_aset_selected,
+                                    nama_barang_selected,
+                                    pelaksana,
+                                    keterangan,
+                                    link_foto,
+                                    st.session_state['username']
+                                ]
+                                save_to_sheet("Pemeliharaan", [new_row])
+                                st.success("✅ Data tersimpan!")
+                                time.sleep(1)
                                 st.rerun()
+
+        st.divider()
+        
+        # --- BAGIAN 2: TABEL RIWAYAT (BARU) ---
+        st.subheader("📋 Riwayat Data Pemeliharaan")
+        
+        # Load data dari sheet Pemeliharaan
+        df_mtc = load_data("Pemeliharaan")
+        
+        if not df_mtc.empty:
+            # Urutkan dari yang terbaru (berdasarkan Timestamp/row)
+            df_mtc = df_mtc.iloc[::-1].reset_index(drop=True)
+            
+            # Tampilkan Tabel dengan Konfigurasi Khusus
+            st.dataframe(
+                df_mtc,
+                column_config={
+                    "Link Foto": st.column_config.LinkColumn(
+                        "Bukti Foto",
+                        display_text="📸 Buka Foto", # Teks pengganti URL panjang
+                        help="Klik untuk melihat foto bukti di Google Drive"
+                    ),
+                    "Tanggal Pemeliharaan": st.column_config.DateColumn("Tanggal"),
+                    "Timestamp": st.column_config.DatetimeColumn("Waktu Input", format="D MMM YYYY, HH:mm"),
+                },
+                use_container_width=True,
+                hide_index=True
+            )
+        else:
+            st.info("Belum ada data pemeliharaan yang tercatat.")
     
     elif st.session_state['menu'] == 'Inventaris Ruangan':
         st.header("🏢 Manajemen Inventaris Ruangan/Ruangan")
@@ -1539,6 +1546,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
 
