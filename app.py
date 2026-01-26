@@ -732,7 +732,7 @@ def main_app():
         list_merk = st.session_state.get('list_aset_merks', ["-- PILIH MERK --"])
         list_pejabat = st.session_state.get('list_pejabat_names', ["-- PILIH PENANGGUNG JAWAB --"])
 
-        SUMBER_DANA_OPTIONS = ["BOS", "BPOPP", "Komite", "PK", "TEFA", "Lain-lain"]
+        SUMBER_DANA_OPTIONS = ["BOS", "BPOPP", "Komite", "PK", "TEFA", "BLUD", "Lain-lain"]
         GOLONGAN_OPTIONS = ["-- PILIH GOLONGAN --", "Aset Tetap Berwujud", "Aset Tetap Tidak Berwujud"]
 
         with st.form("input"):
@@ -1459,5 +1459,6 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
