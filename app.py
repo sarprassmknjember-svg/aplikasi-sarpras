@@ -1062,7 +1062,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
                                 nama_barang_selected = parts[0]
                                 kode_aset_selected = parts[1] if len(parts) > 1 else "-"
                                 
-                                link_foto = ""  # Default kosong biar rapi di tabel
+                                link_foto = ""
                                 if foto_mtc:
                                     target_folder = st.secrets.get("RENOVASI_FOLDER_ID", st.secrets.get("PARENT_FOLDER_ID"))
                                     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -1085,27 +1085,43 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 
         st.divider()
         
-        # --- BAGIAN 2: TABEL RIWAYAT (BARU) ---
+        # --- BAGIAN 2: TABEL RIWAYAT OTOMATIS ---
         st.subheader("📋 Riwayat Data Pemeliharaan")
         
-        # Load data dari sheet Pemeliharaan
+        # Load data
         df_mtc = load_data("Pemeliharaan")
         
         if not df_mtc.empty:
-            # Urutkan dari yang terbaru (berdasarkan Timestamp/row)
+            # 1. Pastikan Kode Aset terbaca sebagai string agar perhitungan akurat
+            df_mtc['Kode Aset'] = df_mtc['Kode Aset'].astype(str)
+            
+            # 2. HITUNG FREKUENSI PERBAIKAN (LOGIKA BARU)
+            # Menghitung berapa kali 'Kode Aset' muncul di tabel ini
+            df_mtc['Total Perbaikan'] = df_mtc.groupby('Kode Aset')['Kode Aset'].transform('count')
+
+            # 3. Urutkan dari yang terbaru
             df_mtc = df_mtc.iloc[::-1].reset_index(drop=True)
             
-            # Tampilkan Tabel dengan Konfigurasi Khusus
+            # 4. Tampilkan Tabel
+            # Kita atur urutan kolom agar 'Total Perbaikan' muncul di dekat Nama Barang
+            column_order = [
+                "Total Perbaikan", "Nama Barang", "Kode Aset", 
+                "Tanggal Pemeliharaan", "Pelaksana", "Keterangan", "Link Foto"
+            ]
+            
             st.dataframe(
                 df_mtc,
+                column_order=column_order,
                 column_config={
+                    "Total Perbaikan": st.column_config.NumberColumn(
+                        "Freq Rusak",
+                        help="Total berapa kali aset ini sudah pernah diperbaiki",
+                        format="%d x"  # Format tampilan jadi "3 x", "5 x"
+                    ),
                     "Link Foto": st.column_config.LinkColumn(
-                        "Bukti Foto",
-                        display_text="📸 Buka Foto", # Teks pengganti URL panjang
-                        help="Klik untuk melihat foto bukti di Google Drive"
+                        "Bukti Foto", display_text="📸 Buka"
                     ),
                     "Tanggal Pemeliharaan": st.column_config.DateColumn("Tanggal"),
-                    "Timestamp": st.column_config.DatetimeColumn("Waktu Input", format="D MMM YYYY, HH:mm"),
                 },
                 use_container_width=True,
                 hide_index=True
@@ -1546,6 +1562,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
 
