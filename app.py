@@ -639,92 +639,121 @@ def main_app():
             st.rerun()
 
     # --- TAMPILKAN KONTEN BERDASARKAN SESSION STATE ---
+
     if st.session_state['menu'] == "Dashboard":
         st.title("📊 Dashboard Utama")
-    
-        # 1. Muat Data
+        
+        # --- LOAD DATA ---
         df_aset = load_data("Aset")
         df_stok = load_data("Stok")
-        df_jadwal = load_data("Jadwal")
-    
-        # --- CARD 1, 2, 3 (KPI) ---
-        c1, c2, c3 = st.columns(3)
-    
-        # Card 1: Total Aset
-        with c1: dashboard_card("Total Aset", f"{len(df_aset)} Unit", "blue", "🏫")
-    
-        # Card 2: Stok Menipis
-        stok_alert = 0
-        df_saldo_menipis = pd.DataFrame()
-        if not df_stok.empty:
-            saldo_df = df_stok.groupby('Nama_Barang')['Jumlah'].apply(
-                lambda x: x[df_stok.loc[x.index, 'Jenis_Transaksi'] == 'Masuk'].sum() - x[df_stok.loc[x.index, 'Jenis_Transaksi'] == 'Keluar'].sum()
-            ).reset_index(name='Sisa')
-            df_saldo_menipis = saldo_df[saldo_df['Sisa'] <= 5].sort_values('Sisa')
-            stok_alert = len(df_saldo_menipis)
+        df_pinjam = load_data("Peminjaman")
+
+        # ==========================================
+        # BAGIAN 1: KARTU RINGKASAN
+        # ==========================================
+        c1, c2 = st.columns(2)
         
-        with c2: dashboard_card("Stok Menipis", f"{stok_alert} Item", "red", "📉")
+        # Kartu 1: Total Aset
+        total_aset = len(df_aset) if not df_aset.empty else 0
+        with c1: 
+            dashboard_card("Total Aset Tetap", f"{total_aset} Unit", "blue", "🏫")
+        
+        # Kartu 2: Stok Menipis
+        df_restock = pd.DataFrame()
+        jml_menipis = 0
+        if not df_stok.empty and 'Jumlah' in df_stok.columns:
+            df_stok['Jumlah'] = pd.to_numeric(df_stok['Jumlah'], errors='coerce').fillna(0)
+            df_restock = df_stok[df_stok['Jumlah'] < 5] # Ambang batas < 5
+            jml_menipis = len(df_restock)
+            
+        with c2: 
+            dashboard_card("Perlu Restock (< 5)", f"{jml_menipis} Item", "red", "⚠️")
 
-        # Card 3: Agenda Terdekat (2 Acara)
-        agenda = "Tidak ada"
-        if not df_jadwal.empty:
-            # Pastikan kolom Tanggal berformat datetime
-            df_jadwal['Tanggal'] = pd.to_datetime(df_jadwal['Tanggal'], errors='coerce')
-                
-            # Filter acara yang akan datang, lalu urutkan
-            upcoming = df_jadwal[df_jadwal['Tanggal'].dt.date >= datetime.now().date()].sort_values('Tanggal')
-                
-            if not upcoming.empty:
-                # Ambil 2 acara teratas
-                top_2_events = upcoming.head(2)
-                    
-                # Format acara pertama
-                # Membatasi nama kegiatan agar tidak terlalu panjang (misal 20 karakter)
-                keg_1 = top_2_events.iloc[0]['Kegiatan'][:20] + '...' if len(top_2_events.iloc[0]['Kegiatan']) > 20 else top_2_events.iloc[0]['Kegiatan']
-                event_1 = f"{keg_1} ({top_2_events.iloc[0]['Tanggal'].strftime('%d/%m')})"
-                agenda = event_1
-                    
-                # Jika ada acara kedua, tambahkan ke teks
-                if len(top_2_events) > 1:
-                    # Format acara kedua (dibatasi 20 karakter)
-                    keg_2 = top_2_events.iloc[1]['Kegiatan'][:20] + '...' if len(top_2_events.iloc[1]['Kegiatan']) > 20 else top_2_events.iloc[1]['Kegiatan']
-                    event_2 = f"{keg_2} ({top_2_events.iloc[1]['Tanggal'].strftime('%d/%m')})"
-                    # Gabungkan kedua acara dengan tag <br>
-                    agenda = f"{event_1}<br>{event_2}" 
-                
-            with c3: dashboard_card("Agenda Terdekat", agenda, "purple", "📅")
-    
         st.divider()
-    
-    # --- TAMPILAN DATA (ASET TERBARU & STOK) ---
-        c_kiri, c_kanan = st.columns(2)
-    
-        with c_kiri:
-            st.subheader("📋 Aset Terbaru")
-            if not df_aset.empty:
-                df_aset['Tanggal Perolehan'] = pd.to_datetime(df_aset['Tanggal Perolehan'], errors='coerce')
-                df_terbaru = df_aset.sort_values(by='Tanggal Perolehan', ascending=False)
-            
-                location_col = 'Posisi' if 'Posisi' in df_aset.columns else 'Lokasi Penempatan'
-            
-                cols_to_display = ['Tanggal Perolehan', 'Kode_Aset', 'Nama_Barang', location_col]
-                final_cols = [c for c in cols_to_display if c in df_aset.columns]
 
+        # ==========================================
+        # BAGIAN 2: AGENDA RUANGAN TERDEKAT
+        # ==========================================
+        st.subheader("📅 Agenda Ruangan Terdekat")
+        
+        if df_pinjam.empty:
+            st.info("Belum ada data jadwal peminjaman.")
+        else:
+            try:
+                # Proses Data Jadwal
+                df_pinjam['Tanggal Pinjam'] = pd.to_datetime(df_pinjam['Tanggal Pinjam'], errors='coerce')
+                today = pd.to_datetime(datetime.now().date())
+                # Hanya ambil jadwal hari ini ke depan
+                df_future = df_pinjam[df_pinjam['Tanggal Pinjam'] >= today].sort_values('Tanggal Pinjam', ascending=True)
+                
+                # Fungsi Render Kotak Agenda
+                def render_agenda_box(title, keyword, icon):
+                    # Filter berdasarkan keyword nama ruang (case insensitive)
+                    filtered = df_future[df_future['Nama Objek'].str.contains(keyword, case=False, na=False)]
+                    
+                    st.markdown(f"##### {icon} {title}")
+                    
+                    if not filtered.empty:
+                        row = filtered.iloc[0] # Ambil 1 yang terdekat
+                        tgl_str = row['Tanggal Pinjam'].strftime("%d %b %Y")
+                        kegiatan = row['Kegiatan']
+                        peminjam = row['Peminjam']
+                        
+                        st.info(f"**{tgl_str}**\n\n📝 {kegiatan}\n\n👤 *{peminjam}*")
+                    else:
+                        st.success("✅ **Kosong**\n\nSiap digunakan.")
+
+                # Tampilan 3 Kolom
+                col_aula, col_meet, col_media = st.columns(3)
+                with col_aula: render_agenda_box("Aula Sekolah", "Aula", "🏟️")
+                with col_meet: render_agenda_box("R. Meeting", "Rapat", "🤝") # Ganti 'Rapat' jika perlu
+                with col_media: render_agenda_box("R. Media / Lab", "Media", "🎬")
+
+            except Exception as e:
+                st.error(f"Gagal memuat agenda: {e}")
+
+        st.divider()
+
+        # ==========================================
+        # BAGIAN 3: TABEL DETAIL (ASET TERBARU & RESTOCK)
+        # ==========================================
+        col_table1, col_table2 = st.columns(2)
+
+        # TABEL KIRI: 5 Aset Terbaru Masuk
+        with col_table1:
+            st.subheader("📦 5 Aset Terbaru")
+            if not df_aset.empty:
+                # Ambil 5 baris terakhir (asumsi data baru ada di bawah)
+                df_newest = df_aset.tail(5).iloc[::-1] # Balik urutan jadi terbaru di atas
+                
+                # Pilih kolom penting saja untuk ditampilkan
+                cols_to_show = [c for c in ['Nama_Barang', 'Kode_Aset', 'Lokasi', 'Tahun'] if c in df_aset.columns]
+                
+                st.dataframe(df_newest[cols_to_show], use_container_width=True, hide_index=True)
+            else:
+                st.info("Data aset kosong.")
+
+        # TABEL KANAN: Barang Habis / Perlu Restock
+        with col_table2:
+            st.subheader("⚠️ Stok Menipis")
+            if not df_restock.empty:
+                # Tampilkan data yang sudah difilter di atas (jumlah < 5)
+                cols_stok = [c for c in ['Nama_Barang', 'Jumlah', 'Satuan'] if c in df_restock.columns]
+                
                 st.dataframe(
-                    df_terbaru.head(5)[final_cols], 
+                    df_restock[cols_stok], 
                     use_container_width=True, 
-                    hide_index=True, 
-                    column_config={"Link_Foto": st.column_config.LinkColumn("Foto", display_text="📸 Foto")} if 'Link_Foto' in df_aset.columns else {}
+                    hide_index=True,
+                    column_config={
+                        "Jumlah": st.column_config.NumberColumn(
+                            "Sisa",
+                            help="Sisa stok saat ini",
+                            format="%d 🔴" # Tambah ikon merah biar waspada
+                        )
+                    }
                 )
             else:
-                st.info("Data aset belum tersedia.")
-            
-        with c_kanan:
-            st.subheader("⚠️ Stok Perlu Restock")
-            if stok_alert > 0: 
-                st.dataframe(df_saldo_menipis.head(5), use_container_width=True, hide_index=True)
-            else: 
-                st.success("Stok habis pakai aman.")
+                st.success("✅ Stok aman (Semua > 5)")
 
     elif st.session_state['menu'] == "Input Aset":
         if st.session_state['role'] == 'view': st.warning("View Only"); st.stop()
@@ -1665,6 +1694,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
 
