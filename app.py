@@ -1531,7 +1531,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
                         
                         # ⚠️ PENTING: Ganti tulisan "Kelas" di bawah ini sesuai 
                         # JUDUL KOLOM di Google Sheet Anda yang berisi nama ruangan.
-                        kolom_sumber_ruang = "Kelas"  
+                        kolom_sumber_ruang = "Kelas/Ruangan"  
                         
                         if df_ruang.empty:
                             opsi_ruang = ["-- Data InventarisKelas Kosong --"]
@@ -1670,6 +1670,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
 
