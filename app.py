@@ -1167,35 +1167,37 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
         with tab1:
             st.info("Masukkan data barang yang ada di dalam kelas/ruangan.")
             
+            # --- 1. RADIO BUTTON DI LUAR FORM (Agar Halaman Auto-Refresh) ---
+            mode_ruangan = st.radio("Opsi Ruangan:", ["Pilih Ruangan Lama", "Buat Ruangan Baru (+)"], horizontal=True)
+            
+            # --- 2. PERSIAPAN DATA ---
+            df_inv = load_data("InventarisKelas")
+            COL_RUANG = "Kelas/Ruangan" # Sesuaikan nama header di sheet Anda
+            
+            # Variabel penampung hasil inputan ruangan
+            input_ruang_baru = ""
+            selected_ruang_lama = ""
+            pilihan_ruang = []
+
+            # Logika Data Dropdown (Diproses di luar form agar cepat)
+            if mode_ruangan == "Pilih Ruangan Lama":
+                if not df_inv.empty and COL_RUANG in df_inv.columns:
+                    raw_ruang = df_inv[COL_RUANG].astype(str).dropna().unique().tolist()
+                    pilihan_ruang = sorted([r for r in raw_ruang if r.strip() != "" and r != "-"])
+            
+            # --- 3. MASUK KE DALAM FORM ---
             with st.form("form_inv_kelas"):
                 st.subheader("1. Lokasi Ruangan")
                 
-                # --- LOGIKA PILIHAN RUANGAN ---
-                mode_ruangan = st.radio("Opsi Ruangan:", ["Pilih Ruangan Lama", "Buat Ruangan Baru (+)"], horizontal=True)
-                
-                df_inv = load_data("InventarisKelas")
-                
-                # Sesuaikan nama kolom di sini dengan Sheet Anda
-                COL_RUANG = "Kelas/Ruangan" 
-                
-                nama_ruang_final = ""
-                
+                # Tampilkan Input Sesuai Pilihan Radio Button di atas
                 if mode_ruangan == "Pilih Ruangan Lama":
-                    if df_inv.empty or COL_RUANG not in df_inv.columns:
-                        st.warning("Data kosong atau Nama Kolom tidak sesuai. Pilih 'Buat Ruangan Baru'.")
-                        pilihan_ruang = []
+                    if not pilihan_ruang:
+                        st.warning("Data ruangan kosong. Silakan pilih mode 'Buat Ruangan Baru'.")
+                        selected_ruang_lama = "-- Kosong --"
                     else:
-                        # Ambil daftar ruangan unik
-                        raw_ruang = df_inv[COL_RUANG].astype(str).dropna().unique().tolist()
-                        pilihan_ruang = sorted([r for r in raw_ruang if r.strip() != "" and r != "-"])
-                    
-                    selected_ruang = st.selectbox("Pilih Ruangan*", ["-- Pilih --"] + pilihan_ruang)
-                    if selected_ruang != "-- Pilih --":
-                        nama_ruang_final = selected_ruang
-                
-                else: # Mode Buat Baru
-                    input_baru = st.text_input("Nama Ruangan Baru*", placeholder="Contoh: X RPL 1, Lab Fisika")
-                    nama_ruang_final = input_baru.upper() if input_baru else ""
+                        selected_ruang_lama = st.selectbox("Pilih Ruangan*", ["-- Pilih --"] + pilihan_ruang)
+                else:
+                    input_ruang_baru = st.text_input("Nama Ruangan Baru*", placeholder="Contoh: X RPL 1, Lab Fisika")
 
                 st.divider()
                 st.subheader("2. Detail Barang & Kondisi")
@@ -1212,45 +1214,47 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
                 with c3:
                     jml_rb = st.number_input("Rusak BERAT", min_value=0, value=0)
                 
-                # Hitung Total Otomatis
-                total_unit = jml_baik + jml_rs + jml_rb
-                st.markdown(f"**Total Unit: {total_unit}**")
+                # Info Total (Hanya visual, tidak realtime update di dalam form angka)
+                st.caption("*Total unit akan dihitung otomatis saat disimpan.")
                 
                 submit_inv = st.form_submit_button("💾 Simpan Data", type="primary")
                 
                 if submit_inv:
-                    # Validasi
+                    # --- LOGIKA PENENTUAN NAMA RUANGAN FINAL ---
+                    nama_ruang_final = ""
+                    if mode_ruangan == "Pilih Ruangan Lama":
+                        if selected_ruang_lama == "-- Pilih --" or selected_ruang_lama == "-- Kosong --":
+                            nama_ruang_final = ""
+                        else:
+                            nama_ruang_final = selected_ruang_lama
+                    else:
+                        nama_ruang_final = input_ruang_baru.upper() if input_ruang_baru else ""
+
+                    # --- HITUNG TOTAL ---
+                    total_unit = jml_baik + jml_rs + jml_rb
+
+                    # --- VALIDASI ---
                     if not nama_ruang_final:
-                        st.error("⚠️ Nama Ruangan harus diisi!")
+                        st.error("⚠️ Nama Ruangan belum dipilih/diisi!")
                     elif not nama_barang:
                         st.error("⚠️ Nama Barang harus diisi!")
                     elif total_unit == 0:
-                        st.error("⚠️ Jumlah barang tidak boleh 0!")
+                        st.error("⚠️ Jumlah barang minimal 1!")
                     else:
                         with st.spinner("Menyimpan ke Sheet InventarisKelas..."):
-                            # SUSUN DATA SESUAI URUTAN KOLOM GOOGLE SHEET ANDA
-                            # 1. Kelas/Ruangan
-                            # 2. Nama_Barang
-                            # 3. Total_Unit
-                            # 4. Baik
-                            # 5. Rusak_Sedang
-                            # 6. Rusak_Berat
-                            # 7. Tahun_Perolehan
-                            # 8. Terakhir_Diupdate
-                            
                             new_row = [
-                                nama_ruang_final,
-                                nama_barang,
-                                total_unit,
-                                jml_baik,
-                                jml_rs,
-                                jml_rb,
-                                str(tahun),
-                                datetime.now().strftime("%Y-%m-%d %H:%M:%S") # Terakhir_Diupdate
+                                nama_ruang_final,           # Kolom A: Kelas/Ruangan
+                                nama_barang,                # Kolom B: Nama_Barang
+                                total_unit,                 # Kolom C: Total_Unit
+                                jml_baik,                   # Kolom D: Baik
+                                jml_rs,                     # Kolom E: Rusak_Sedang
+                                jml_rb,                     # Kolom F: Rusak_Berat
+                                str(tahun),                 # Kolom G: Tahun
+                                datetime.now().strftime("%Y-%m-%d %H:%M:%S") # Kolom H: Update
                             ]
                             
                             save_to_sheet("InventarisKelas", [new_row])
-                            st.success(f"✅ Data '{nama_barang}' ({total_unit} unit) berhasil disimpan ke {nama_ruang_final}!")
+                            st.success(f"✅ Data '{nama_barang}' berhasil disimpan ke {nama_ruang_final}!")
                             time.sleep(1.5)
                             st.rerun()
 
@@ -1258,20 +1262,18 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
         with tab2:
             st.subheader("📋 Data Inventaris Kelas")
             df_view = load_data("InventarisKelas")
+            COL_RUANG = "Kelas/Ruangan" # Pastikan konsisten
             
-            col_target = "Kelas/Ruangan" # Nama kolom filter
-            
-            if not df_view.empty and col_target in df_view.columns:
-                # Filter Ruangan
-                list_ruang = sorted(df_view[col_target].astype(str).unique().tolist())
+            if not df_view.empty and COL_RUANG in df_view.columns:
+                list_ruang = sorted(df_view[COL_RUANG].astype(str).unique().tolist())
                 filter_ruang = st.selectbox("🔍 Filter Berdasarkan Ruangan:", ["-- SEMUA --"] + list_ruang)
                 
                 if filter_ruang != "-- SEMUA --":
-                    df_view = df_view[df_view[col_target] == filter_ruang]
+                    df_view = df_view[df_view[COL_RUANG] == filter_ruang]
                 
                 st.dataframe(df_view, use_container_width=True, hide_index=True)
             else:
-                st.info("Belum ada data di sheet InventarisKelas atau nama kolom tidak sesuai.")
+                st.info("Belum ada data di sheet InventarisKelas.")
 
         # =======================================================
         # TAB 2: AUDIT & UPDATE KONDISI
@@ -1745,6 +1747,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
 
