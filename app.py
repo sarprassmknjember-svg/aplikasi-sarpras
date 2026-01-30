@@ -927,7 +927,7 @@ def main_app():
                         # Handle Foto
                         foto_url = "-"
                         if foto is not None:
-                            foto_url = upload_to_drive(foto, f"ASET_{val_nama}_{kode_aset}")
+                            foto_url = upload_to_drive_real(foto, f"ASET_{val_nama}_{kode_aset}")
                         
                         # Susun Baris Baru
                         new_row = [
@@ -1821,3 +1821,4 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
