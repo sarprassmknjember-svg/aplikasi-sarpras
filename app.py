@@ -676,86 +676,91 @@ def main_app():
         # BAGIAN 2: AGENDA RUANGAN TERDEKAT
         # ==========================================
         st.subheader("📅 Jadwal Penggunaan Ruangan")
-        
-        # 1. Navigasi Bulan (Opsional: Default Bulan Sekarang)
-        now = datetime.now()
-        curr_month = now.month
-        curr_year = now.year
-        
-        # Nama-nama bulan & hari
-        nama_bulan = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", 
-                      "Juli", "Agustus", "September", "Oktober", "November", "Desember"]
-        nama_hari = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"]
 
-        st.markdown(f"#### {nama_bulan[curr_month-1]} {curr_year}")
+        # 1. Navigasi Bulan (Gunakan session_state agar tidak reset)
+        if 'cal_month' not in st.session_state:
+            st.session_state['cal_month'] = datetime.now().month
+        if 'cal_year' not in st.session_state:
+            st.session_state['cal_year'] = datetime.now().year
+
+        # Tombol Navigasi
+        col_nav1, col_nav2, col_nav3 = st.columns([1, 2, 1])
+        with col_nav1:
+            if st.button("⬅️ Bulan Lalu"):
+                st.session_state['cal_month'] -= 1
+                if st.session_state['cal_month'] == 0:
+                    st.session_state['cal_month'] = 12
+                    st.session_state['cal_year'] -= 1
+                st.rerun()
+        with col_nav2:
+            nama_bulan = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", 
+                          "Juli", "Agustus", "September", "Oktober", "November", "Desember"]
+            st.markdown(f"<h3 style='text-align: center;'>{nama_bulan[st.session_state['cal_month']-1]} {st.session_state['cal_year']}</h3>", unsafe_allow_html=True)
+        with col_nav3:
+            if st.button("Bulan Depan ➡️"):
+                st.session_state['cal_month'] += 1
+                if st.session_state['cal_month'] == 13:
+                    st.session_state['cal_month'] = 1
+                    st.session_state['cal_year'] += 1
+                st.rerun()
 
         # 2. Ambil Data Jadwal
         df_pinjam = load_data("Peminjaman")
         agenda_map = {}
         if not df_pinjam.empty:
             df_pinjam['Tanggal Pinjam'] = pd.to_datetime(df_pinjam['Tanggal Pinjam'], errors='coerce')
-            # Masukkan ke dictionary agar mudah dipanggil: {tanggal: [list_kegiatan]}
             for _, row in df_pinjam.iterrows():
                 if pd.notnull(row['Tanggal Pinjam']):
                     tgl_key = row['Tanggal Pinjam'].date()
-                    if tgl_key not in agenda_map:
-                        agenda_map[tgl_key] = []
+                    if tgl_key not in agenda_map: agenda_map[tgl_key] = []
                     agenda_map[tgl_key].append(row)
 
-        # 3. Logika Grid Kalender
-        cal = calendar.Calendar(firstweekday=0) # Mulai dari Senin
-        month_days = cal.monthdayscalendar(curr_year, curr_month)
-
+        # 3. Gambar Kalender
+        cal = calendar.Calendar(firstweekday=0)
+        weeks = cal.monthdayscalendar(st.session_state['cal_year'], st.session_state['cal_month'])
+        
         # Header Hari
-        cols = st.columns(7)
-        for i, h in enumerate(nama_hari):
-            cols[i].markdown(f"**{h}**")
+        hari_head = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"]
+        cols_h = st.columns(7)
+        for i, h in enumerate(hari_head):
+            cols_h[i].markdown(f"<div style='text-align: center; font-weight: bold; background: #333; color: white; border-radius: 5px;'>{h}</div>", unsafe_allow_html=True)
 
-        # Isi Tanggal
-        for week in month_days:
+        # Baris Tanggal
+        for week in weeks:
             cols = st.columns(7)
             for i, day in enumerate(week):
                 if day == 0:
-                    cols[i].write("") # Sel kosong di luar bulan
+                    cols[i].write("") 
                 else:
-                    # Penanda Hari Ini
-                    is_today = (day == now.day)
-                    date_obj = datetime(curr_year, curr_month, day).date()
+                    date_obj = datetime(st.session_state['cal_year'], st.session_state['cal_month'], day).date()
+                    is_today = (date_obj == datetime.now().date())
                     
-                    # Cek apakah ada agenda di tanggal ini
-                    ada_agenda = date_obj in agenda_map
-                    
-                    # Style Box Tanggal
-                    bg_color = "#E1F5FE" if is_today else "#F8F9FA"
-                    border = "2px solid #0288D1" if is_today else "1px solid #DEE2E6"
+                    # Style Box (Pastikan angka {day} terlihat)
+                    bg_color = "#E3F2FD" if is_today else "#FFFFFF"
+                    border_color = "#1976D2" if is_today else "#DDDDDD"
                     
                     with cols[i]:
-                        # Kotak Tanggal
+                        # Tampilan Angka Tanggal (Besar & Jelas)
                         st.markdown(f"""
-                        <div style="
-                            background-color: {bg_color}; 
-                            border: {border}; 
-                            border-radius: 5px; 
-                            padding: 5px; 
-                            min-height: 80px;
-                            position: relative;
-                        ">
-                            <span style="font-weight: bold; font-size: 14px;">{day}</span>
-                        </div>
+                            <div style="
+                                border: 1px solid {border_color}; 
+                                border-radius: 5px; 
+                                padding: 5px; 
+                                background-color: {bg_color}; 
+                                min-height: 40px;
+                                margin-bottom: 5px;
+                            ">
+                                <span style="font-size: 18px; font-weight: bold; color: #333;">{day}</span>
+                            </div>
                         """, unsafe_allow_html=True)
                         
-                        # Tampilkan Indikator Agenda
-                        if ada_agenda:
+                        # Indikator Agenda
+                        if date_obj in agenda_map:
                             for agn in agenda_map[date_obj]:
-                                # Pilih warna label (Aula, Meeting, Media)
-                                color = "#FF9800" if "AULA" in str(agn['Nama Objek']).upper() else "#4CAF50"
-                                if "MEDIA" in str(agn['Nama Objek']).upper(): color = "#2196F3"
-                                
-                                # Label kecil di bawah tanggal
-                                with st.expander(f"📍 {agn['Nama Objek'][:8]}.."):
+                                label = f"📌 {agn['Nama Objek'][:10]}"
+                                with st.expander(label):
                                     st.caption(f"**{agn['Nama Objek']}**")
                                     st.write(f"Kegiatan: {agn['Kegiatan']}")
-                                    st.write(f"Oleh: {agn['Peminjam']}")
 
         st.divider()
 
@@ -1767,6 +1772,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
 
