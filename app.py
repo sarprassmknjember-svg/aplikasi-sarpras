@@ -756,124 +756,99 @@ def main_app():
                 st.success("✅ Stok aman (Semua > 5)")
 
     elif st.session_state['menu'] == "Input Aset":
-        if st.session_state['role'] == 'view': st.warning("View Only"); st.stop()
-        st.title("📦 Input Aset Massal")
+        st.title("➕ Input Aset Tetap Baru")
+        
+        # --- 1. RADIO BUTTON (DI LUAR FORM) ---
+        c_mode1, c_mode2 = st.columns(2)
+        with c_mode1:
+            mode_barang = st.radio("Opsi Nama Barang:", ["Pilih Barang Lama", "Input Nama Baru (+)"], horizontal=True)
+        with c_mode2:
+            mode_merk = st.radio("Opsi Merk:", ["Pilih Merk Lama", "Input Merk Baru (+)"], horizontal=True)
 
-        list_barang = st.session_state.get('list_aset_barang', ["-- PILIH NAMA BARANG --"])
-        list_merk = st.session_state.get('list_aset_merks', ["-- PILIH MERK --"])
-        list_pejabat = st.session_state.get('list_pejabat_names', ["-- PILIH PENANGGUNG JAWAB --"])
+        # --- 2. PERSIAPAN DATA ---
+        # Ambil data unik untuk dropdown
+        list_barang = []
+        list_merk = []
+        list_lokasi = []
+        
+        if not df_aset_all.empty:
+            if 'Nama_Barang' in df_aset_all.columns:
+                list_barang = sorted([b for b in df_aset_all['Nama_Barang'].astype(str).unique() if b.strip() != "" and b != "nan"])
+            if 'Merk' in df_aset_all.columns:
+                list_merk = sorted([m for m in df_aset_all['Merk'].astype(str).unique() if m.strip() != "" and m != "nan"])
+            if 'Lokasi' in df_aset_all.columns:
+                list_lokasi = sorted([l for l in df_aset_all['Lokasi'].astype(str).unique() if l.strip() != "" and l != "nan"])
 
-        SUMBER_DANA_OPTIONS = ["BOS", "BPOPP", "Komite", "PK", "TEFA", "BLUD", "Lain-lain"]
-        GOLONGAN_OPTIONS = ["-- PILIH GOLONGAN --", "Aset Tetap Berwujud", "Aset Tetap Tidak Berwujud"]
-
-        with st.form("input"):
-            col_tgl, col_empty = st.columns(2)
-            tgl_perolehan = col_tgl.date_input("Tanggal Perolehan Aset*", key="aset_tgl")
+        # --- 3. MULAI FORM ---
+        with st.form("form_input_aset", clear_on_submit=False):
+            col1, col2 = st.columns(2)
             
-            # <<< Nama Barang (Selectbox + Input Baru) >>>
-            selected_nama = st.selectbox("Pilih Nama Barang*", list_barang, key="aset_nama_select")
-            final_nama = selected_nama
-            if selected_nama == "-- PILIH NAMA BARANG --":
-                st.warning("Jika barang baru, silakan ketik nama barang di bawah.")
-                new_nama = st.text_input("Nama Barang Baru*", key="aset_nama_new")
-                if new_nama: final_nama = new_nama
-
-            # --- LOGIKA PREFIX KODE ASET (Otomatis atau Manual) ---
-            aset_prefix_map = st.session_state.get('aset_prefix_map', {})
-            # Prefix yang disimpulkan dari data yang ada
-            inferred_prefix = aset_prefix_map.get(final_nama, "") 
-            
-            col_prefix_sel, col_vol = st.columns(2)
-            
-            # 1. Tentukan apakah Prefix bisa diisi otomatis atau harus manual
-            if inferred_prefix != "":
-                # KASUS 1: Prefix Otomatis Terisi
-                final_prefix = inferred_prefix
-                col_prefix_sel.markdown("**Prefix (Kode Awal) Terisi Otomatis:**")
-                # Tampilkan sebagai Text Input yang non-editable (disabled)
-                col_prefix_sel.text_input(
-                    "Prefix (Kode Awal) Terisi Otomatis",
-                    value=final_prefix,
-                    key="aset_prefix_auto",
-                    disabled=True,
-                    label_visibility="collapsed"
-                )
-            else:
-                # KASUS 2: Prefix Harus Diisi Manual (Barang Baru atau Data Prefix tidak ada)
-                # Tampilkan input manual di kolom yang sama
-                new_prefix = col_prefix_sel.text_input(
-                    "Prefix (Kode Awal)* (Contoh: MEJA.1.0101, AC.2.0206)", 
-                    key="aset_prefix_new",
-                    placeholder="Wajib diisi jika tidak terisi otomatis"
-                ).upper()
-                
-                final_prefix = new_prefix
-
-            vol = col_vol.number_input("Vol*", 1, 1000, 1) # Di kolom kedua
-
-            # <<< Merk (Selectbox + Input Baru) >>>
-            selected_merk = st.selectbox("Pilih Merk*", list_merk, key="aset_merk_select")
-            final_merk = selected_merk
-            if selected_merk == "-- PILIH MERK --":
-                st.warning("Jika merk baru, silakan ketik merk di bawah.")
-                new_merk = st.text_input("Merk Baru*", key="aset_merk_new")
-                if new_merk: final_merk = new_merk
-                
-            col_gol, col_sum = st.columns(2); col_lok, col_thn = st.columns(2)
-            golongan = col_gol.selectbox("Golongan Aset*", GOLONGAN_OPTIONS, key="aset_golongan")
-            sumber_dana = col_sum.selectbox("Sumber Dana*", SUMBER_DANA_OPTIONS, key="aset_sumber")
-            lok = col_lok.selectbox("Lokasi*", st.session_state['list_lokasi_aset'])
-            thn = col_thn.number_input("Tahun*", value=2025)
-            
-            # --- LOGIKA BARU: PENANGGUNG JAWAB DARI SHEET 'PEJABAT' ---
-            selected_pj = st.selectbox("Penanggung Jawab*", list_pejabat, key="aset_pj_select")
-            # Ambil NIP berdasarkan nama yang dipilih
-            pj_nip, _ = get_pejabat_details(df_pejabat_all, selected_pj)
-            # Tampilkan NIP (Non-editable)
-            st.markdown(f"**NIP Penanggung Jawab:** `{pj_nip if pj_nip and pj_nip != '-' else 'NIP Otomatis dari Sheet Pejabat'}`")
-            
-            ket_tambahan = st.text_area("Keterangan Tambahan (Opsional)", key="aset_ket_tambahan")
-            pic = st.file_uploader("📸 Foto Aset")
-            
-            if st.form_submit_button("Simpan", type="primary"):
-                # --- VALIDASI INPUT WAJIB ---
-                # Cek jika final_prefix masih kosong/invalid setelah logic otomatis/manual
-                valid_prefix = final_prefix not in [None, ""]
-                valid_nama = final_nama not in ["-- PILIH NAMA BARANG --", None, ""]
-                valid_merk = final_merk not in ["-- PILIH MERK --", None, ""]
-                valid_pj = selected_pj not in ["-- PILIH PENANGGUNG JAWAB --", None, ""]
-
-                if not valid_prefix or not valid_nama or not valid_merk or lok == "-- PILIH LOKASI --" or not valid_pj:
-                    st.error("⚠️ Error: Semua kolom bertanda bintang (*) WAJIB DIISI dan Lokasi/PJ/Prefix harus dipilih/diisi!")
+            with col1:
+                # Logika Pilihan Nama Barang
+                if mode_barang == "Pilih Barang Lama":
+                    nama_barang_pilih = st.selectbox("Pilih Nama Barang*", ["-- Pilih --"] + list_barang)
                 else:
-                    with st.spinner("Menyimpan..."):
-                        df = load_data("Aset")
-                        # Base adalah Prefix Penuh + Tahun
-                        base = f"{final_prefix}.{thn}"
-                        existing = df[df['Kode_Aset'].astype(str).str.startswith(base)]
-                        last = 0
-                        if not existing.empty:
-                            try: 
-                                # Mencari nomor urut tertinggi (bagian terakhir setelah split)
-                                last_num_str = existing['Kode_Aset'].apply(lambda x: str(x).split('.')[-1])
-                                last = pd.to_numeric(last_num_str, errors='coerce').max()
-                            except: pass
-                        
-                        f_link = "-"
-                        if pic:
-                            f_name = f"{final_prefix}_{thn}_{last+1}_{int(time.time())}.jpg"
-                            # Ganti: upload_to_drive_real(pic, f_name)
-                            f_link = upload_to_drive_real(pic, f_name, PARENT_FOLDER_ID)
+                    nama_barang_baru = st.text_input("Nama Barang Baru*", placeholder="Contoh: Laptop, Meja, Kursi")
 
-                        # Ambil NIP yang sudah dicari di atas
-                        rows = [[str(tgl_perolehan),f"{base}.{last+i:03d}", final_nama, final_merk, golongan, selected_pj, pj_nip, lok, sumber_dana, thn, ket_tambahan, f_link, "Baik"] for i in range(1, vol+1)]
-                        # Catatan: Kolom NIP (Index 6) sudah ditambahkan di baris di atas
+                # Logika Pilihan Merk
+                if mode_merk == "Pilih Merk Lama":
+                    merk_pilih = st.selectbox("Pilih Merk*", ["-- Pilih --"] + list_merk)
+                else:
+                    merk_baru = st.text_input("Merk Baru*", placeholder="Contoh: ASUS, Epson, Chitose")
+                
+                spesifikasi = st.text_area("Spesifikasi Lengkap", placeholder="Warna, Ukuran, Tipe Detail...")
+                kode_aset = st.text_input("Kode Aset (Scan QR)", placeholder="Ketik atau scan barcode")
+
+            with col2:
+                # Lokasi juga menggunakan dropdown dari data yang sudah ada
+                lokasi = st.selectbox("Lokasi Penempatan*", ["-- Pilih --"] + list_lokasi + ["GUDANG UTAMA", "AULA", "R. MEETING"])
+                # Input manual jika lokasi tidak ada di list
+                lokasi_manual = st.text_input("Atau Ketik Lokasi Baru (Jika tidak ada di list)")
+                
+                tahun = st.number_input("Tahun Perolehan", min_value=2000, max_value=2100, value=datetime.now().year)
+                kondisi = st.selectbox("Kondisi Awal", ["Baik", "Rusak Ringan", "Rusak Berat"])
+                sumber = st.text_input("Sumber Dana", placeholder="BOS, Komite, Hibah...")
+                foto = st.file_uploader("Upload Foto Aset (Optional)", type=['jpg', 'png', 'jpeg'])
+
+            submit_aset = st.form_submit_button("🚀 Daftarkan Aset Baru", type="primary")
+
+            if submit_aset:
+                # Penentuan Nama Barang Final
+                val_nama = nama_barang_pilih if mode_barang == "Pilih Barang Lama" else nama_barang_baru
+                # Penentuan Merk Final
+                val_merk = merk_pilih if mode_merk == "Pilih Merk Lama" else merk_baru
+                # Penentuan Lokasi Final
+                val_lokasi = lokasi_manual if lokasi_manual else lokasi
+
+                # Validasi
+                if val_nama in ["", "-- Pilih --"] or val_merk in ["", "-- Pilih --"] or val_lokasi in ["", "-- Pilih --"]:
+                    st.error("⚠️ Nama Barang, Merk, dan Lokasi wajib diisi/dipilih!")
+                else:
+                    with st.spinner("Sedang memproses..."):
+                        # Handle Foto
+                        foto_url = "-"
+                        if foto is not None:
+                            foto_url = upload_to_drive(foto, f"ASET_{val_nama}_{kode_aset}")
                         
-                        if save_to_sheet("Aset", rows): 
-                            st.success(f"✅ Input {vol} unit aset dengan kode awal {base}.{last+1:03d} berhasil!"); 
-                            st.cache_data.clear() # Clear cache agar data baru terbaca
-                            time.sleep(1); 
-                            st.rerun()
+                        # Susun Baris Baru
+                        new_row = [
+                            val_nama,           # Nama_Barang
+                            val_merk,           # Merk
+                            spesifikasi,        # Spesifikasi
+                            kode_aset,          # Kode_Aset
+                            val_lokasi,         # Lokasi
+                            str(tahun),         # Tahun
+                            kondisi,            # Kondisi
+                            sumber,             # Sumber
+                            foto_url,           # Foto
+                            st.session_state['username'] # Update_By
+                        ]
+                        
+                        # Simpan
+                        save_to_sheet("Aset", [new_row])
+                        st.success(f"✅ Berhasil mendaftarkan aset: {val_nama} ({val_merk})")
+                        time.sleep(1.5)
+                        st.rerun()
     
     elif st.session_state['menu'] == "Data Aset":
         st.title("🖨️ Data Aset")
@@ -1747,6 +1722,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
 
