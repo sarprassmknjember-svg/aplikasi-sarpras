@@ -797,7 +797,7 @@ def main_app():
                     merk_baru = st.text_input("Merk Baru*", placeholder="Contoh: ASUS, Epson, Chitose")
                 
                 spesifikasi = st.text_area("Spesifikasi Lengkap", placeholder="Warna, Ukuran, Tipe Detail...")
-                kode_aset = st.text_input("Kode Aset (Scan QR)", placeholder="Ketik atau scan barcode")
+                kode_aset = st.text_input("Kode Aset (Contoh : AC.2.0206)", placeholder="Ketik atau scan barcode")
 
             with col2:
                 # Lokasi juga menggunakan dropdown dari data yang sudah ada
@@ -1722,6 +1722,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
 
