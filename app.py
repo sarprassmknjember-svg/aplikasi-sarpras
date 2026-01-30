@@ -854,8 +854,8 @@ def main_app():
             else:
                 st.success("✅ Stok aman (Semua > 5)")
 
-    elif st.session_state['menu'] == "Aset Tetap":
-        st.title("📋 Manajemen Aset Tetap")
+    elif st.session_state['menu'] == "Aset Sekolah":
+        st.title("📋 Manajemen Aset Sekolah")
         
         # --- 1. MUAT DATA ---
         df_aset_all = load_data("Aset")
@@ -1819,6 +1819,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
 
