@@ -675,29 +675,34 @@ def main_app():
         # ==========================================
         # BAGIAN 2: AGENDA RUANGAN TERDEKAT
         # ==========================================
-        st.subheader("📅 Jadwal Penggunaan Ruangan")
+        st.subheader("📅 Rekap Peminjaman Ruangan & Aset")
 
-        # 1. Navigasi Bulan (Gunakan session_state agar tidak reset)
+        # 1. Navigasi Bulan
         if 'cal_month' not in st.session_state:
             st.session_state['cal_month'] = datetime.now().month
         if 'cal_year' not in st.session_state:
             st.session_state['cal_year'] = datetime.now().year
 
-        # Tombol Navigasi
-        col_nav1, col_nav2, col_nav3 = st.columns([1, 2, 1])
+        # --- PERBAIKAN TATA LETAK TOMBOL ---
+        # Menggunakan perbandingan kolom agar tombol berada di ujung kiri dan ujung kanan
+        col_nav1, col_nav2, col_nav3 = st.columns([1, 3, 1])
+        
         with col_nav1:
-            if st.button("⬅️ Bulan Lalu"):
+            if st.button("⬅️ Bulan Lalu", use_container_width=True):
                 st.session_state['cal_month'] -= 1
                 if st.session_state['cal_month'] == 0:
                     st.session_state['cal_month'] = 12
                     st.session_state['cal_year'] -= 1
                 st.rerun()
+        
         with col_nav2:
             nama_bulan = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", 
                           "Juli", "Agustus", "September", "Oktober", "November", "Desember"]
-            st.markdown(f"<h3 style='text-align: center;'>{nama_bulan[st.session_state['cal_month']-1]} {st.session_state['cal_year']}</h3>", unsafe_allow_html=True)
+            st.markdown(f"<h3 style='text-align: center; color: #1E88E5; margin-top: 0;'>{nama_bulan[st.session_state['cal_month']-1]} {st.session_state['cal_year']}</h3>", unsafe_allow_html=True)
+        
         with col_nav3:
-            if st.button("Bulan Depan ➡️"):
+            # use_container_width=True membuat tombol rata kanan mengikuti grid kalender
+            if st.button("Bulan Depan ➡️", use_container_width=True):
                 st.session_state['cal_month'] += 1
                 if st.session_state['cal_month'] == 13:
                     st.session_state['cal_month'] = 1
@@ -719,11 +724,11 @@ def main_app():
         cal = calendar.Calendar(firstweekday=0)
         weeks = cal.monthdayscalendar(st.session_state['cal_year'], st.session_state['cal_month'])
         
-        # Header Hari
+        # Header Hari (Senin - Minggu)
         hari_head = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"]
         cols_h = st.columns(7)
         for i, h in enumerate(hari_head):
-            cols_h[i].markdown(f"<div style='text-align: center; font-weight: bold; background: #333; color: white; border-radius: 5px;'>{h}</div>", unsafe_allow_html=True)
+            cols_h[i].markdown(f"<div style='text-align: center; font-weight: bold; background: #444; color: white; border-radius: 5px; padding: 2px;'>{h}</div>", unsafe_allow_html=True)
 
         # Baris Tanggal
         for week in weeks:
@@ -735,32 +740,38 @@ def main_app():
                     date_obj = datetime(st.session_state['cal_year'], st.session_state['cal_month'], day).date()
                     is_today = (date_obj == datetime.now().date())
                     
-                    # Style Box (Pastikan angka {day} terlihat)
                     bg_color = "#E3F2FD" if is_today else "#FFFFFF"
-                    border_color = "#1976D2" if is_today else "#DDDDDD"
+                    border_color = "#1976D2" if is_today else "#EEEEEE"
                     
                     with cols[i]:
-                        # Tampilan Angka Tanggal (Besar & Jelas)
+                        # Kotak Tanggal
                         st.markdown(f"""
                             <div style="
-                                border: 1px solid {border_color}; 
-                                border-radius: 5px; 
+                                border: 2px solid {border_color}; 
+                                border-radius: 8px; 
                                 padding: 5px; 
                                 background-color: {bg_color}; 
-                                min-height: 40px;
+                                min-height: 45px;
                                 margin-bottom: 5px;
+                                box-shadow: 2px 2px 5px rgba(0,0,0,0.05);
                             ">
-                                <span style="font-size: 18px; font-weight: bold; color: #333;">{day}</span>
+                                <span style="font-size: 16px; font-weight: bold; color: #333;">{day}</span>
                             </div>
                         """, unsafe_allow_html=True)
                         
-                        # Indikator Agenda
+                        # Menampilkan Agenda (Ruangan & Aset)
                         if date_obj in agenda_map:
                             for agn in agenda_map[date_obj]:
-                                label = f"📌 {agn['Nama Objek'][:10]}"
+                                # Pilih Icon berdasarkan Kategori (Ruangan vs Barang)
+                                kategori = str(agn.get('Kategori', '')).upper()
+                                icon = "📦" if "BARANG" in kategori or "ASET" in kategori else "🏛️"
+                                
+                                label = f"{icon} {agn['Nama Objek'][:8]}.."
                                 with st.expander(label):
-                                    st.caption(f"**{agn['Nama Objek']}**")
-                                    st.write(f"Kegiatan: {agn['Kegiatan']}")
+                                    st.markdown(f"**{agn['Nama Objek']}**")
+                                    st.caption(f"📌 {kategori}")
+                                    st.write(f"📝 {agn['Kegiatan']}")
+                                    st.write(f"👤 {agn['Peminjam']}")
 
         st.divider()
 
@@ -1772,6 +1783,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
 
