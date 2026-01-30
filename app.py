@@ -730,6 +730,17 @@ def main_app():
         for i, h in enumerate(hari_head):
             cols_h[i].markdown(f"<div style='text-align: center; font-weight: bold; background: #444; color: white; border-radius: 5px; padding: 2px;'>{h}</div>", unsafe_allow_html=True)
 
+        # Daftar warna pastel untuk tanggal yang ada agenda
+        event_colors = [
+            "#FFEBEE", # Merah muda pucat
+            "#E8F5E9", # Hijau pucat
+            "#FFF3E0", # Oranye pucat
+            "#F3E5F5", # Ungu pucat
+            "#E1F5FE", # Biru muda pucat
+            "#F9FBE7", # Lime pucat
+            "#EFEBE9"  # Abu-abu coklat pucat
+        ]
+        
         # Baris Tanggal
         for week in weeks:
             cols = st.columns(7)
@@ -740,38 +751,49 @@ def main_app():
                     date_obj = datetime(st.session_state['cal_year'], st.session_state['cal_month'], day).date()
                     is_today = (date_obj == datetime.now().date())
                     
-                    bg_color = "#E3F2FD" if is_today else "#FFFFFF"
-                    border_color = "#1976D2" if is_today else "#EEEEEE"
+                    # --- LOGIKA PEWARNAAN OTOMATIS ---
+                    if date_obj in agenda_map:
+                        # Pilih warna berdasarkan tanggal agar selalu konsisten untuk tanggal tersebut
+                        # Modulo (%) digunakan agar warna berputar kembali jika jumlah tanggal > jumlah warna
+                        color_idx = date_obj.toordinal() % len(event_colors)
+                        bg_color = event_colors[color_idx]
+                        border_color = "#333333" # Border lebih tegas untuk tanggal berisi agenda
+                    else:
+                        bg_color = "#FFFFFF" # Putih bersih jika kosong
+                        border_color = "#EEEEEE"
+
+                    # Jika hari ini, beri border khusus warna biru tebal agar tetap menonjol
+                    final_border = "2px solid #1976D2" if is_today else f"1px solid {border_color}"
                     
                     with cols[i]:
                         # Kotak Tanggal
                         st.markdown(f"""
                             <div style="
-                                border: 2px solid {border_color}; 
+                                border: {final_border}; 
                                 border-radius: 8px; 
-                                padding: 5px; 
+                                padding: 8px; 
                                 background-color: {bg_color}; 
-                                min-height: 45px;
+                                min-height: 50px;
                                 margin-bottom: 5px;
                                 box-shadow: 2px 2px 5px rgba(0,0,0,0.05);
+                                transition: 0.3s;
                             ">
                                 <span style="font-size: 16px; font-weight: bold; color: #333;">{day}</span>
                             </div>
                         """, unsafe_allow_html=True)
                         
-                        # Menampilkan Agenda (Ruangan & Aset)
+                        # Tampilkan Isi Agenda
                         if date_obj in agenda_map:
                             for agn in agenda_map[date_obj]:
-                                # Pilih Icon berdasarkan Kategori (Ruangan vs Barang)
-                                kategori = str(agn.get('Kategori', '')).upper()
-                                icon = "📦" if "BARANG" in kategori or "ASET" in kategori else "🏛️"
+                                kat = str(agn.get('Kategori', '')).upper()
+                                icon = "📦" if "BARANG" in kat or "ASET" in kat else "🏛️"
                                 
-                                label = f"{icon} {agn['Nama Objek'][:8]}.."
+                                # Menggunakan expander yang lebih ramping
+                                label = f"{icon} {agn['Nama Objek'][:10]}"
                                 with st.expander(label):
-                                    st.markdown(f"**{agn['Nama Objek']}**")
-                                    st.caption(f"📌 {kategori}")
-                                    st.write(f"📝 {agn['Kegiatan']}")
-                                    st.write(f"👤 {agn['Peminjam']}")
+                                    st.markdown(f"<small><b>{agn['Nama Objek']}</b><br>"
+                                                f"Kegiatan: {agn['Kegiatan']}<br>"
+                                                f"Oleh: {agn['Peminjam']}</small>", unsafe_allow_html=True)
 
         st.divider()
 
@@ -1783,6 +1805,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
 
