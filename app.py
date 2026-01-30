@@ -791,7 +791,7 @@ def main_app():
                                 padding: 5px; 
                                 background-color: {bg_color}; 
                                 min-height: 55px;
-                                margin: 5px 2px 8px 2px;
+                                margin: 5px 2px 10px 2px;
                                 box-shadow: 2px 4px 8px rgba(0,0,0,0.1);
                                 text-align: center;
                                 display: block;
@@ -1839,6 +1839,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
 
