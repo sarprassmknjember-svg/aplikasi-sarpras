@@ -1780,7 +1780,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
     # --- MENU AI YANG BARU (CERDAS) ---
     elif st.session_state['menu'] == "Tanya AI":
         st.title("🤖 Tanya AI - Asisten Sarpras")
-        st.info("Ajukan pertanyaan tentang data Aset, Stok Gudang, Inventaris Ruangan, atau Data Renovasi.")
+        st.info("Ajukan pertanyaan tentang data sarpras")
 
         # --- 1. PENGAMBILAN DATA (KONTEKS) ---
         with st.spinner("Sinkronisasi data untuk AI..."):
@@ -1838,6 +1838,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
 
