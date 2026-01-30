@@ -14,6 +14,7 @@ import os
 import streamlit.components.v1 as components 
 from googleapiclient.discovery import build 
 from googleapiclient.http import MediaIoBaseUpload
+import calendar # Impor di awal atau di sini
 
 # ===========================
 # 1. KONFIGURASI
@@ -674,59 +675,87 @@ def main_app():
         # ==========================================
         # BAGIAN 2: AGENDA RUANGAN TERDEKAT
         # ==========================================
-        st.subheader("📅 Kalender Agenda Mendatang")
+        st.subheader("📅 Jadwal Penggunaan Ruangan")
         
-        if df_pinjam.empty:
-            st.info("Belum ada data jadwal peminjaman.")
-        else:
-            try:
-                # 1. Pastikan kolom Tanggal benar
-                df_pinjam['Tanggal Pinjam'] = pd.to_datetime(df_pinjam['Tanggal Pinjam'], errors='coerce')
-                today = pd.to_datetime(datetime.now().date())
-                
-                # 2. Ambil jadwal hari ini dan masa depan, urutkan dari yang paling dekat
-                df_calendar = df_pinjam[df_pinjam['Tanggal Pinjam'] >= today].sort_values('Tanggal Pinjam')
+        # 1. Navigasi Bulan (Opsional: Default Bulan Sekarang)
+        now = datetime.now()
+        curr_month = now.month
+        curr_year = now.year
+        
+        # Nama-nama bulan & hari
+        nama_bulan = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", 
+                      "Juli", "Agustus", "September", "Oktober", "November", "Desember"]
+        nama_hari = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"]
 
-                if df_calendar.empty:
-                    st.success("✅ Tidak ada agenda dalam waktu dekat. Semua ruangan tersedia!")
+        st.markdown(f"#### {nama_bulan[curr_month-1]} {curr_year}")
+
+        # 2. Ambil Data Jadwal
+        df_pinjam = load_data("Peminjaman")
+        agenda_map = {}
+        if not df_pinjam.empty:
+            df_pinjam['Tanggal Pinjam'] = pd.to_datetime(df_pinjam['Tanggal Pinjam'], errors='coerce')
+            # Masukkan ke dictionary agar mudah dipanggil: {tanggal: [list_kegiatan]}
+            for _, row in df_pinjam.iterrows():
+                if pd.notnull(row['Tanggal Pinjam']):
+                    tgl_key = row['Tanggal Pinjam'].date()
+                    if tgl_key not in agenda_map:
+                        agenda_map[tgl_key] = []
+                    agenda_map[tgl_key].append(row)
+
+        # 3. Logika Grid Kalender
+        cal = calendar.Calendar(firstweekday=0) # Mulai dari Senin
+        month_days = cal.monthdayscalendar(curr_year, curr_month)
+
+        # Header Hari
+        cols = st.columns(7)
+        for i, h in enumerate(nama_hari):
+            cols[i].markdown(f"**{h}**")
+
+        # Isi Tanggal
+        for week in month_days:
+            cols = st.columns(7)
+            for i, day in enumerate(week):
+                if day == 0:
+                    cols[i].write("") # Sel kosong di luar bulan
                 else:
-                    # 3. Ambil daftar tanggal unik yang ada kegiatannya
-                    unique_dates = df_calendar['Tanggal Pinjam'].dt.date.unique()
-
-                    # Tampilkan maksimal 7 hari yang ada kegiatannya agar dashboard tidak terlalu panjang
-                    for d in unique_dates[:7]:
-                        # Format tanggal: Senin, 26 Jan 2026
-                        tgl_indo = d.strftime("%A, %d %b %Y")
+                    # Penanda Hari Ini
+                    is_today = (day == now.day)
+                    date_obj = datetime(curr_year, curr_month, day).date()
+                    
+                    # Cek apakah ada agenda di tanggal ini
+                    ada_agenda = date_obj in agenda_map
+                    
+                    # Style Box Tanggal
+                    bg_color = "#E1F5FE" if is_today else "#F8F9FA"
+                    border = "2px solid #0288D1" if is_today else "1px solid #DEE2E6"
+                    
+                    with cols[i]:
+                        # Kotak Tanggal
+                        st.markdown(f"""
+                        <div style="
+                            background-color: {bg_color}; 
+                            border: {border}; 
+                            border-radius: 5px; 
+                            padding: 5px; 
+                            min-height: 80px;
+                            position: relative;
+                        ">
+                            <span style="font-weight: bold; font-size: 14px;">{day}</span>
+                        </div>
+                        """, unsafe_allow_html=True)
                         
-                        # Ganti nama hari ke Bahasa Indonesia (Opsional)
-                        hari_map = {
-                            "Monday": "Senin", "Tuesday": "Selasa", "Wednesday": "Rabu", 
-                            "Thursday": "Kamis", "Friday": "Jumat", "Saturday": "Sabtu", "Sunday": "Minggu"
-                        }
-                        for eng, indo in hari_map.items():
-                            tgl_indo = tgl_indo.replace(eng, indo)
-
-                        # Container untuk setiap tanggal
-                        with st.expander(f"📅 {tgl_indo}", expanded=True):
-                            # Ambil semua kegiatan di tanggal tersebut
-                            kegiatan_hari_ini = df_calendar[df_calendar['Tanggal Pinjam'].dt.date == d]
-                            
-                            for _, row in kegiatan_hari_ini.iterrows():
-                                # Tentukan Icon berdasarkan Nama Ruangan/Barang
-                                icon = "🏛️"
-                                if "AULA" in str(row['Nama Objek']).upper(): icon = "🏟️"
-                                elif "MEETING" in str(row['Nama Objek']).upper() or "RAPAT" in str(row['Nama Objek']).upper(): icon = "🤝"
-                                elif "MEDIA" in str(row['Nama Objek']).upper() or "LAB" in str(row['Nama Objek']).upper(): icon = "🎬"
-                                elif "BARANG" in str(row['Kategori']).upper(): icon = "📦"
-
-                                # Tampilan per baris agenda
-                                st.markdown(f"""
-                                **{icon} {row['Nama Objek']}** * **Kegiatan:** {row['Kegiatan']}  
-                                * **Peminjam:** {row['Peminjam']}  
-                                ---
-                                """)
-            except Exception as e:
-                st.error(f"Gagal memuat kalender: {e}")
+                        # Tampilkan Indikator Agenda
+                        if ada_agenda:
+                            for agn in agenda_map[date_obj]:
+                                # Pilih warna label (Aula, Meeting, Media)
+                                color = "#FF9800" if "AULA" in str(agn['Nama Objek']).upper() else "#4CAF50"
+                                if "MEDIA" in str(agn['Nama Objek']).upper(): color = "#2196F3"
+                                
+                                # Label kecil di bawah tanggal
+                                with st.expander(f"📍 {agn['Nama Objek'][:8]}.."):
+                                    st.caption(f"**{agn['Nama Objek']}**")
+                                    st.write(f"Kegiatan: {agn['Kegiatan']}")
+                                    st.write(f"Oleh: {agn['Peminjam']}")
 
         st.divider()
 
@@ -1738,6 +1767,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
 
