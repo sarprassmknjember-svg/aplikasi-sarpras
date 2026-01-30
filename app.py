@@ -854,13 +854,18 @@ def main_app():
             else:
                 st.success("✅ Stok aman (Semua > 5)")
 
-    elif st.session_state['menu'] == "Aset Sekolah":
-        st.title("📋 Manajemen Aset Sekolah")
+    elif st.session_state['menu'] == "Aset Tetap":
+        st.title("📋 Manajemen Aset Tetap")
         
-        # 1. MUAT DATA
+        # --- 1. MUAT DATA ---
         df_aset_all = load_data("Aset")
         
-        # 2. SEPARASI TAB
+        # Identifikasi kolom secara dinamis untuk menghindari KeyError
+        cols = df_aset_all.columns.tolist()
+        # Cek apakah kolom lokasi bernama 'Posisi' atau 'Lokasi'
+        col_lokasi = 'Posisi' if 'Posisi' in cols else ('Lokasi' if 'Lokasi' in cols else None)
+
+        # --- 2. SEPARASI TAB ---
         tab_input, tab_update, tab_cetak = st.tabs([
             "➕ Input Aset Baru", 
             "🔄 Update Status & Kondisi", 
@@ -873,122 +878,233 @@ def main_app():
         with tab_input:
             st.subheader("Pendaftaran Aset Inventaris Baru")
             
-            # Form Logic (Opsi Nama Barang & Merk diluar form agar reaktif)
+            # Opsi di luar form agar reaktif
             c_mode1, c_mode2 = st.columns(2)
-            with c_mode1:
-                mode_barang = st.radio("Opsi Nama Barang:", ["Pilih Barang Lama", "Input Nama Baru (+)"], horizontal=True, key="rb_barang")
-            with c_mode2:
-                mode_merk = st.radio("Opsi Merk:", ["Pilih Merk Lama", "Input Merk Baru (+)"], horizontal=True, key="rb_merk")
+            mode_barang = c_mode1.radio("Opsi Nama Barang:", ["Pilih Barang Lama", "Input Nama Baru (+)"], horizontal=True, key="rb_barang")
+            mode_merk = c_mode2.radio("Opsi Merk:", ["Pilih Merk Lama", "Input Merk Baru (+)"], horizontal=True, key="rb_merk")
 
-            # Persiapan list dropdown
-            list_barang = sorted([b for b in df_aset_all['Nama_Barang'].astype(str).unique() if b.strip() != "" and b != "nan"]) if not df_aset_all.empty else []
-            list_merk = sorted([m for m in df_aset_all['Merk'].astype(str).unique() if m.strip() != "" and m != "nan"]) if not df_aset_all.empty else []
-            list_lokasi = sorted([l for l in df_aset_all['Lokasi'].astype(str).unique() if l.strip() != "" and l != "nan"]) if not df_aset_all.empty else []
+            # Persiapan list dropdown dari data yang ada
+            list_barang = sorted([b for b in df_aset_all['Nama_Barang'].astype(str).unique() if b.strip() != "" and b != "nan"]) if 'Nama_Barang' in cols else []
+            list_merk = sorted([m for m in df_aset_all['Merk'].astype(str).unique() if m.strip() != "" and m != "nan"]) if 'Merk' in cols else []
+            list_lokasi = sorted([l for l in df_aset_all[col_lokasi].astype(str).unique() if l.strip() != "" and l != "nan"]) if col_lokasi else []
 
             with st.form("form_input_aset_merged", clear_on_submit=False):
                 col1, col2 = st.columns(2)
                 with col1:
-                    val_nama = st.selectbox("Pilih Nama Barang*", ["-- Pilih --"] + list_barang) if mode_barang == "Pilih Barang Lama" else st.text_input("Nama Barang Baru*", placeholder="Contoh: Laptop")
-                    val_merk = st.selectbox("Pilih Merk*", ["-- Pilih --"] + list_merk) if mode_merk == "Pilih Merk Lama" else st.text_input("Merk Baru*", placeholder="Contoh: ASUS")
+                    # Penentuan Nama Barang
+                    if mode_barang == "Pilih Barang Lama":
+                        val_nama = st.selectbox("Pilih Nama Barang*", ["-- Pilih --"] + list_barang)
+                    else:
+                        val_nama = st.text_input("Nama Barang Baru*", placeholder="Contoh: Laptop")
+
+                    # Penentuan Merk
+                    if mode_merk == "Pilih Merk Lama":
+                        val_merk = st.selectbox("Pilih Merk*", ["-- Pilih --"] + list_merk)
+                    else:
+                        val_merk = st.text_input("Merk Baru*", placeholder="Contoh: ASUS")
+                    
                     spesifikasi = st.text_area("Spesifikasi Lengkap")
                     kode_aset = st.text_input("Kode Aset (Contoh : AC.2.0206)")
 
                 with col2:
-                    lokasi_pilih = st.selectbox("Lokasi Penempatan*", ["-- Pilih --"] + list_lokasi + ["GUDANG UTAMA", "AULA"])
+                    # Penentuan Lokasi
+                    lokasi_pilih = st.selectbox("Lokasi Penempatan*", ["-- Pilih --"] + list_lokasi + ["GUDANG UTAMA", "AULA", "R. MEETING"])
                     lokasi_manual = st.text_input("Atau Ketik Lokasi Baru")
+                    
                     tahun = st.number_input("Tahun Perolehan", min_value=2000, max_value=2100, value=datetime.now().year)
                     kondisi = st.selectbox("Kondisi Awal", ["Baik", "Rusak Ringan", "Rusak Berat"])
-                    sumber = st.text_input("Sumber Dana")
-                    foto = st.file_uploader("Upload Foto Aset", type=['jpg', 'png', 'jpeg'])
+                    sumber = st.text_input("Sumber Dana", placeholder="BOS, Komite, dll")
+                    foto = st.file_uploader("Upload Foto Aset (Optional)", type=['jpg', 'png', 'jpeg'])
 
-                if st.form_submit_button("🚀 Daftarkan Aset", type="primary", use_container_width=True):
+                submit_btn = st.form_submit_button("🚀 Daftarkan Aset Baru", type="primary", use_container_width=True)
+
+                if submit_btn:
+                    # Finalisasi data sebelum simpan
+                    final_nama = val_nama if mode_barang != "Pilih Barang Lama" else val_nama
+                    final_merk = val_merk if mode_merk != "Pilih Merk Lama" else val_merk
                     final_lokasi = lokasi_manual if lokasi_manual else lokasi_pilih
-                    if val_nama in ["", "-- Pilih --"] or final_lokasi == "-- Pilih --":
+
+                    if final_nama in ["", "-- Pilih --"] or final_lokasi in ["", "-- Pilih --"]:
                         st.error("⚠️ Nama Barang dan Lokasi wajib diisi!")
                     else:
-                        # Logika Simpan (Sama seperti kode asli Anda)
-                        with st.spinner("Menyimpan..."):
-                            foto_url = upload_to_drive_real(foto, f"ASET_{val_nama}") if foto else "-"
-                            new_row = [val_nama, val_merk, spesifikasi, kode_aset, final_lokasi, str(tahun), kondisi, sumber, foto_url, st.session_state['username']]
-                            save_to_sheet("Aset", [new_row])
-                            st.success("✅ Aset Berhasil Didaftarkan!")
-                            time.sleep(1); st.rerun()
+                        with st.spinner("Sedang memproses..."):
+                            foto_url = upload_to_drive_real(foto, f"ASET_{final_nama}_{kode_aset}") if foto else "-"
+                            
+                            # Sesuaikan urutan kolom dengan Google Sheet Anda
+                            new_row = [
+                                final_nama, final_merk, spesifikasi, kode_aset, 
+                                final_lokasi, str(tahun), kondisi, sumber, 
+                                foto_url, st.session_state['username']
+                            ]
+                            
+                            if save_to_sheet("Aset", [new_row]):
+                                st.success(f"✅ Berhasil mendaftarkan aset: {final_nama}")
+                                st.cache_data.clear()
+                                time.sleep(1)
+                                st.rerun()
 
         # ==========================================
-        # TAB 2: MANAJEMEN & UPDATE STATUS (Data Editor)
+        # TAB 2: UPDATE STATUS & KONDISI
         # ==========================================
         with tab_update:
-            st.subheader("🔄 Update Data & Kondisi Aset")
+            st.subheader("🔄 Update Data Aset")
             if df_aset_all.empty:
                 st.info("Data aset kosong.")
             else:
                 STATUS_OPTIONS = ["Baik", "Rusak Ringan", "Rusak Sedang", "Rusak Berat", "Hilang"]
-                if 'NIP_PJ' not in df_aset_all.columns: df_aset_all.insert(6, 'NIP_PJ', '-')
+                
+                # Tambahkan NIP_PJ jika belum ada untuk menghindari error tampilan
+                if 'NIP_PJ' not in df_aset_all.columns: 
+                    df_aset_all.insert(6, 'NIP_PJ', '-')
 
                 if st.session_state['role'] != 'view':
                     editable_df = st.data_editor(
                         df_aset_all,
                         use_container_width=True,
                         hide_index=True,
-                        key="editor_tab_update",
+                        key="aset_editor_tab",
                         column_config={
-                            "Link_Foto": st.column_config.LinkColumn("Foto", display_text="📸 Lihat"),
-                            "Status": st.column_config.SelectboxColumn("Status", options=STATUS_OPTIONS),
+                            "Link_Foto": st.column_config.LinkColumn("Foto", display_text="📸"),
+                            "Status": st.column_config.SelectboxColumn("Kondisi", options=STATUS_OPTIONS),
                             "Kode_Aset": st.column_config.TextColumn(disabled=True),
+                            "Tahun": st.column_config.NumberColumn(disabled=True),
                         }
                     )
-                    if st.button("💾 Simpan Perubahan Kondisi", type="primary"):
-                        update_aset_sheet(editable_df)
-                        st.success("Perubahan Berhasil Disimpan!"); time.sleep(1); st.rerun()
+                    
+                    if st.button("💾 Simpan Perubahan Data", type="primary"):
+                        if not editable_df.equals(df_aset_all):
+                            update_aset_sheet(editable_df)
+                            st.success("Perubahan Berhasil Disimpan!")
+                            st.cache_data.clear()
+                            st.rerun()
+                        else:
+                            st.warning("Tidak ada perubahan untuk disimpan.")
                 else:
                     st.dataframe(df_aset_all, use_container_width=True, hide_index=True)
 
         # ==========================================
-        # TAB 3: CETAK LABEL & BAST (Selection Mode)
+        # TAB 3: CETAK LABEL & BAST
         # ==========================================
         with tab_cetak:
             st.subheader("🏷️ Label QR & Berita Acara")
-            st.info("Pilih baris pada tabel di bawah untuk mencetak label atau membuat surat BAST.")
+            st.info("Pilih satu atau lebih aset di bawah untuk diproses.")
             
-            selected_event = st.dataframe(
-                df_aset_all,
-                use_container_width=True,
+            event = st.dataframe(
+                df_aset_all, 
+                use_container_width=True, 
                 hide_index=True,
-                on_select="rerun",
+                on_select="rerun", 
                 selection_mode="multi-row",
                 column_config={"Link_Foto": st.column_config.LinkColumn("Foto", display_text="📸")}
             )
 
-            rows = selected_event.selection.rows
+            rows = event.selection.rows
+            
             if rows:
                 st.divider()
-                st.success(f"📌 {len(rows)} Item Terpilih")
-                sub_mode = st.radio("Opsi Output:", ["🏷️ Cetak Label QR", "📄 Buat Surat BAST"], horizontal=True)
+                st.success(f"✅ Terpilih {len(rows)} Item")
+                sub_menu = st.radio("Pilih Mode:", ["🏷️ LABEL QR", "📄 BUAT SURAT BAST"], horizontal=True)
 
-                if sub_mode == "🏷️ Cetak Label QR":
-                    # --- LOGIKA CETAK LABEL ANDA ---
+                if sub_menu == "🏷️ LABEL QR":
                     html_labels = "<div class='batch-container'>"
                     for i in rows:
                         r = df_aset_all.iloc[i]
-                        qr_text = f"Kode: {r['Kode_Aset']}\nNama: {r['Nama_Barang']}"
-                        qr_base64 = generate_qr_base64(qr_text)
+                        # Ambil lokasi secara aman
+                        loc_val = r[col_lokasi] if col_lokasi else "-"
+                        
+                        qr_text = f"SMKN 6 JEMBER\nKode: {r['Kode_Aset']}\nNama: {r['Nama_Barang']}\nLokasi: {loc_val}"
+                        qr_img = generate_qr_base64(qr_text)
+                        
                         html_labels += f"""
                         <div class='label-card'>
-                            <img src='{qr_base64}' class='qr-img'>
+                            <img src='{qr_img}' class='qr-img'>
                             <div class='label-info-container'>
                                 <div class='lbl-title'>SMKN 6 JEMBER</div>
                                 <div class='lbl-name'>{r['Nama_Barang']}</div>
                                 <div class='lbl-code'>{r['Kode_Aset']}</div>
+                                <div class='lbl-loc'>Lokasi: {loc_val}</div>
+                                <div class='lbl-year'>Tahun: {r.get('Tahun','-')}</div>
                             </div>
                         </div>"""
                     html_labels += "</div>"
                     st.markdown(html_labels, unsafe_allow_html=True)
-                    if st.button("🖨️ Klik untuk Cetak"): trigger_print_js(html_labels)
+                    if st.button("🖨️ CETAK LABEL SEKARANG", type="primary"): 
+                        trigger_print_js(html_labels)
 
-                elif sub_mode == "📄 Buat Surat BAST":
-                    # --- LOGIKA BAST ANDA ---
-                    st.write("Silakan lengkapi form BAST di bawah...")
-                    # (Masukkan form BAST Anda di sini sesuai kode lama)
+                elif sub_menu == "📄 BUAT SURAT BAST":
+                    st.subheader("Form Berita Acara")
+                    list_pejabat = st.session_state.get('list_pejabat_names', ["-- PILIH PENANGGUNG JAWAB --"])
+
+                    with st.form("bast"):
+                        # --- PIHAK KESATU (WAKA SARPRAS) ---
+                        st.markdown("**PIHAK KESATU (Yang Menyerahkan: Waka Sarpras)**")
+                        p1 = st.selectbox("Nama Waka Sarpras", list_pejabat, index=0) # Asumsi Waka Sarpras ada di baris pertama
+                        n1, _ = get_pejabat_details(df_pejabat_all, p1)
+                        if n1 == '-': n1 = DEF_WAKA_NIP
+                        st.markdown(f"**NIP Waka:** `{n1}`")
+                    
+                        # --- PIHAK KEDUA (Penerima) ---
+                        st.markdown("**PIHAK KEDUA (Yang Menerima)**")
+                        p2 = st.selectbox("Nama Penerima", list_pejabat, key="bast_p2")
+                        n2, jab2 = get_pejabat_details(df_pejabat_all, p2)
+                        st.markdown(f"**NIP Penerima:** `{n2}`")
+                        st.markdown(f"**Jabatan Penerima:** `{jab2}`")
+
+                        # --- MENGETAHUI (Kepala Sekolah) ---
+                        st.markdown("**MENGETAHUI**")
+                        ks = st.selectbox("Kepala Sekolah", list_pejabat, key="bast_ks")
+                        nks, _ = get_pejabat_details(df_pejabat_all, ks)
+                        if nks == '-': nks = DEF_KS_NIP
+                        st.markdown(f"**NIP Kepsek:** `{nks}`")
+                    
+                        # --- SAKSI ---
+                        saksi = st.selectbox("Saksi", list_pejabat, key="bast_saksi")
+                    
+                        tgl = st.date_input("Tanggal BAST")
+                        create = st.form_submit_button("GENERATE & DOWNLOAD")
+                
+                    if create:
+                        hari_indo = get_hari_indo(tgl); tgl_terbilang = angka_terbilang(tgl.day)
+                        bln_indo = get_bulan_indo(tgl); thn_terbilang = angka_terbilang(tgl.year)
+                        logo = get_img_as_base64(LOGO_FILE)
+                        img_tag = f'<img src="data:image/png;base64,{logo}" class="kop-img">' if logo else ""
+                        rows_html = ""
+                        no = 1
+                        for idx, row in df.iloc[rows].iterrows():
+                            rows_html += f"<tr><td>{no}</td><td>{row['Nama_Barang']}</td><td>1</td><td>-</td><td>{row.get('Keterangan','-')}</td><td>{row['Sumber_Dana']}</td></tr>"
+                            no += 1
+                        html_bast = f"""
+                        <div class='bast-page'>
+                            <div class='kop-surat'>
+                                {img_tag}
+                                <div style="margin-left: 90px; text-align: center;">
+                                    <h3 style='margin:0; font-size:14pt;'>PEMERINTAH PROVINSI JAWA TIMUR<br>DINAS PENDIDIKAN<br>SMK NEGERI 6 JEMBER</h3>
+                                    <p style='font-size:9pt; margin:0;'>Jalan PB. Sudirman Telp./Fax. (0336) 621533 Tanggul - Jember 68155<br>Website: www.smkn6jember.sch.id Email: smkn6jember@yahoo.co.id</p>
+                                </div>
+                            </div>
+                            <div class='bast-title'>BERITA ACARA SERAH TERIMA BARANG</div>
+                            <p class='bast-text'>Pada hari ini, <b>{hari_indo}</b> tanggal <b>{tgl_terbilang}</b> Bulan <b>{bln_indo}</b> Tahun <b>{thn_terbilang}</b>, yang bertandatangan di bawah ini:</p>
+                            <table style='width:100%; border:none; margin-bottom:5px; font-size:11pt;'>
+                                <tr><td style='width:100px;'>Nama</td><td>: {p1}</td></tr><tr><td>NIP</td><td>: {n1}</td></tr><tr><td>Jabatan</td><td>: Waka Sarpras (PIHAK KESATU)</td></tr>
+                            </table>
+                            <table style='width:100%; border:none; margin-bottom:5px; font-size:11pt;'>
+                                <tr><td style='width:100px;'>Nama</td><td>: {p2}</td></tr><tr><td>NIP</td><td>: {n2}</td></tr><tr><td>Jabatan</td><td>: {jab2} (PIHAK KEDUA)</td></tr>
+                            </table>
+                            <p class='bast-text'>PIHAK KESATU menyerahkan barang kepada PIHAK KEDUA, dan PIHAK KEDUA menyatakan menerima barang dari PIHAK PERTAMA berupa daftar terlampir :</p>
+                            <table class='bast-table'><thead><tr><th>No</th><th>Nama Barang</th><th>Jml</th><th>Harga</th><th>Ket</th><th>Sumber</th></tr></thead><tbody>{rows_html}</tbody></table>
+                            <p class='bast-text'>Berdasarkan Berita Acara Serah Terima Barang Inventaris gudang SMKN 6 Jember dari PIHAK PERTAMA kepada PIHAK KEDUA, adapun barang-barang tersebut dalam keadaan baik dan cukup,
+Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung jawab PIHAK KEDUA.</p>
+                            <table class='bast-signature-table'>
+                                <tr><td width='50%'>PIHAK KEDUA<br><br><br><br><b><u>{p2}</u></b><br>NIP. {n2}</td><td width='50%'>PIHAK KESATU<br><br><br><br><b><u>{p1}</u></b><br>NIP. {n1}</td></tr>
+                                <tr><td colspan='2'><br>Mengetahui,</td></tr>
+                                <tr><td colspan='2' style='text-align:center;'>Kepala SMKN 6 Jember<br><br><br><br><b><u>{ks}</u></b><br>NIP. {nks}</td></tr>
+                                <tr><td></td><td style='text-align:center;'><br>Saksi<br><br><br><br><b><u>{saksi}</u></b></td></tr>
+                            </table>
+                        </div>
+                        """
+                        full_html_bast = wrap_bast_html(html_bast)
+                        st.success("✅ Surat Siap!")
+                        st.download_button("💾 DOWNLOAD SURAT BAST (HTML)", full_html_bast, "BAST_Surat.html", "text/html", type="primary")
 
     elif st.session_state['menu'] == "Pemeliharaan":
         st.title("🛠️ Pemeliharaan Aset & Ruangan")
@@ -1703,6 +1819,7 @@ def main_app():
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
 
