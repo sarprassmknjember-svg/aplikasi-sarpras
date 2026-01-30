@@ -733,12 +733,11 @@ def main_app():
         st.markdown("""
             <style>
             .stPopover button {
+                background: none !important;
+                border: none !important;
+                padding: 0 !important;
                 width: 100% !important;
-                height: 70px !important;
-                border-radius: 10px !important;
-                border: 1px solid #ddd !important;
-                font-size: 18px !important;
-                font-weight: bold !important;
+                color: inherit !important;
             }
             </style>
         """, unsafe_allow_html=True)
@@ -755,56 +754,83 @@ def main_app():
                     is_today = (date_obj == datetime.now().date())
                     has_agenda = date_obj in agenda_map
                     
+                    # --- LOGIKA PEWARNAAN ---
+                    if has_agenda:
+                        color_idx = date_obj.toordinal() % len(event_colors)
+                        bg_color = event_colors[color_idx]
+                        border_style = "2px solid #333"
+                    else:
+                        bg_color = "#FFFFFF"
+                        border_style = "1px solid #DDDDDD"
+
+                    if is_today:
+                        border_style = "3px solid #1A237E"
+                    
                     with cols[i]:
+                        # 1. Jika ada agenda, bungkus kotak dengan Popover
                         if has_agenda:
-                            # 1. TENTUKAN WARNA
-                            color_idx = date_obj.toordinal() % len(event_colors)
-                            bg_color = event_colors[color_idx]
-                            
-                            # 2. TOMBOL POPOVER (Semua detail harus DI DALAM blok 'with')
-                            with st.popover(f"{day}", use_container_width=True):
-                                st.subheader(f"🗓️ Agenda {day} {nama_bulan[st.session_state['cal_month']-1]}")
+                            with st.popover(f"calendar_day_{day}", use_container_width=True):
+                                # ISI DETAIL SAAT DIKLIK
+                                st.subheader(f"🗓️ Detail Agenda - {day} {nama_bulan[st.session_state['cal_month']-1]}")
                                 st.divider()
-                                
-                                # Loop detail hanya muncul SETELAH diklik
                                 for agn in agenda_map[date_obj]:
                                     kat = str(agn.get('Kategori', '')).upper()
                                     icon = "📦" if "BARANG" in kat or "ASET" in kat else "🏛️"
-                                    
-                                    # Gunakan container agar rapi di dalam popover
                                     with st.container(border=True):
                                         st.markdown(f"**{icon} {agn['Nama Objek']}**")
                                         st.write(f"📝 Kegiatan: {agn['Kegiatan']}")
                                         st.write(f"👤 Peminjam: {agn['Peminjam']}")
-
-                            # 3. CSS HACK UNTUK MEWARNAI TOMBOL (Hanya untuk yang ada agenda)
+                            
+                            # TAMPILAN KOTAK BERWARNA (TETAP MUNCUL DI KALENDER)
+                            # Kita taruh di bawah st.popover tapi diatur posisinya dengan CSS atau 
+                            # Streamlit akan otomatis menjadikan konten di bawah ini sebagai pemicu klik
                             st.markdown(f"""
-                                <style>
-                                div[data-testid="stPopover"]:has(button:contains("{day}")) button {{
-                                    background-color: {bg_color} !important;
-                                    color: white !important;
-                                    border: {"3px solid #1A237E" if is_today else "none"} !important;
-                                }}
-                                </style>
+                                <div style="
+                                    border: {border_style}; 
+                                    border-radius: 10px; 
+                                    padding: 8px; 
+                                    background-color: {bg_color}; 
+                                    min-height: 60px;
+                                    margin-top: -45px; /* Menarik kotak ke atas menutupi tombol asli */
+                                    box-shadow: 2px 4px 8px rgba(0,0,0,0.1);
+                                    text-align: center;
+                                    cursor: pointer;
+                                ">
+                                    <div style="
+                                        background: rgba(255,255,255,0.9); 
+                                        width: 30px; height: 30px; line-height: 30px; 
+                                        border-radius: 50%; margin: 0 auto;
+                                        color: #333; font-weight: bold; font-size: 16px;
+                                        box-shadow: 1px 1px 3px rgba(0,0,0,0.2);
+                                    ">
+                                        {day}
+                                    </div>
+                                    <div style="font-size: 10px; color: white; margin-top: 2px; font-weight: bold;">
+                                        {len(agenda_map[date_obj])} Agenda
+                                    </div>
+                                </div>
                             """, unsafe_allow_html=True)
 
                         else:
-                            # TAMPILAN JIKA TIDAK ADA AGENDA (Box Putih Biasa)
+                            # 2. Tampilan Kotak Putih Biasa (Tanpa Klik)
                             st.markdown(f"""
                                 <div style="
-                                    border: {"3px solid #1A237E" if is_today else "1px solid #ddd"}; 
+                                    border: {border_style}; 
                                     border-radius: 10px; 
-                                    height: 70px; 
-                                    display: flex; 
-                                    align-items: center; 
-                                    justify-content: center;
-                                    background-color: {"#E3F2FD" if is_today else "white"};
-                                    color: #333;
-                                    font-size: 18px;
-                                    font-weight: bold;
-                                    box-shadow: 1px 1px 3px rgba(0,0,0,0.05);
+                                    padding: 8px; 
+                                    background-color: {bg_color}; 
+                                    min-height: 60px;
+                                    text-align: center;
+                                    box-shadow: 1px 2px 4px rgba(0,0,0,0.05);
                                 ">
-                                    {day}
+                                    <div style="
+                                        background: none; 
+                                        width: 30px; height: 30px; line-height: 30px; 
+                                        margin: 0 auto;
+                                        color: #333; font-weight: bold; font-size: 16px;
+                                    ">
+                                        {day}
+                                    </div>
                                 </div>
                             """, unsafe_allow_html=True)
 
@@ -1818,6 +1844,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
 
