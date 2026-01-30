@@ -1779,46 +1779,66 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
         
     # --- MENU AI YANG BARU (CERDAS) ---
     elif st.session_state['menu'] == "Tanya AI":
-        st.title("🤖 Chat Data")
-        if st.button("🗑️ Hapus Chat"): st.session_state["chat_history"] = []; st.rerun()
-        for msg in st.session_state["chat_history"]: st.chat_message(msg["role"]).write(msg["content"])
-        
-        if p := st.chat_input("Tanya..."):
-            st.chat_message("user").write(p); st.session_state["chat_history"].append({"role": "user", "content": p})
-            
-            # LOAD SEMUA DATA
+        st.title("🤖 Tanya AI - Asisten Sarpras")
+        st.info("Ajukan pertanyaan tentang data Aset, Stok Gudang, Inventaris Ruangan, atau Data Renovasi.")
+
+        # --- 1. PENGAMBILAN DATA (KONTEKS) ---
+        with st.spinner("Sinkronisasi data untuk AI..."):
             df_aset = load_data("Aset")
             df_stok = load_data("Stok")
-            df_jadwal = load_data("Jadwal")
-            
-            # FORMAT DATA MENJADI STRING CSV (HEMAT TOKEN & BACA SEMUA)
+            df_inv_kelas = load_data("InventarisKelas")
+            df_renov = load_data("Renovasi")
+            df_pinjam = load_data("Peminjaman")
+
+            # FORMAT DATA MENJADI STRING (Hemat Token & Komprehensif)
             context = ""
             if not df_aset.empty:
                 context += "=== DATA ASET TETAP (INVENTARIS) ===\n" + df_aset.to_csv(index=False) + "\n\n"
             if not df_stok.empty:
                 context += "=== DATA STOK GUDANG (BARANG HABIS PAKAI) ===\n" + df_stok.to_csv(index=False) + "\n\n"
-            if not df_jadwal.empty:
-                context += "=== JADWAL PENGGUNAAN AULA ===\n" + df_jadwal.to_csv(index=False) + "\n\n"
+            if not df_inv_kelas.empty:
+                context += "=== DATA INVENTARIS RUANGAN/KELAS ===\n" + df_inv_kelas.to_csv(index=False) + "\n\n"
+            if not df_renov.empty:
+                context += "=== DATA PEMELIHARAAN & RENOVASI ===\n" + df_renov.to_csv(index=False) + "\n\n"
+            if not df_pinjam.empty:
+                context += "=== JADWAL PEMINJAMAN RUANGAN & ASET ===\n" + df_pinjam.to_csv(index=False) + "\n\n"
+
+        # --- 2. TAMPILAN CHAT ---
+        for msg in st.session_state["chat_history"]:
+            st.chat_message(msg["role"]).write(msg["content"])
+
+        if p := st.chat_input("Tanyakan sesuatu (Contoh: Berapa sisa stok sabun? atau Siapa penanggung jawab AC di R.10?)"):
+            st.session_state["chat_history"].append({"role": "user", "content": p})
+            st.chat_message("user").write(p)
             
-            # PROMPT RAJA (MASTER PROMPT)
+            # MASTER PROMPT UNTUK AI
             full_prompt = f"""
-            Anda adalah Asisten Cerdas untuk Sistem Sarana Prasarana (Sarpras) Sekolah SMKN 6 Jember.
-            Tugas Anda adalah menjawab pertanyaan user dengan AKURAT berdasarkan data tabel berikut.
+            Anda adalah 'Asisten Sarpras SMKN 6 Jember', sistem AI yang ahli dalam mengelola logistik sekolah.
+            Tugas Anda adalah menjawab pertanyaan user berdasarkan DATA TABEL di bawah ini.
             
-            JANGAN MENGARANG. Jika data tidak ada di tabel, katakan tidak ada.
-            Baca semua baris data untuk memastikan hitungan dan pencarian akurat.
+            ATURAN:
+            1. Jawablah berdasarkan data yang tersedia secara akurat.
+            2. Jika data tidak ditemukan, katakan dengan sopan bahwa data tersebut tidak ada dalam catatan.
+            3. Gunakan format poin-poin jika menjelaskan banyak item agar mudah dibaca.
+            4. Gunakan Bahasa Indonesia yang profesional namun ramah.
             
+            KONTEKS DATA:
             {context}
             
             PERTANYAAN USER: {p}
             """
             
-            res = ask_gemini(full_prompt)
-            st.chat_message("ai").write(res); st.session_state["chat_history"].append({"role": "ai", "content": res})
+            with st.chat_message("ai"):
+                with st.spinner("Berpikir..."):
+                    res = ask_gemini(full_prompt)
+                    st.write(res)
+            
+            st.session_state["chat_history"].append({"role": "ai", "content": res})
 
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
 
