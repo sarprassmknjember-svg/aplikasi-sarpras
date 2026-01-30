@@ -807,22 +807,6 @@ def main_app():
                                     {day}
                                 </div>
                             """, unsafe_allow_html=True)
-                        
-                        # Menampilkan Agenda di bawah Kotak Tanggal
-                        if date_obj in agenda_map:
-                            for agn in agenda_map[date_obj]:
-                                kat = str(agn.get('Kategori', '')).upper()
-                                icon = "📦" if "BARANG" in kat or "ASET" in kat else "🏛️"
-                                
-                                label = f"{icon} {agn['Nama Objek'][:10]}"
-                                with st.expander(label):
-                                    st.markdown(f"""
-                                    <div style="font-size: 12px; line-height: 1.2;">
-                                        <b>{agn['Nama Objek']}</b><br>
-                                        📝 {agn['Kegiatan']}<br>
-                                        👤 {agn['Peminjam']}
-                                    </div>
-                                    """, unsafe_allow_html=True)
 
         st.divider()
 
@@ -1834,6 +1818,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
 
