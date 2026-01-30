@@ -1131,98 +1131,126 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
                     st.success("✅ Surat Siap!")
                     st.download_button("💾 DOWNLOAD SURAT BAST (HTML)", full_html_bast, "BAST_Surat.html", "text/html", type="primary")
 
-    elif menu == "Pemeliharaan":
+    elif st.session_state['menu'] == "Pemeliharaan":
         st.title("🛠️ Pemeliharaan Aset & Ruangan")
         
-        # Membuat Tab seperti di menu Peminjaman
+        # Membuat Tab untuk memisahkan Input dan Riwayat
         tab1, tab2 = st.tabs(["📝 Input Pemeliharaan", "📜 Riwayat Pemeliharaan"])
         
         # --- TAB 1: INPUT DATA ---
         with tab1:
             st.subheader("Tambah Laporan Pemeliharaan")
-            with st.form("form_pemeliharaan", clear_on_submit=True):
-                # Load data aset dari sheet 'Aset'
-                df_aset_raw = load_data("Aset")
-                
-                col1, col2 = st.columns(2)
-                with col1:
-                    if not df_aset_raw.empty:
-                        # Sesuaikan dengan header di sheet Aset: 'Kode_Aset' dan 'Nama_Barang'
-                        df_aset_raw['Display'] = df_aset_raw['Kode_Aset'].astype(str) + " - " + df_aset_raw['Nama_Barang'].astype(str)
-                        pilihan_aset = st.selectbox("Pilih Aset", options=df_aset_raw['Display'].tolist())
-                        
-                        kode_aset = pilihan_aset.split(" - ")[0]
-                        nama_barang = pilihan_aset.split(" - ")[1]
-                    else:
-                        kode_aset = st.text_input("Kode_Aset")
-                        nama_barang = st.text_input("Nama_Barang")
-                    
-                    tanggal = st.date_input("Tanggal Pemeliharaan", value=datetime.now())
-                    pelaksana = st.text_input("Pelaksana (Teknisi/Vendor)")
-                    jenis_kerja = st.selectbox("Jenis Pekerjaan", ["Pengecekan Rutin", "Perbaikan Ringan", "Perbaikan Berat", "Ganti Part"])
-                
-                with col2:
-                    biaya = st.number_input("Biaya Perbaikan (Rp)", min_value=0, step=5000)
-                    status_setelah = st.selectbox("Kondisi Aset Sesudah Perbaikan", ["Baik", "Rusak Ringan", "Rusak Berat"])
-                    link_foto = st.text_input("Link Foto (Drive/Cloud)")
-                    user_log = st.session_state.get('user', 'Admin') 
+            if df_aset_all.empty:
+                st.warning("Data Aset kosong. Belum ada aset yang bisa dipilih.")
+            else:
+                # Persiapan pilihan aset (Label_Pilihan)
+                df_aset_all['Kode_Aset'] = df_aset_all['Kode_Aset'].fillna("-")
+                df_aset_all['Nama_Barang'] = df_aset_all['Nama_Barang'].fillna("Tanpa Nama")
+                df_aset_all['Label_Pilihan'] = df_aset_all['Nama_Barang'] + " | " + df_aset_all['Kode_Aset'].astype(str)
+                pilihan_aset = ["-- PILIH ASET --"] + sorted(df_aset_all['Label_Pilihan'].unique().tolist())
 
-                keterangan = st.text_area("Keterangan Detail Perbaikan")
-                submit_maint = st.form_submit_button("Simpan Laporan & Update Kondisi Aset")
-                
-                if submit_maint:
-                    now_ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                with st.form("form_pemeliharaan", clear_on_submit=True):
+                    c_form1, c_form2 = st.columns(2)
+                    with c_form1:
+                        selected_asset_label = st.selectbox("Pilih Aset*", pilihan_aset)
+                        tgl_mtc = st.date_input("Tanggal Pemeliharaan*", value=datetime.now())
+                        pelaksana = st.text_input("Pihak Pelaksana*", placeholder="Contoh: Teknisi Sekolah / Vendor")
+                        jenis_kerja = st.selectbox("Jenis Pekerjaan", ["Pengecekan Rutin", "Perbaikan Ringan", "Perbaikan Berat", "Ganti Part"])
                     
-                    # DATA UNTUK SHEET PEMELIHARAAN (11 Kolom: A-K)
-                    data_maint = [
-                        now_ts,                      # A: Timestamp
-                        tanggal.strftime("%Y-%m-%d"), # B: Tanggal Pemeliharaan
-                        kode_aset,                   # C: Kode_Aset
-                        nama_barang,                 # D: Nama_Barang
-                        pelaksana,                   # E: Pelaksana
-                        keterangan,                  # F: Keterangan
-                        link_foto,                   # G: Link_Foto
-                        user_log,                    # H: User Input
-                        jenis_kerja,                 # I: Jenis
-                        biaya,                       # J: Biaya
-                        status_setelah               # K: Status
-                    ]
+                    with c_form2:
+                        biaya = st.number_input("Biaya Perbaikan (Rp)", min_value=0, step=5000)
+                        status_setelah = st.selectbox("Kondisi Aset Sesudah Perbaikan", ["Baik", "Rusak Ringan", "Rusak Berat"])
+                        foto_mtc = st.file_uploader("Upload Foto Bukti", type=['png', 'jpg', 'jpeg'])
+                        user_log = st.session_state.get('username', 'Admin')
+
+                    keterangan = st.text_area("Keterangan Detail Perbaikan")
+                    submit_mtc = st.form_submit_button("💾 Simpan Data & Update Status", type="primary")
                     
-                    # Tambah ke sheet Pemeliharaan
-                    add_data("Pemeliharaan", data_maint)
-                    
-                    # LOGIKA UPDATE OTOMATIS KE SHEET ASET (Kolom M / 13)
-                    try:
-                        # Menggunakan 'client' yang sudah didefinisikan di fungsi login_gspread()
-                        sh_aset = client.open_by_url(SHEET_URL).worksheet("Aset")
-                        cell = sh_aset.find(kode_aset)
-                        
-                        # Kolom 'Status' di Sheet Aset adalah kolom ke-13 (M)
-                        kolom_status_aset = 13 
-                        
-                        map_kondisi = {"Baik": "Baik", "Rusak Ringan": "Rusak Ringan", "Rusak Berat": "Rusak"}
-                        val_update = map_kondisi.get(status_setelah, "Baik")
-                            
-                        sh_aset.update_cell(cell.row, kolom_status_aset, val_update)
-                        st.success(f"✅ Laporan Tersimpan! Status {nama_barang} di database diubah menjadi '{val_update}'")
-                    except Exception as e:
-                        st.warning(f"⚠️ Data tersimpan di riwayat, tapi gagal update status di Sheet Aset: {e}")
-                    
-                    st.rerun()
+                    if submit_mtc:
+                        if selected_asset_label == "-- PILIH ASET --" or not pelaksana:
+                            st.error("⚠️ Mohon lengkapi Aset dan Pelaksana!")
+                        else:
+                            with st.spinner("Menyimpan Laporan..."):
+                                # Pecah label untuk dapat Kode dan Nama
+                                parts = selected_asset_label.split(" | ")
+                                nama_barang_selected = parts[0]
+                                kode_aset_selected = parts[1] if len(parts) > 1 else "-"
+                                
+                                # Upload Foto ke Drive
+                                link_foto = ""
+                                if foto_mtc:
+                                    target_folder = st.secrets.get("RENOVASI_FOLDER_ID", st.secrets.get("PARENT_FOLDER_ID"))
+                                    timestamp_foto = datetime.now().strftime("%Y%m%d_%H%M%S")
+                                    link_foto = upload_to_drive_real(foto_mtc, f"MTC_{timestamp_foto}_{foto_mtc.name}", target_folder)
+                                
+                                # DATA UNTUK SHEET PEMELIHARAAN (Sesuai urutan kolom A-K)
+                                new_row = [
+                                    datetime.now().strftime("%Y-%m-%d %H:%M:%S"), # A: Timestamp
+                                    tgl_mtc.strftime("%Y-%m-%d"),                 # B: Tanggal
+                                    kode_aset_selected,                           # C: Kode_Aset
+                                    nama_barang_selected,                         # D: Nama_Barang
+                                    pelaksana,                                    # E: Pelaksana
+                                    keterangan,                                   # F: Keterangan
+                                    link_foto,                                    # G: Link_Foto
+                                    user_log,                                     # H: User Input
+                                    jenis_kerja,                                  # I: Jenis
+                                    biaya,                                        # J: Biaya
+                                    status_setelah                                # K: Status
+                                ]
+                                
+                                # 1. Simpan ke Riwayat
+                                save_to_sheet("Pemeliharaan", [new_row])
+                                
+                                # 2. LOGIKA UPDATE OTOMATIS KE SHEET ASET (Kolom M / 13)
+                                try:
+                                    # Menggunakan 'client' dari gspread (sesuaikan dengan variabel login Anda)
+                                    sh_aset = client.open_by_url(SHEET_URL).worksheet("Aset")
+                                    cell = sh_aset.find(kode_aset_selected)
+                                    
+                                    map_kondisi = {"Baik": "Baik", "Rusak Ringan": "Rusak Ringan", "Rusak Berat": "Rusak"}
+                                    val_update = map_kondisi.get(status_setelah, "Baik")
+                                    
+                                    sh_aset.update_cell(cell.row, 13, val_update) # Kolom 13 adalah 'Status'
+                                    st.success(f"✅ Data Tersimpan! Kondisi {nama_barang_selected} diupdate menjadi '{val_update}'")
+                                except:
+                                    st.warning("✅ Laporan tersimpan, tapi gagal update status otomatis di Sheet Aset.")
+                                
+                                time.sleep(1)
+                                st.rerun()
 
         # --- TAB 2: RIWAYAT DATA ---
         with tab2:
-            st.subheader("Data Riwayat Pemeliharaan")
-            df_maint = load_data("Pemeliharaan")
-            if not df_maint.empty:
-                # Fitur Pencarian
-                cari_maint = st.text_input("🔍 Cari Riwayat (Nama/Kode/Pelaksana)")
-                if cari_maint:
-                    df_maint = df_maint[df_maint.apply(lambda row: cari_maint.lower() in row.astype(str).str.lower().values, axis=1)]
+            st.subheader("📋 Riwayat Data Pemeliharaan")
+            df_mtc = load_data("Pemeliharaan")
+            
+            if not df_mtc.empty:
+                # Logika Frekuensi Kerusakan (diambil dari kode Anda)
+                df_mtc['Kode_Aset'] = df_mtc['Kode_Aset'].astype(str)
+                df_mtc['Freq Rusak'] = df_mtc.groupby('Kode_Aset')['Kode_Aset'].transform('count')
                 
-                st.dataframe(df_maint, use_container_width=True, hide_index=True)
+                # Urutkan terbaru
+                df_mtc = df_mtc.iloc[::-1].reset_index(drop=True)
+                
+                # Kolom yang ditampilkan (disesuaikan dengan penambahan Jenis, Biaya, Status)
+                column_order = [
+                    "Freq Rusak", "Nama_Barang", "Kode_Aset", 
+                    "Tanggal Pemeliharaan", "Pelaksana", "Jenis", "Biaya", "Status", "Keterangan", "Link_Foto"
+                ]
+                
+                st.dataframe(
+                    df_mtc,
+                    column_order=column_order,
+                    column_config={
+                        "Freq Rusak": st.column_config.NumberColumn("Freq", format="%d x"),
+                        "Link_Foto": st.column_config.LinkColumn("Bukti", display_text="📸 Buka"),
+                        "Biaya": st.column_config.NumberColumn("Biaya (Rp)", format="Rp %d"),
+                        "Tanggal Pemeliharaan": st.column_config.DateColumn("Tanggal"),
+                    },
+                    use_container_width=True,
+                    hide_index=True
+                )
             else:
-                st.info("Belum ada riwayat pemeliharaan.")
+                st.info("Belum ada data pemeliharaan yang tercatat.")
     
     elif st.session_state['menu'] == "Inventaris Ruangan":
         st.title("🏫 Input Inventaris Ruangan")
@@ -1813,6 +1841,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
 
