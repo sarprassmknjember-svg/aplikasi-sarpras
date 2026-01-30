@@ -640,24 +640,7 @@ def main_app():
             st.rerun()
 
     # --- TAMPILKAN KONTEN BERDASARKAN SESSION STATE ---
-    st.markdown("""
-    <style>
-    /* Mengatur agar di layar kecil (HP), padding dan font mengecil sedikit */
-    @media (max-width: 640px) {
-        .kotak-kalender {
-            min-height: 45px !important;
-            padding: 2px !important;
-        }
-        .lingkaran-angka {
-            width: 22px !important;
-            height: 22px !important;
-            line-height: 22px !important;
-            font-size: 12px !important;
-        }
-    }
-    </style>
-""", unsafe_allow_html=True)
-    
+
     if st.session_state['menu'] == "Dashboard":
         st.title("📊 Dashboard Utama")
         
@@ -785,18 +768,17 @@ def main_app():
                     with cols[i]:
                         # Kotak Tanggal dengan Desain Baru
                         st.markdown(f"""
-                            <div class="kotak-kalender" style="
+                            <div style="
                                 border: {border_style}; 
                                 border-radius: 10px; 
                                 padding: 5px; 
                                 background-color: {bg_color}; 
                                 min-height: 55px;
-                                margin: 5px 2px 10px 2px;
+                                margin: 5px 2px 8px 2px;
                                 box-shadow: 2px 4px 8px rgba(0,0,0,0.1);
                                 text-align: center;
-                                display: block;
                             ">
-                                <div class="lingkaran-angka" style="
+                                <div style="
                                     background: rgba(255,255,255,0.8); 
                                     width: 28px; 
                                     height: 28px; 
@@ -1806,40 +1788,3 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
