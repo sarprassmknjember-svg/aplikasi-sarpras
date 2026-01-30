@@ -747,16 +747,7 @@ def main_app():
             </style>
         """, unsafe_allow_html=True)
 
-        # Daftar warna yang lebih tegas (Vibrant Colors)
-        event_colors = [
-            "#FF7043", # Deep Orange
-            "#42A5F5", # Blue
-            "#66BB6A", # Green
-            "#AB47BC", # Purple
-            "#FFA726", # Orange
-            "#26A69A", # Teal
-            "#EC407A"  # Pink
-        ]
+        event_colors = ["#FF7043", "#42A5F5", "#66BB6A", "#AB47BC", "#FFA726", "#26A69A", "#EC407A"]
 
         for week in weeks:
             cols = st.columns(7)
@@ -1847,6 +1838,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
 
