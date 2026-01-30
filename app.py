@@ -1139,21 +1139,21 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
         with tab1:
             st.subheader("Tambah Laporan Pemeliharaan")
             with st.form("form_pemeliharaan", clear_on_submit=True):
-                # Load data aset untuk mendapatkan Kode & Nama
+                # Memastikan data aset terload
                 df_aset_raw = load_data("Aset")
                 
                 col1, col2 = st.columns(2)
                 with col1:
                     if not df_aset_raw.empty:
-                        # Menggunakan kolom 'Kode_Aset' dan 'Nama_Barang' sesuai data Anda
+                        # Sesuaikan dengan nama kolom di sheet Aset Anda
                         df_aset_raw['Display'] = df_aset_raw['Kode_Aset'].astype(str) + " - " + df_aset_raw['Nama_Barang'].astype(str)
                         pilihan_aset = st.selectbox("Pilih Aset", options=df_aset_raw['Display'].tolist())
                         
                         kode_aset = pilihan_aset.split(" - ")[0]
                         nama_barang = pilihan_aset.split(" - ")[1]
                     else:
-                        kode_aset = st.text_input("Kode Aset")
-                        nama_barang = st.text_input("Nama Barang")
+                        kode_aset = st.text_input("Kode_Aset")
+                        nama_barang = st.text_input("Nama_Barang")
                     
                     tanggal = st.date_input("Tanggal Pemeliharaan", value=datetime.now())
                     pelaksana = st.text_input("Pelaksana (Teknisi/Vendor)")
@@ -1166,46 +1166,38 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
                     user_log = st.session_state.get('user', 'Admin') 
 
                 keterangan = st.text_area("Keterangan Detail Perbaikan")
-                
                 submit_maint = st.form_submit_button("Simpan Laporan & Update Kondisi Aset")
                 
                 if submit_maint:
                     now_ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    
-                    # DATA UNTUK SHEET PEMELIHARAN (11 Kolom: A-K)
                     data_maint = [
-                        now_ts,                     # A: Timestamp
-                        tanggal.strftime("%Y-%m-%d"),# B: Tanggal Pemeliharaan
-                        kode_aset,                  # C: Kode Aset
-                        nama_barang,                # D: Nama Barang
-                        pelaksana,                  # E: Pelaksana
-                        keterangan,                 # F: Keterangan
-                        link_foto,                  # G: Link Foto
-                        user_log,                   # H: User Input
-                        jenis_kerja,                # I: Jenis
-                        biaya,                      # J: Biaya
-                        status_setelah              # K: Status
+                        now_ts, tanggal.strftime("%Y-%m-%d"), kode_aset, nama_barang, 
+                        pelaksana, keterangan, link_foto, user_log, 
+                        jenis_kerja, biaya, status_setelah
                     ]
                     
+                    # Tambah data ke sheet Pemeliharaan
                     add_data("Pemeliharaan", data_maint)
                     
-                    # LOGIKA UPDATE OTOMATIS KE SHEET ASET (Kolom M / 13)
+                    # Logika Update Otomatis (Menggunakan try-except agar tidak crash jika gspread gagal)
                     try:
-                        sh_aset = client.open_by_url(SHEET_URL).worksheet("Aset")
-                        # Cari berdasarkan Kode_Aset di Sheet Aset
+                        # Pastikan 'gc' atau 'client' sudah didefinisikan di awal script (login_gspread)
+                        # Di file Anda, variabel client biasanya bernama 'gc' atau didefinisikan saat login
+                        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+                        creds = ServiceAccountCredentials.from_json_keyfile_name(AUTH_FILE, scope)
+                        client_g = gspread.authorize(creds) 
+                        
+                        sh_aset = client_g.open_by_url(SHEET_URL).worksheet("Aset")
                         cell = sh_aset.find(kode_aset)
                         
-                        # Kolom 'Status' di Sheet Aset adalah kolom ke-13 (M)
-                        kolom_status_aset = 13 
-                        
-                        # Mapping status
+                        kolom_status_aset = 13 # Kolom M (Status)
                         map_kondisi = {"Baik": "Baik", "Rusak Ringan": "Rusak Ringan", "Rusak Berat": "Rusak"}
                         val_update = map_kondisi.get(status_setelah, "Baik")
                             
                         sh_aset.update_cell(cell.row, kolom_status_aset, val_update)
-                        st.success(f"✅ Laporan Tersimpan! Status {nama_barang} di database diubah menjadi '{val_update}'")
+                        st.success(f"✅ Berhasil! Status {nama_barang} kini: {val_update}")
                     except Exception as e:
-                        st.warning(f"⚠️ Data tersimpan di riwayat, tapi gagal update status di Sheet Aset. Cek apakah Kode Aset '{kode_aset}' sudah benar?")
+                        st.error(f"Gagal update status di Sheet Aset: {e}")
                     
                     st.rerun()
 
@@ -1213,7 +1205,6 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
             st.subheader("Data Riwayat Pemeliharaan")
             df_maint = load_data("Pemeliharaan")
             if not df_maint.empty:
-                # Tampilkan kolom terbaru
                 st.dataframe(df_maint, use_container_width=True, hide_index=True)
             else:
                 st.info("Belum ada riwayat pemeliharaan.")
@@ -1807,5 +1798,6 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
