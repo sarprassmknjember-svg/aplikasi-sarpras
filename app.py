@@ -732,12 +732,18 @@ def main_app():
 
         st.markdown("""
             <style>
-            .stPopover button {
-                background: none !important;
+            /* Mengatur tampilan tombol popover agar transparan tapi memenuhi grid */
+            div[data-testid="stPopover"] > button {
                 border: none !important;
+                background: none !important;
                 padding: 0 !important;
                 width: 100% !important;
-                color: inherit !important;
+                height: auto !important;
+                box-shadow: none !important;
+            }
+            /* Menghilangkan panah kecil bawaan Streamlit jika ada */
+            div[data-testid="stPopoverArrow"] {
+                display: none !important;
             }
             </style>
         """, unsafe_allow_html=True)
@@ -754,85 +760,62 @@ def main_app():
                     is_today = (date_obj == datetime.now().date())
                     has_agenda = date_obj in agenda_map
                     
-                    # --- LOGIKA PEWARNAAN ---
+                    # Tentukan Warna dan Gaya
                     if has_agenda:
                         color_idx = date_obj.toordinal() % len(event_colors)
                         bg_color = event_colors[color_idx]
                         border_style = "2px solid #333"
+                        badge_label = f"<div style='font-size: 10px; color: white; margin-top: 2px;'>{len(agenda_map[date_obj])} Agenda</div>"
                     else:
                         bg_color = "#FFFFFF"
                         border_style = "1px solid #DDDDDD"
+                        badge_label = ""
 
                     if is_today:
                         border_style = "3px solid #1A237E"
                     
+                    # Buat Konten Visual Kotak
+                    box_html = f"""
+                        <div style="
+                            border: {border_style}; 
+                            border-radius: 10px; 
+                            padding: 8px; 
+                            background-color: {bg_color}; 
+                            min-height: 65px;
+                            box-shadow: 2px 4px 8px rgba(0,0,0,0.1);
+                            text-align: center;
+                            display: block;
+                            width: 100%;
+                        ">
+                            <div style="
+                                background: rgba(255,255,255,0.9); 
+                                width: 28px; height: 28px; line-height: 28px; 
+                                border-radius: 50%; margin: 0 auto;
+                                color: #333; font-weight: bold; font-size: 15px;
+                                box-shadow: 1px 1px 3px rgba(0,0,0,0.2);
+                            ">
+                                {day}
+                            </div>
+                            {badge_label}
+                        </div>
+                    """
+
                     with cols[i]:
-                        # 1. Jika ada agenda, bungkus kotak dengan Popover
                         if has_agenda:
-                            with st.popover(f"calendar_day_{day}", use_container_width=True):
-                                # ISI DETAIL SAAT DIKLIK
-                                st.subheader(f"🗓️ Detail Agenda - {day} {nama_bulan[st.session_state['cal_month']-1]}")
+                            # Masukkan HTML desain kita ke dalam label Popover
+                            with st.popover(box_html, use_container_width=True):
+                                st.subheader(f"🗓️ Agenda: {day} {nama_bulan[st.session_state['cal_month']-1]}")
                                 st.divider()
                                 for agn in agenda_map[date_obj]:
                                     kat = str(agn.get('Kategori', '')).upper()
                                     icon = "📦" if "BARANG" in kat or "ASET" in kat else "🏛️"
                                     with st.container(border=True):
                                         st.markdown(f"**{icon} {agn['Nama Objek']}**")
-                                        st.write(f"📝 Kegiatan: {agn['Kegiatan']}")
-                                        st.write(f"👤 Peminjam: {agn['Peminjam']}")
-                            
-                            # TAMPILAN KOTAK BERWARNA (TETAP MUNCUL DI KALENDER)
-                            # Kita taruh di bawah st.popover tapi diatur posisinya dengan CSS atau 
-                            # Streamlit akan otomatis menjadikan konten di bawah ini sebagai pemicu klik
-                            st.markdown(f"""
-                                <div style="
-                                    border: {border_style}; 
-                                    border-radius: 10px; 
-                                    padding: 8px; 
-                                    background-color: {bg_color}; 
-                                    min-height: 60px;
-                                    margin-top: -45px; /* Menarik kotak ke atas menutupi tombol asli */
-                                    box-shadow: 2px 4px 8px rgba(0,0,0,0.1);
-                                    text-align: center;
-                                    cursor: pointer;
-                                ">
-                                    <div style="
-                                        background: rgba(255,255,255,0.9); 
-                                        width: 30px; height: 30px; line-height: 30px; 
-                                        border-radius: 50%; margin: 0 auto;
-                                        color: #333; font-weight: bold; font-size: 16px;
-                                        box-shadow: 1px 1px 3px rgba(0,0,0,0.2);
-                                    ">
-                                        {day}
-                                    </div>
-                                    <div style="font-size: 10px; color: white; margin-top: 2px; font-weight: bold;">
-                                        {len(agenda_map[date_obj])} Agenda
-                                    </div>
-                                </div>
-                            """, unsafe_allow_html=True)
-
+                                        st.markdown(f"**Kegiatan:** {agn['Kegiatan']}")
+                                        st.markdown(f"**Peminjam:** {agn['Peminjam']}")
                         else:
-                            # 2. Tampilan Kotak Putih Biasa (Tanpa Klik)
-                            st.markdown(f"""
-                                <div style="
-                                    border: {border_style}; 
-                                    border-radius: 10px; 
-                                    padding: 8px; 
-                                    background-color: {bg_color}; 
-                                    min-height: 60px;
-                                    text-align: center;
-                                    box-shadow: 1px 2px 4px rgba(0,0,0,0.05);
-                                ">
-                                    <div style="
-                                        background: none; 
-                                        width: 30px; height: 30px; line-height: 30px; 
-                                        margin: 0 auto;
-                                        color: #333; font-weight: bold; font-size: 16px;
-                                    ">
-                                        {day}
-                                    </div>
-                                </div>
-                            """, unsafe_allow_html=True)
+                            # Tampilan Biasa tanpa klik
+                            st.markdown(box_html, unsafe_allow_html=True)
 
         st.divider()
 
@@ -1844,6 +1827,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
 
