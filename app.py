@@ -14,7 +14,7 @@ import os
 import streamlit.components.v1 as components 
 from googleapiclient.discovery import build 
 from googleapiclient.http import MediaIoBaseUpload
-import calendar # Impor di awal atau di sini
+import calendar
 
 # ===========================
 # 1. KONFIGURASI
@@ -730,6 +730,23 @@ def main_app():
         for i, h in enumerate(hari_head):
             cols_h[i].markdown(f"<div style='text-align: center; font-weight: bold; background: #444; color: white; border-radius: 5px; padding: 2px;'>{h}</div>", unsafe_allow_html=True)
 
+        st.markdown("""
+            <style>
+            .stPopover button {
+                width: 100%;
+                height: 80px;
+                border-radius: 10px;
+                border: 1px solid #ddd;
+                padding: 5px;
+                transition: all 0.3s;
+            }
+            .stPopover button:hover {
+                transform: scale(1.02);
+                border-color: #1A237E;
+            }
+            </style>
+        """, unsafe_allow_html=True)
+
         # Daftar warna yang lebih tegas (Vibrant Colors)
         event_colors = [
             "#FF7043", # Deep Orange
@@ -750,51 +767,59 @@ def main_app():
                     date_obj = datetime(st.session_state['cal_year'], st.session_state['cal_month'], day).date()
                     is_today = (date_obj == datetime.now().date())
                     
-                    # --- LOGIKA PEWARNAAN ---
-                    if date_obj in agenda_map:
-                        # Warna box diambil dari list berdasarkan urutan hari
-                        color_idx = date_obj.toordinal() % len(event_colors)
-                        bg_color = event_colors[color_idx]
-                        text_color = "white" # Teks putih jika background berwarna tegas
-                        border_style = "2px solid #333"
-                    else:
-                        bg_color = "#FFFFFF"
-                        text_color = "#333"
-                        border_style = "1px solid #DDDDDD"
-
-                    # Khusus Hari Ini (Border Biru Tebal)
-                    if is_today:
-                        border_style = "3px solid #1A237E"
+                    # Cek Agenda
+                    has_agenda = date_obj in agenda_map
                     
                     with cols[i]:
-                        # Kotak Tanggal dengan Desain Baru
-                        st.markdown(f"""
-                            <div style="
-                                border: {border_style}; 
-                                border-radius: 10px; 
-                                padding: 5px; 
-                                background-color: {bg_color}; 
-                                min-height: 55px;
-                                margin-bottom: 8px;
-                                box-shadow: 2px 4px 8px rgba(0,0,0,0.1);
-                                text-align: center;
-                            ">
-                                <div style="
-                                    background: rgba(255,255,255,0.8); 
-                                    width: 28px; 
-                                    height: 28px; 
-                                    line-height: 28px; 
-                                    border-radius: 50%; 
-                                    margin: 0 auto 5px auto;
-                                    color: #333;
+                        # Tentukan warna dan label box
+                        if has_agenda:
+                            color_idx = date_obj.toordinal() % len(event_colors)
+                            bg_color = event_colors[color_idx]
+                            # Kita gunakan Popover untuk tanggal yang ada agenda
+                            with st.popover(f"📅 {day}", use_container_width=True):
+                                st.markdown(f"### 🗓️ Agenda {day} {nama_bulan[st.session_state['cal_month']-1]}")
+                                st.divider()
+                                for agn in agenda_map[date_obj]:
+                                    kat = str(agn.get('Kategori', '')).upper()
+                                    icon = "📦" if "BARANG" in kat or "ASET" in kat else "🏛️"
+                                    
+                                    with st.container(border=True):
+                                        st.markdown(f"**{icon} {agn['Nama Objek']}**")
+                                        st.write(f"📝 Kegiatan: {agn['Kegiatan']}")
+                                        st.write(f"👤 Peminjam: {agn['Peminjam']}")
+                                        st.caption(f"📂 Kategori: {kat}")
+                            
+                            # CSS Hack untuk mewarnai tombol popover spesifik tanggal ini
+                            # (Menggunakan kunci unik berdasarkan tanggal)
+                            st.markdown(f"""
+                                <style>
+                                div[data-testid="stPopover"]:has(button:contains("📅 {day}")) button {{
+                                    background-color: {bg_color} !important;
+                                    color: white !important;
                                     font-weight: bold;
-                                    font-size: 15px;
-                                    box-shadow: 1px 1px 3px rgba(0,0,0,0.2);
+                                    border: {"3px solid #1A237E" if is_today else "none"};
+                                }}
+                                </style>
+                            """, unsafe_allow_html=True)
+                        
+                        else:
+                            # Jika tidak ada agenda, tampilkan box biasa (non-klik atau tombol kosong)
+                            st.markdown(f"""
+                                <div style="
+                                    border: {"3px solid #1A237E" if is_today else "1px solid #ddd"}; 
+                                    border-radius: 10px; 
+                                    height: 80px; 
+                                    display: flex; 
+                                    align-items: center; 
+                                    justify-content: center;
+                                    background-color: {"#E3F2FD" if is_today else "white"};
+                                    color: #333;
+                                    font-size: 18px;
+                                    font-weight: bold;
                                 ">
                                     {day}
                                 </div>
-                            </div>
-                        """, unsafe_allow_html=True)
+                            """, unsafe_allow_html=True)
                         
                         # Menampilkan Agenda di bawah Kotak Tanggal
                         if date_obj in agenda_map:
@@ -1822,6 +1847,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
 
