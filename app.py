@@ -1443,137 +1443,134 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
                 st.success("Tampilan cetak KIK berhasil dimuat. Silakan cetak melalui dialog browser.")
 
     elif st.session_state['menu'] == "Gudang (Stok)":
-        st.title("🏭 Gudang");
+        st.title("🏭 Gudang (Stok Barang)")
 
-        # --- 1. MUAT DATA LENGKAP STOK (DF) ---
+        # --- MUAT DATA ---
         df_stok_all = load_data("Stok")
-    
-        # Ambil daftar barang yang sudah ada untuk dropdown
-        stok_barang_list = df_stok_all['Nama_Barang'].unique().tolist() if not df_stok_all.empty else []
-        unique_stok_items = ["-- PILIH NAMA BARANG --"] + sorted(stok_barang_list)
-        st.session_state['list_stok_barang'] = unique_stok_items
+        
+        # Buat Tab
+        tab_input, tab_saldo, tab_riwayat = st.tabs([
+            "➕ Input Transaksi", 
+            "📊 Saldo Stok Saat Ini", 
+            "📜 Riwayat Transaksi"
+        ])
 
-        # --- 2. WIDGET NAMA BARANG (LUAR FORM) ---
-        col_item_select_out, col_empty_out = st.columns(2)
-    
-        selected_item = col_item_select_out.selectbox(
-            "Pilih Nama Barang*",
-        options=st.session_state.get('list_stok_barang', ["-- PILIH NAMA BARANG --"]),
-            key="stok_item_select" 
-        )
-        final_nama_barang = selected_item
-    
-        # --- 3. LOGIKA PENENTUAN DEFAULT SATUAN & ITEM BARU/LAMA ---
-        default_satuan = "" 
-        is_new_item_mode = False
-        
-        # A. Mode Barang Baru (Typed-in)
-        if selected_item == "-- PILIH NAMA BARANG --":
-            st.warning("Jika barang baru, silakan ketik nama barang di bawah.")
-            new_item = st.text_input("Nama Barang Baru*", key="stok_new_item")
-        
-            if new_item:
-                final_nama_barang = new_item
-                is_new_item_mode = True 
+        # ==========================================
+        # TAB 1: INPUT TRANSAKSI
+        # ==========================================
+        with tab_input:
+            if st.session_state['role'] == 'view':
+                st.warning("Anda tidak memiliki akses untuk menambah data.")
             else:
-                final_nama_barang = selected_item 
-    
-        # B. Mode Barang Lama (Selected) - Cari Satuan Otomatis
-        if not is_new_item_mode and final_nama_barang != "-- PILIH NAMA BARANG --" and not df_stok_all.empty:
-            try:
-                current_selected_item = final_nama_barang.strip()
-                filtered_df = df_stok_all[df_stok_all['Nama_Barang'].astype(str).str.strip() == current_selected_item]
+                st.subheader("Catat Barang Masuk / Keluar")
+                
+                # Persiapan Dropdown
+                stok_barang_list = df_stok_all['Nama_Barang'].unique().tolist() if not df_stok_all.empty else []
+                unique_stok_items = ["-- PILIH NAMA BARANG --"] + sorted(stok_barang_list)
+                
+                selected_item = st.selectbox(
+                    "Pilih Nama Barang*",
+                    options=unique_stok_items,
+                    key="stok_item_select" 
+                )
 
-                if not filtered_df.empty:
-                    satuan_found = filtered_df['Satuan'].iloc[0]
-                    if pd.notna(satuan_found) and str(satuan_found).strip() != "":
-                        default_satuan = str(satuan_found).strip()
-            
-            except Exception:
-                pass
+                final_nama_barang = selected_item
+                default_satuan = ""
+                is_new_item_mode = False
 
-        # C. Tentukan apakah Satuan sudah ditemukan untuk item yang dipilih (item lama)
-        satuan_sudah_ada = bool(default_satuan) and not is_new_item_mode
-    
-        # -----------------------------------------------------------
-        # TRANSAKSI BARANG MASUK/KELUAR
-        # ----------------------------------------------------------- 
-        if st.session_state['role'] != 'view':
-            with st.expander("➕ Input Transaksi Baru", expanded=True):
-                with st.form("stok"):
-                    col_date, col_empty_in = st.columns(2)
-                    d = col_date.date_input("Tanggal Transaksi", key="stok_date")
-                
-                    col_action, col_qty = st.columns(2)
-                    j = col_action.radio("Aksi", ["Masuk", "Keluar"], horizontal=True, key="stok_action")
-                    q = col_qty.number_input("Jumlah (Jml)*", min_value=1, key="stok_qty")
-                
-                    # --- PERUBAHAN KRITIS: CONDITIONAL RENDERING SATUAN ---
-                    col_unit, col_notes = st.columns(2)
-                    s = None 
-                
-                    if satuan_sudah_ada:
-                        col_unit.markdown(f"**Satuan (Auto):** {default_satuan}")
+                # Logika Barang Baru
+                if selected_item == "-- PILIH NAMA BARANG --":
+                    st.info("💡 Jika barang tidak ada di daftar, silakan ketik di bawah ini.")
+                    new_item = st.text_input("Nama Barang Baru*", key="stok_new_item")
+                    if new_item:
+                        final_nama_barang = new_item
+                        is_new_item_mode = True
+
+                # Cari Satuan Otomatis jika barang lama dipilih
+                if not is_new_item_mode and final_nama_barang != "-- PILIH NAMA BARANG --" and not df_stok_all.empty:
+                    filtered_df = df_stok_all[df_stok_all['Nama_Barang'].astype(str).str.strip() == final_nama_barang.strip()]
+                    if not filtered_df.empty:
+                        default_satuan = str(filtered_df['Satuan'].iloc[0]).strip()
+
+                with st.form("form_stok_baru"):
+                    col_d, col_a = st.columns(2)
+                    d = col_d.date_input("Tanggal Transaksi", value=datetime.now())
+                    j = col_a.radio("Aksi (Jenis Transaksi)", ["Masuk", "Keluar"], horizontal=True)
+                    
+                    col_q, col_s = st.columns(2)
+                    q = col_q.number_input("Jumlah (Qty)*", min_value=1)
+                    
+                    # Satuan (Auto/Manual)
+                    if default_satuan and not is_new_item_mode:
+                        st.markdown(f"**Satuan (Otomatis):** {default_satuan}")
                         s = default_satuan
                     else:
-                        s = col_unit.text_input(
-                            "Satuan*", 
-                            value=default_satuan, 
-                            key="stok_unit_manual"
-                        )
-                    # --------------------------------------------------------
-                
-                    k = col_notes.text_input("Keterangan Tambahan", key="stok_ket")
-                
-                    if st.form_submit_button("Simpan Transaksi", type="primary"):
-                        valid_nama = final_nama_barang not in ["-- PILIH NAMA BARANG --", None, ""]
+                        s = col_s.text_input("Satuan*", value=default_satuan, placeholder="Pcs/Rim/Box")
                     
-                        if not valid_nama or not s: 
-                            st.error("⚠️ Nama Barang dan Satuan wajib diisi.")
+                    k = st.text_input("Keterangan Tambahan")
+                    
+                    if st.form_submit_button("Simpan Transaksi", type="primary"):
+                        if final_nama_barang in ["-- PILIH NAMA BARANG --", ""] or not s:
+                            st.error("⚠️ Nama Barang dan Satuan wajib diisi!")
                         else:
-                            with st.spinner("Menyimpan transaksi..."):
-                                row_data = [
-                                    str(d), final_nama_barang, j, q, s, k
-                                ]
+                            with st.spinner("Menyimpan..."):
+                                row_data = [str(d), final_nama_barang, j, q, s, k]
                                 if save_to_sheet("Stok", [row_data], append_only=True):
-                                    st.success(f"✅ Transaksi {j} {q} {s} {final_nama_barang} berhasil dicatat.")
+                                    st.success(f"✅ Berhasil mencatat {j} {q} {s} {final_nama_barang}")
                                     st.cache_data.clear()
+                                    time.sleep(1)
                                     st.rerun()
-                                else:
-                                    st.error("Gagal menyimpan ke database.")
 
-        # -----------------------------------------------------------
-        # TAMPILAN DATA (STOK & RIWAYAT)
-        # -----------------------------------------------------------
-        if not df_stok_all.empty:
-            # Menghitung Saldo (Balance)
-            bal = df_stok_all.groupby(['Nama_Barang','Satuan']).apply(
-                lambda x: x[x['Jenis_Transaksi']=='Masuk']['Jumlah'].sum() - x[x['Jenis_Transaksi']=='Keluar']['Jumlah'].sum()
-            ).reset_index(name='Sisa')
-        
-            bal = bal[bal['Sisa'] > 0] 
+        # ==========================================
+        # TAB 2: SALDO STOK (INVENTORI)
+        # ==========================================
+        with tab_saldo:
+            st.subheader("📚 Sisa Stok Gudang")
+            if not df_stok_all.empty:
+                # Hitung Saldo
+                bal = df_stok_all.groupby(['Nama_Barang','Satuan']).apply(
+                    lambda x: x[x['Jenis_Transaksi']=='Masuk']['Jumlah'].astype(float).sum() - 
+                              x[x['Jenis_Transaksi']=='Keluar']['Jumlah'].astype(float).sum()
+                ).reset_index(name='Sisa')
+                
+                # Filter hanya yang pernah ada stoknya
+                bal = bal[bal['Sisa'] >= 0] 
 
-            bal['Status'] = bal['Sisa'].apply(lambda x: '🔴 Kritis' if x <= 5 else '🟢 Aman')
+                # Indikator Status
+                bal['Status'] = bal['Sisa'].apply(lambda x: '🔴 Kritis' if x <= 5 else '🟢 Aman')
+                bal['Sort_Key'] = bal['Status'].apply(lambda x: 0 if x == '🔴 Kritis' else 1)
+                
+                # Sorting Kritis di paling atas
+                bal_final = bal.sort_values(by=['Sort_Key', 'Sisa']).drop(columns=['Sort_Key'])
 
-            # 1. Buat kolom untuk sorting prioritas (0=Kritis, 1=Aman)
-            bal['Sort_Key'] = bal['Status'].apply(lambda x: 0 if x == '🔴 Kritis' else 1)
-            
-            # 2. Sorting: berdasarkan Sort_Key (Kritis di atas), lalu berdasarkan Sisa (terkecil di atas)
-            bal_sorted = bal.sort_values(by=['Sort_Key', 'Sisa'], ascending=[True, True])
-            
-            # 3. Hapus kolom Sort_Key sebelum ditampilkan
-            bal_final = bal_sorted.drop(columns=['Sort_Key'])
+                st.dataframe(
+                    bal_final, 
+                    use_container_width=True, 
+                    hide_index=True,
+                    column_config={
+                        "Sisa": st.column_config.NumberColumn("Jumlah Stok", format="%d")
+                    }
+                )
+            else:
+                st.info("Belum ada saldo stok.")
 
-            st.subheader("📚 Saldo Stok Saat Ini")
-            st.dataframe(bal_final, use_container_width=True, hide_index=True) 
+        # ==========================================
+        # TAB 3: RIWAYAT TRANSAKSI
+        # ==========================================
+        with tab_riwayat:
+            st.subheader("⏱️ Log Transaksi Gudang")
+            if not df_stok_all.empty:
+                # Search filter
+                search_q = st.text_input("🔍 Cari transaksi barang...")
+                df_display = df_stok_all.iloc[::-1] # Terbaru di atas
+                
+                if search_q:
+                    df_display = df_display[df_display.apply(lambda row: search_q.lower() in row.astype(str).str.lower().values, axis=1)]
+                
+                st.dataframe(df_display, use_container_width=True, hide_index=True)
+            else:
+                st.info("Riwayat transaksi kosong.")
     
-            st.divider()
-            st.subheader("⏱️ Riwayat Transaksi")
-            st.dataframe(df_stok_all, use_container_width=True, hide_index=True)
-        else:
-            st.info("Belum ada data transaksi stok.")
-
-        # Tambahkan blok ini setelah menu Gudang (Stok)
     elif st.session_state['menu'] == "Data Renovasi":
         st.title("🔨 Data Renovasi")
     
@@ -1841,6 +1838,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
 
