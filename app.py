@@ -1033,7 +1033,8 @@ def main_app():
 
                 elif sub_menu == "📄 BUAT SURAT BAST":
                     st.subheader("Form Berita Acara")
-                    list_pejabat = st.session_state.get('list_pejabat_names', ["-- PILIH PENANGGUNG JAWAB --"])
+                    df_pejabat_all = load_data("Pejabat")
+                    list_pejabat = sorted(df_pejabat_all['Nama'].tolist()) if not df_pejabat_all.empty else ["--"]
 
                     with st.form("bast"):
                         # --- PIHAK KESATU (WAKA SARPRAS) ---
@@ -1070,8 +1071,9 @@ def main_app():
                         img_tag = f'<img src="data:image/png;base64,{logo}" class="kop-img">' if logo else ""
                         rows_html = ""
                         no = 1
-                        for idx, row in df.iloc[rows].iterrows():
-                            rows_html += f"<tr><td>{no}</td><td>{row['Nama_Barang']}</td><td>1</td><td>-</td><td>{row.get('Keterangan','-')}</td><td>{row['Sumber_Dana']}</td></tr>"
+                        for idx in rows: # rows adalah list index yang didapat dari selection
+                            row = df_aset_all.iloc[idx]
+                            rows_html += f"<tr><td>{no}</td><td>{row['Nama_Barang']}</td><td>1</td><td>-</td><td>{row.get('Keterangan','-')}</td><td>{row.get('Sumber_Dana','-')}</td></tr>"
                             no += 1
                         html_bast = f"""
                         <div class='bast-page'>
@@ -1838,6 +1840,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
 
