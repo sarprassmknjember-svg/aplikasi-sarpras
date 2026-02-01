@@ -943,7 +943,7 @@ def main_app():
         # TAB 2: UPDATE STATUS & KONDISI
         # ==========================================
         elif pilihan_tab == "🔄 Update Status & Kondisi":
-            st.subheader("Manajemen Data & Kondisi Aset"")
+            st.subheader("Manajemen Data & Kondisi Aset")
             if df_aset_all.empty:
                 st.info("Data aset kosong.")
             else:
@@ -1842,6 +1842,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
 
