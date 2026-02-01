@@ -792,21 +792,29 @@ def main_app():
                         if date_obj in agenda_map:
                             # Urutkan berdasarkan jam agar rapi
                             events_sorted = sorted(agenda_map[date_obj], key=lambda x: str(x.get('Jam', '00:00')))
-                            
+
                             for agn in events_sorted:
                                 jam = agn.get('Jam', '--:--')
                                 objek = str(agn.get('Nama Objek', 'Objek'))[:12]
                                 icon = "📦" if "BARANG" in str(agn.get('Kategori','')).upper() else "🏛️"
-                                
-                                # Label expander kini menampilkan JAM
-                                with st.expander(f"[{jam}] {objek}"):
+        
+                                # 1. Gunakan label expander dengan icon dan jam
+                                with st.expander(f"{icon} {jam} {objek}"):
+                                    # 2. Tambahkan CSS 'color: white' agar teks terbaca di background gelap
                                     st.markdown(f"""
-                                    <div style="font-size: 11px; line-height: 1.2; color: black;">
-                                        <b>{agn.get('Nama Objek','')}</b><br>
-                                        ⏰ Jam: {jam}<br>
-                                        📝 {agn.get('Kegiatan','')}<br>
-                                        👤 {agn.get('Peminjam','')}
-                                    </div>
+                                        <div style="
+                                            font-size: 12px; 
+                                            line-height: 1.4; 
+                                            color: white !important; 
+                                            background-color: rgba(0,0,0,0.2); 
+                                            padding: 8px; 
+                                            border-radius: 5px;
+                                        ">
+                                            <b style="color: white !important;">📍 {agn.get('Nama Objek','')}</b><br>
+                                            <span style="color: white !important;">⏰ Jam: {jam}</span><br>
+                                            <span style="color: white !important;">📝 {agn.get('Kegiatan','')}</span><br>
+                                            <span style="color: white !important;">👤 {agn.get('Peminjam','')}</span>
+                                        </div>
                                     """, unsafe_allow_html=True)
 
         st.divider()
@@ -1916,6 +1924,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
 
