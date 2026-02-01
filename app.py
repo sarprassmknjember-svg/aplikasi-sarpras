@@ -794,7 +794,7 @@ def main_app():
                             events_sorted = sorted(agenda_map[date_obj], key=lambda x: str(x.get('Jam', '00:00')))
 
                             for agn in events_sorted:
-                                jam = str(agn.get('Jam', '--:--'))
+                                jam = str(agn.get('JAM', '--:--'))
                                 if jam == "nan" or jam == "None":
                                     jam = "--:--"
                                 objek = str(agn.get('Nama Objek', 'Objek'))[:12]
@@ -1927,6 +1927,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
 
