@@ -1422,22 +1422,22 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
                 st.success("Tampilan cetak KIK berhasil dimuat. Silakan cetak melalui dialog browser.")
 
     elif st.session_state['menu'] == "Gudang (Stok)":
-        st.title("🏭 Gudang (Stok Barang)")
+        st.title("📦 Manajemen Gudang (Barang Habis Pakai)")
 
+        sub_gudang = st.radio(
+            "Pilih Sub-Menu:",
+            ["➕ Input Transaksi", "📊 Saldo Stok Saat Ini", "📜 Riwayat Transaksi"],
+            horizontal=True, key="nav_gudang"
+        )
+        st.divider()
+        
         # --- MUAT DATA ---
         df_stok_all = load_data("Stok")
-        
-        # Buat Tab
-        tab_input, tab_saldo, tab_riwayat = st.tabs([
-            "➕ Input Transaksi", 
-            "📊 Saldo Stok Saat Ini", 
-            "📜 Riwayat Transaksi"
-        ])
 
         # ==========================================
         # TAB 1: INPUT TRANSAKSI
         # ==========================================
-        with tab_input:
+        if sub_gudang == "➕ Input Transaksi":
             if st.session_state['role'] == 'view':
                 st.warning("Anda tidak memiliki akses untuk menambah data.")
             else:
@@ -1503,7 +1503,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
         # ==========================================
         # TAB 2: SALDO STOK (INVENTORI)
         # ==========================================
-        with tab_saldo:
+        elif sub_gudang == "📊 Saldo Stok Saat Ini":
             st.subheader("📚 Sisa Stok Gudang")
             if not df_stok_all.empty:
                 # Hitung Saldo
@@ -1536,7 +1536,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
         # ==========================================
         # TAB 3: RIWAYAT TRANSAKSI
         # ==========================================
-        with tab_riwayat:
+        elif sub_gudang == "📜 Riwayat Transaksi":
             st.subheader("⏱️ Log Transaksi Gudang")
             if not df_stok_all.empty:
                 # Search filter
@@ -1842,6 +1842,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
 
