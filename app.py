@@ -553,6 +553,8 @@ def login_page():
 # ===========================
 def main_app():
     local_css()
+    if 'active_tab_aset' not in st.session_state:
+        st.session_state['active_tab_aset'] = 0
     if "chat_history" not in st.session_state: st.session_state["chat_history"] = []
     # Inisialisasi st.session_state['menu'] jika belum ada
     if 'menu' not in st.session_state: st.session_state['menu'] = 'Dashboard' # Default ke Dashboard
@@ -856,29 +858,24 @@ def main_app():
 
     elif st.session_state['menu'] == "Aset Sekolah":
         st.title("📋 Manajemen Aset Sekolah")
+
+        # --- NAVIGASI STABIL (PENGGANTI TABS) ---
+        pilihan_tab = st.radio(
+            "Pilih Sub-Menu:",
+            ["➕ Input Aset Baru", "🔄 Update Status & Kondisi", "🏷️ Cetak Label & BAST"],
+            horizontal=True,
+            key="nav_aset_tetap" # Kunci agar tidak reset saat rerun
+        )
+        st.divider()
         
         # --- 1. MUAT DATA ---
         df_aset_all = load_data("Aset")
-        
-        # Identifikasi kolom secara dinamis untuk menghindari KeyError
         cols = df_aset_all.columns.tolist()
-        # Cek apakah kolom lokasi bernama 'Posisi' atau 'Lokasi'
         col_lokasi = 'Posisi' if 'Posisi' in cols else ('Lokasi' if 'Lokasi' in cols else None)
 
-        # --- 2. SEPARASI TAB ---
-        tab_input, tab_update, tab_cetak = st.tabs([
-            "➕ Input Aset Baru", 
-            "🔄 Update Status & Kondisi", 
-            "🏷️ Cetak Label & BAST"
-        ])
-
-        # ==========================================
-        # TAB 1: INPUT ASET BARU
-        # ==========================================
-        with tab_input:
+        if pilihan_tab == "➕ Input Aset Baru":
             st.subheader("Pendaftaran Aset Inventaris Baru")
             
-            # Opsi di luar form agar reaktif
             c_mode1, c_mode2 = st.columns(2)
             mode_barang = c_mode1.radio("Opsi Nama Barang:", ["Pilih Barang Lama", "Input Nama Baru (+)"], horizontal=True, key="rb_barang")
             mode_merk = c_mode2.radio("Opsi Merk:", ["Pilih Merk Lama", "Input Merk Baru (+)"], horizontal=True, key="rb_merk")
@@ -910,7 +907,6 @@ def main_app():
                     # Penentuan Lokasi
                     lokasi_pilih = st.selectbox("Lokasi Penempatan*", ["-- Pilih --"] + list_lokasi + ["GUDANG UTAMA", "AULA", "R. MEETING"])
                     lokasi_manual = st.text_input("Atau Ketik Lokasi Baru")
-                    
                     tahun = st.number_input("Tahun Perolehan", min_value=2000, max_value=2100, value=datetime.now().year)
                     kondisi = st.selectbox("Kondisi Awal", ["Baik", "Rusak Ringan", "Rusak Berat"])
                     sumber = st.text_input("Sumber Dana", placeholder="BOS, Komite, dll")
@@ -918,7 +914,7 @@ def main_app():
 
                 submit_btn = st.form_submit_button("🚀 Daftarkan Aset Baru", type="primary", use_container_width=True)
 
-                if submit_btn:
+                if st.form_submit_button("🚀 Simpan Aset Baru", type="primary"):
                     # Finalisasi data sebelum simpan
                     final_nama = val_nama if mode_barang != "Pilih Barang Lama" else val_nama
                     final_merk = val_merk if mode_merk != "Pilih Merk Lama" else val_merk
@@ -946,8 +942,8 @@ def main_app():
         # ==========================================
         # TAB 2: UPDATE STATUS & KONDISI
         # ==========================================
-        with tab_update:
-            st.subheader("🔄 Update Data Aset")
+        elif pilihan_tab == "🔄 Update Status & Kondisi":
+            st.subheader("Manajemen Data & Kondisi Aset"")
             if df_aset_all.empty:
                 st.info("Data aset kosong.")
             else:
@@ -985,8 +981,8 @@ def main_app():
         # ==========================================
         # TAB 3: CETAK LABEL & BAST
         # ==========================================
-        with tab_cetak:
-            st.subheader("🏷️ Label QR & Berita Acara")
+        elif pilihan_tab == "🏷️ Cetak Label & BAST":
+            st.subheader("Seleksi Aset untuk Cetak")
             st.info("Pilih satu atau lebih aset di bawah untuk diproses.")
             
             event = st.dataframe(
@@ -1846,6 +1842,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
 
