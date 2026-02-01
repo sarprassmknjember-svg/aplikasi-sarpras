@@ -719,12 +719,28 @@ def main_app():
         df_pinjam = load_data("Peminjaman")
         agenda_map = {}
         if not df_pinjam.empty:
-            df_pinjam['Tanggal Pinjam'] = pd.to_datetime(df_pinjam['Tanggal Pinjam'], errors='coerce')
             for _, row in df_pinjam.iterrows():
-                if pd.notnull(row['Tanggal Pinjam']):
-                    tgl_key = row['Tanggal Pinjam'].date()
-                    if tgl_key not in agenda_map: agenda_map[tgl_key] = []
-                    agenda_map[tgl_key].append(row)
+                tgl_info = str(row['Tanggal Pinjam']) # Kolom yang berisi "YYYY-MM-DD" atau "Tgl s/d Tgl"
+                
+                try:
+                    # CEK APAKAH RENTANG TANGGAL (Mengandung " s/d ")
+                    if " s/d " in tgl_info:
+                        tgl_split = tgl_info.split(" s/d ")
+                        start_dt = pd.to_datetime(tgl_split[0]).date()
+                        end_dt = pd.to_datetime(tgl_split[1]).date()
+                        # Buat list tanggal dari mulai sampai selesai
+                        date_range = pd.date_range(start_dt, end_dt).date
+                    else:
+                        # Jika hanya satu hari
+                        date_range = [pd.to_datetime(tgl_info).date()]
+                    
+                    # Masukkan data ke setiap tanggal yang bersesuaian
+                    for d_key in date_range:
+                        if d_key not in agenda_map: 
+                            agenda_map[d_key] = []
+                        agenda_map[d_key].append(row)
+                except:
+                    continue # Skip jika format tanggal error
 
         # 3. Gambar Kalender
         cal = calendar.Calendar(firstweekday=0)
@@ -755,65 +771,41 @@ def main_app():
                     date_obj = datetime(st.session_state['cal_year'], st.session_state['cal_month'], day).date()
                     is_today = (date_obj == datetime.now().date())
                     
-                    # --- LOGIKA PEWARNAAN ---
-                    if date_obj in agenda_map:
-                        # Warna box diambil dari list berdasarkan urutan hari
-                        color_idx = date_obj.toordinal() % len(event_colors)
-                        bg_color = event_colors[color_idx]
-                        text_color = "white" # Teks putih jika background berwarna tegas
-                        border_style = "2px solid #333"
-                    else:
-                        bg_color = "#FFFFFF"
-                        text_color = "#333"
-                        border_style = "1px solid #DDDDDD"
+                    # Logika Warna (Tetap Sama)
+                    bg_color = event_colors[date_obj.toordinal() % len(event_colors)] if date_obj in agenda_map else "#FFFFFF"
+                    text_color = "white" if date_obj in agenda_map else "#333"
+                    border_style = "3px solid #1A237E" if is_today else ("2px solid #333" if date_obj in agenda_map else "1px solid #DDD")
 
-                    # Khusus Hari Ini (Border Biru Tebal)
-                    if is_today:
-                        border_style = "3px solid #1A237E"
-                    
                     with cols[i]:
-                        # Kotak Tanggal dengan Desain Baru
+                        # Kotak Tanggal
                         st.markdown(f"""
-                            <div style="
-                                border: {border_style}; 
-                                border-radius: 10px; 
-                                padding: 5px; 
-                                background-color: {bg_color}; 
-                                min-height: 55px;
-                                margin: 5px 2px 8px 2px;
-                                box-shadow: 2px 4px 8px rgba(0,0,0,0.1);
-                                text-align: center;
-                            ">
-                                <div style="
-                                    background: rgba(255,255,255,0.8); 
-                                    width: 28px; 
-                                    height: 28px; 
-                                    line-height: 28px; 
-                                    border-radius: 50%; 
-                                    margin: 0 auto 5px auto;
-                                    color: #333;
-                                    font-weight: bold;
-                                    font-size: 15px;
-                                    box-shadow: 1px 1px 3px rgba(0,0,0,0.2);
-                                ">
+                            <div style="border: {border_style}; border-radius: 10px; padding: 5px; background-color: {bg_color}; 
+                                 min-height: 55px; margin: 5px 2px 8px 2px; box-shadow: 2px 4px 8px rgba(0,0,0,0.1); text-align: center;">
+                                <div style="background: rgba(255,255,255,0.8); width: 28px; height: 28px; line-height: 28px; 
+                                     border-radius: 50%; margin: 0 auto 5px auto; color: #333; font-weight: bold; font-size: 15px;">
                                     {day}
                                 </div>
                             </div>
                         """, unsafe_allow_html=True)
                         
-                        # Menampilkan Agenda di bawah Kotak Tanggal
+                        # Menampilkan SEMUA Agenda di hari tersebut (Multiple Events)
                         if date_obj in agenda_map:
-                            for agn in agenda_map[date_obj]:
-                                kat = str(agn.get('Kategori', '')).upper()
-                                icon = "📦" if "BARANG" in kat or "ASET" in kat else "🏛️"
+                            # Urutkan berdasarkan jam agar rapi
+                            events_sorted = sorted(agenda_map[date_obj], key=lambda x: str(x.get('Jam', '00:00')))
+                            
+                            for agn in events_sorted:
+                                jam = agn.get('Jam', '--:--')
+                                objek = str(agn.get('Nama Objek', 'Objek'))[:12]
+                                icon = "📦" if "BARANG" in str(agn.get('Kategori','')).upper() else "🏛️"
                                 
-                                label = f"{icon} {agn['Nama Objek'][:10]}"
-                                with st.expander(label):
+                                # Label expander kini menampilkan JAM
+                                with st.expander(f"[{jam}] {objek}"):
                                     st.markdown(f"""
-                                    <div style="font-size: 12px; line-height: 1.2;">
-                                        <b>{agn['Nama Objek']}</b><br>
-                                        📝 {agn['Kegiatan']}<br>
-                                        👤 {agn['Peminjam']}
+                                    <div style="font-size: 11px; line-height: 1.2; color: black;">
+                                        <b>{agn.get('Nama Objek','')}</b><br>
+                                        ⏰ Jam: {jam}<br>
+                                        📝 {agn.get('Kegiatan','')}<br>
+                                        👤 {agn.get('Peminjam','')}
                                     </div>
                                     """, unsafe_allow_html=True)
 
@@ -1924,6 +1916,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
 
