@@ -861,7 +861,7 @@ def main_app():
 
         # --- NAVIGASI STABIL (PENGGANTI TABS) ---
         pilihan_tab = st.radio(
-            "Pilih Sub-Menu:",
+            "MENU",
             ["➕ Input Aset Baru", "🔄 Update Status & Kondisi", "🏷️ Cetak Label & BAST"],
             horizontal=True,
             key="nav_aset_tetap" # Kunci agar tidak reset saat rerun
@@ -1108,7 +1108,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
         st.title("🛠️ Pemeliharaan Aset & Ruangan")
 
         sub_maint = st.radio(
-            "Navigasi:",
+            "MENU",
             ["🔧 Catat Pemeliharaan", "📜 Riwayat Pemeliharaan"],
             horizontal=True, key="nav_pemeliharaan"
         )
@@ -1241,7 +1241,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
         df_inv = load_data("InventarisKelas") 
         COL_RUANG = "Kelas/Ruangan"
         sub_inv = st.radio(
-            "Menu:",
+            "MENU",
             ["📝 Input Data Baru", "📋 Lihat Data Kelas", "📊 Manajemen & Audit Ruangan"],
             horizontal=True, key="nav_inventaris_ruang"
         )
@@ -1431,7 +1431,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
         st.title("📦 Manajemen Gudang (Barang Habis Pakai)")
 
         sub_gudang = st.radio(
-            "Pilih Sub-Menu:",
+            "MENU",
             ["➕ Input Transaksi", "📊 Saldo Stok Saat Ini", "📜 Riwayat Transaksi"],
             horizontal=True, key="nav_gudang"
         )
@@ -1560,7 +1560,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
         st.title("🔨 Data Renovasi & Perbaikan Bangunan")
 
         sub_renov = st.radio(
-            "Navigasi:",
+            "MENU",
             ["🏗️ Input Dana Renovasi", "🕰️ Riwayat & Galeri Renovasi"],
             horizontal=True, key="nav_renov"
         )
@@ -1677,7 +1677,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
         st.title("📆 Jadwal Peminjaman (Ruang & Aset)")
 
         sub_pinjam = st.radio(
-            "Navigasi:",
+            "MENU",
             ["📝 Input Peminjaman", "📋 Riwayat Peminjaman"],
             horizontal=True, key="nav_pinjam"
         )
@@ -1797,7 +1797,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
     # --- MENU AI YANG BARU (CERDAS) ---
     elif st.session_state['menu'] == "Tanya AI":
         st.title("🤖 Tanya AI - Asisten Sarpras")
-        st.info("Ajukan pertanyaan tentang data sarpras")
+        st.info("Ajukan pertanyaan tentang Data Sarpras SMKN 6 Jember")
 
         # --- 1. PENGAMBILAN DATA (KONTEKS) ---
         with st.spinner("Sinkronisasi data untuk AI..."):
@@ -1855,6 +1855,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
 
