@@ -1777,44 +1777,60 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 
             # 3. MASUK KE DALAM FORM (Hanya input data simpan)
             with st.form("form_peminjaman"):
+                # Baris 1: Objek dan Nama Peminjam
                 c1, c2 = st.columns(2)
-                
                 with c1:
-                    # Dropdown ini sekarang sudah berisi opsi yang benar
                     objek_pilihan = st.selectbox(label_dropdown, opsi_objek)
-                    tgl_pinjam = st.date_input("Tanggal Dipinjam*", value=datetime.now())
-
-                with c2:
                     peminjam = st.text_input("Nama Peminjam*", placeholder="Nama Guru / Siswa / Organisasi")
-                    kegiatan = st.text_area("Keperluan / Kegiatan*", placeholder="Rapat Guru, Shooting Video, KBM, dll.")
+                with c2:
+                    kegiatan = st.text_area("Keperluan / Kegiatan*", placeholder="Rapat, KBM, dll.", height=100)
 
-                submit_pinjam = st.form_submit_button("✅ Catat Peminjaman", type="primary")
+                st.markdown("---")
+                st.markdown("**📅 Waktu Peminjaman**")
+                
+                # Baris 2: Tanggal dan Jam
+                t1, t2, t3 = st.columns(3)
+                with t1:
+                    tgl_mulai = st.date_input("Tanggal Mulai*", value=datetime.now())
+                with t2:
+                    tgl_selesai = st.date_input("Tanggal Selesai*", value=datetime.now())
+                with t3:
+                    jam_pinjam = st.time_input("Jam Peminjaman*", value=datetime.now().time())
+
+                submit_pinjam = st.form_submit_button("✅ Catat Peminjaman", type="primary", use_container_width=True)
 
                 if submit_pinjam:
                     valid_check = True
+                    # Validasi Tanggal
+                    if tgl_selesai < tgl_mulai:
+                        st.error("⚠️ Tanggal Selesai tidak boleh lebih awal dari Tanggal Mulai!")
+                        valid_check = False
+                    
                     if not peminjam or not kegiatan:
                         st.error("⚠️ Nama Peminjam dan Kegiatan wajib diisi!")
-                        valid_check = False
-                    if str(objek_pilihan).startswith("--") or str(objek_pilihan).startswith("⚠️"):
-                        st.error("⚠️ Pilihan tidak valid!")
                         valid_check = False
                         
                     if valid_check:
                         with st.spinner("Menyimpan Jadwal..."):
+                            # Format Tanggal untuk disimpan
+                            tgl_info = f"{tgl_mulai}" if tgl_mulai == tgl_selesai else f"{tgl_mulai} s/d {tgl_selesai}"
+                            
                             new_row = [
-                                datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                                tgl_pinjam.strftime("%Y-%m-%d"),
-                                jenis_pinjam,
-                                objek_pilihan,
-                                peminjam,
-                                kegiatan,
-                                "Dipinjam",
-                                st.session_state['username']
+                                datetime.now().strftime("%Y-%m-%d %H:%M:%S"), # Timestamp
+                                tgl_info,                                    # Info Tanggal
+                                jam_pinjam.strftime("%H:%M"),                # Jam
+                                jenis_pinjam,                                # Ruangan/Barang
+                                objek_pilihan,                               # Nama Objek
+                                peminjam,                                    # Nama Peminjam
+                                kegiatan,                                    # Keperluan
+                                "Dipinjam",                                  # Status
+                                st.session_state['username']                 # Admin
                             ]
-                            save_to_sheet("Peminjaman", [new_row])
-                            st.success(f"✅ Berhasil mencatat peminjaman: {objek_pilihan}")
-                            time.sleep(1)
-                            st.rerun()
+                            
+                            if save_to_sheet("Peminjaman", [new_row]):
+                                st.success(f"✅ Berhasil mencatat peminjaman: {objek_pilihan}")
+                                time.sleep(1)
+                                st.rerun()
 
         # === TAB 2: TABEL RIWAYAT ===
         elif sub_pinjam == "📋 Riwayat Peminjaman":
@@ -1908,6 +1924,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
 
