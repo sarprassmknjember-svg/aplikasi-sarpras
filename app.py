@@ -1238,6 +1238,8 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
     elif st.session_state['menu'] == "Inventaris Ruangan":
         st.title("🏫 Input Inventaris Ruangan")
 
+        df_inv = load_data("InventarisKelas") 
+        COL_RUANG = "Kelas/Ruangan"
         sub_inv = st.radio(
             "Menu:",
             ["📝 Input Data Baru", "📋 Lihat Data Kelas", "📊 Manajemen & Audit Ruangan"],
@@ -1409,16 +1411,13 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
                         st.error("❌ Gagal Menyimpan! Jumlah unit kondisi (Baik+Rusak) melebihi Total Unit untuk item berikut:")
                         st.dataframe(invalid_rows[['Nama_Barang', 'Total_Unit', 'Baik', 'Rusak_Sedang', 'Rusak_Berat']], hide_index=True)
                     else:
-                        # Update kolom timestamp
-                        editable_df_room['Terakhir_Diupdate'] = pd.to_datetime('today').strftime('%Y-%m-%d %H:%M')
-                
-                        # Gabungkan data yang diedit dengan data ruangan lain yang tidak diedit
-                        df_other_rooms = df_inv[df_inv['Kelas/Ruangan'] != selected_room]
-                        df_final = pd.concat([df_other_rooms, editable_df_room], ignore_index=True)
-                
-                        # Simpan data gabungan kembali ke Sheet
-                        if update_inventaris_kelas_sheet(df_final):
-                            st.rerun()
+                        with st.spinner("Mengupdate data..."):
+                            editable_df_room['Terakhir_Diupdate'] = datetime.now().strftime('%Y-%m-%d %H:%M')
+                            df_other_rooms = df_inv[df_inv[COL_RUANG] != selected_room]
+                            df_final = pd.concat([df_other_rooms, editable_df_room], ignore_index=True)
+                        
+                            if update_inventaris_kelas_sheet(df_final):
+                                st.success("✅ Audit Berhasil Disimpan!"); st.cache_data.clear(); time.sleep(1); st.rerun()
 
                 # 4. Tombol Cetak KIK
                 st.divider()
@@ -1856,6 +1855,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
 
