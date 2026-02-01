@@ -15,6 +15,7 @@ import streamlit.components.v1 as components
 from googleapiclient.discovery import build 
 from googleapiclient.http import MediaIoBaseUpload
 import calendar
+import re
 
 # ===========================
 # 1. KONFIGURASI
@@ -280,6 +281,9 @@ def trigger_print_js(html_content):
     </script>
     """
     components.html(js_code, height=0, width=0)
+
+def get_prefix(kode):
+    return re.sub(r'\d+$', '', str(kode)).strip('-').strip('/')
 
 def wrap_bast_html(content):
     return f"""
@@ -1061,16 +1065,40 @@ def main_app():
                         create = st.form_submit_button("GENERATE & DOWNLOAD")
                 
                     if create:
-                        hari_indo = get_hari_indo(tgl); tgl_terbilang = angka_terbilang(tgl.day)
-                        bln_indo = get_bulan_indo(tgl); thn_terbilang = angka_terbilang(tgl.year)
+                        hari_indo = get_hari_indo(tgl); 
+                        tgl_terbilang = angka_terbilang(tgl.day)
+                        bln_indo = get_bulan_indo(tgl); 
+                        thn_terbilang = angka_terbilang(tgl.year)
+
+                        # --- PROSES PENGELOMPOKAN BARANG ---
+                        # 1. Ambil data yang dipilih saja
+                        df_terpilih = df_aset_all.iloc[rows].copy()
+
+                        # 2. Logika Prefix Kode: Menghilangkan angka urutan di akhir kode
+                        # Misal: 'LAB-001' dan 'LAB-002' akan dikelompokkan menjadi 'LAB'
+                        if 'Kode_Aset' in df_terpilih.columns:
+                            df_terpilih['Prefix_Kode'] = df_terpilih['Kode_Aset'].apply(get_prefix)
+                        
+                        # 3. Grouping berdasarkan Nama Barang & Sumber Dana
+                        # Kita hitung jumlah barisnya (size) sebagai total unit
+                        df_grouped = df_terpilih.groupby(['Nama_Barang', 'Sumber_Dana']).size().reset_index(name='Jumlah_Total')
+                        
+                        rows_html = ""
+                        for i, r in df_grouped.iterrows():
+                            rows_html += f"""
+                            <tr>
+                                <td>{i+1}</td>
+                                <td>{r['Nama_Barang']}</td>
+                                <td>{r['Jumlah_Total']}</td>
+                                <td>-</td>
+                                <td>-</td>
+                                <td>{r['Sumber_Dana']}</td>
+                            </tr>
+                            """
+                        
                         logo = get_img_as_base64(LOGO_FILE)
                         img_tag = f'<img src="data:image/png;base64,{logo}" class="kop-img">' if logo else ""
-                        rows_html = ""
-                        no = 1
-                        for idx in rows: # rows adalah list index yang didapat dari selection
-                            row = df_aset_all.iloc[idx]
-                            rows_html += f"<tr><td>{no}</td><td>{row['Nama_Barang']}</td><td>1</td><td>-</td><td>{row.get('Keterangan','-')}</td><td>{row.get('Sumber_Dana','-')}</td></tr>"
-                            no += 1
+                        
                         html_bast = f"""
                         <div class='bast-page'>
                             <div class='kop-surat'>
@@ -1855,6 +1883,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
 
