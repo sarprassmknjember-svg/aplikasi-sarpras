@@ -1240,7 +1240,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 
         sub_inv = st.radio(
             "Menu:",
-            ["📝 Input Data Baru", "📋 Lihat Data Kelas"],
+            ["📝 Input Data Baru", "📋 Lihat Data Kelas", "📊 Manajemen & Audit Ruangan"],
             horizontal=True, key="nav_inventaris_ruang"
         )
         st.divider()
@@ -1360,7 +1360,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
         # =======================================================
         # TAB 2: AUDIT & UPDATE KONDISI
         # =======================================================
-        #elif sub_inv == "📋 Lihat Data Kelas":
+        elif sub_inv == "📊 Manajemen & Audit Ruangan":
             st.session_state['inventaris_active_tab_index'] = 1
             st.subheader("Pembaruan Kondisi Inventaris")
         
@@ -1858,6 +1858,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
 
