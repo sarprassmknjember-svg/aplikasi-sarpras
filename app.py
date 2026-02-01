@@ -1106,12 +1106,16 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 
     elif st.session_state['menu'] == "Pemeliharaan":
         st.title("🛠️ Pemeliharaan Aset & Ruangan")
-        
-        # Membuat Tab untuk memisahkan Input dan Riwayat
-        tab1, tab2 = st.tabs(["📝 Input Pemeliharaan", "📜 Riwayat Pemeliharaan"])
+
+        sub_maint = st.radio(
+            "Navigasi:",
+            ["🔧 Catat Pemeliharaan", "📜 Riwayat Pemeliharaan"],
+            horizontal=True, key="nav_pemeliharaan"
+        )
+        st.divider()
         
         # --- TAB 1: INPUT DATA ---
-        with tab1:
+        if sub_maint == "🔧 Catat Pemeliharaan":
             st.subheader("Tambah Laporan Pemeliharaan")
             if df_aset_all.empty:
                 st.warning("Data Aset kosong. Belum ada aset yang bisa dipilih.")
@@ -1198,8 +1202,8 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
                                 st.rerun()
 
         # --- TAB 2: RIWAYAT DATA ---
-        with tab2:
-            st.subheader("📋 Riwayat Data Pemeliharaan")
+        elif sub_maint == "📜 Riwayat Pemeliharaan":
+            st.subheader("📜 Riwayat Data Pemeliharaan")
             df_mtc = load_data("Pemeliharaan")
             
             if not df_mtc.empty:
@@ -1233,11 +1237,16 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
     
     elif st.session_state['menu'] == "Inventaris Ruangan":
         st.title("🏫 Input Inventaris Ruangan")
-        
-        tab1, tab2 = st.tabs(["📝 Input Data Baru", "📋 Lihat Data Kelas"])
+
+        sub_inv = st.radio(
+            "Menu:",
+            ["📝 Input Data Baru", "📋 Lihat Data Kelas"],
+            horizontal=True, key="nav_inventaris_ruang"
+        )
+        st.divider()
         
         # === TAB 1: FORM INPUT ===
-        with tab1:
+        if sub_inv == "📝 Input Data Baru":
             st.info("Masukkan data barang yang ada di dalam kelas/ruangan.")
             
             # --- 1. RADIO BUTTON DI LUAR FORM (Agar Halaman Auto-Refresh) ---
@@ -1332,7 +1341,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
                             st.rerun()
 
         # === TAB 2: LIHAT DATA ===
-        with tab2:
+        elif sub_inv == "📋 Lihat Data Kelas":
             st.subheader("📋 Data Inventaris Kelas")
             df_view = load_data("InventarisKelas")
             COL_RUANG = "Kelas/Ruangan" # Pastikan konsisten
@@ -1553,17 +1562,20 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
     elif st.session_state['menu'] == "Data Renovasi":
         st.title("🔨 Data Renovasi & Perbaikan Bangunan")
 
+        sub_renov = st.radio(
+            "Navigasi:",
+            ["🏗️ Input Dana Renovasi", "🕰️ Riwayat & Galeri Renovasi"],
+            horizontal=True, key="nav_renov"
+        )
+        st.divider()
         # --- MUAT DATA ---
         df_renovasi_all = load_data("Renovasi")
         list_lokasi = st.session_state.get('list_lokasi_aset', ["-- PILIH LOKASI --"])
         
-        # Membuat Tab
-        tab_input, tab_riwayat = st.tabs(["📝 Input Data Renovasi", "📜 Riwayat & Galeri Renovasi"])
-
         # ==========================================
         # TAB 1: INPUT DATA RENOVASI
         # ==========================================
-        with tab_input:
+        if sub_renov == "🏗️ Input Dana Renovasi":
             if st.session_state['role'] == 'view':
                 st.warning("Anda tidak memiliki akses untuk menambah data renovasi.")
             else:
@@ -1628,7 +1640,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
         # ==========================================
         # TAB 2: RIWAYAT & TABEL DATA
         # ==========================================
-        with tab_riwayat:
+        elif sub_inv == "🕰️ Riwayat & Galeri Renovasi":
             st.subheader("📋 Log Riwayat Renovasi")
             
             if df_renovasi_all.empty:
@@ -1667,11 +1679,15 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
     elif st.session_state['menu'] == "Peminjaman":
         st.title("📆 Jadwal Peminjaman (Ruang & Aset)")
 
-        # --- TABS UNTUK INPUT & LIHAT DATA ---
-        tab1, tab2 = st.tabs(["📝 Input Peminjaman", "📋 Riwayat Peminjaman"])
+        sub_pinjam = st.radio(
+            "Navigasi:",
+            ["📝 Input Peminjaman", "📋 Riwayat Peminjaman"],
+            horizontal=True, key="nav_pinjam"
+        )
+        st.divider()
 
         # === TAB 1: FORM INPUT ===
-        with tab1:
+        if sub_pinjam == "📝 Input Peminjaman":
             st.subheader("Form Peminjaman")
             
             # 1. TARUH RADIO BUTTON DI LUAR FORM (Agar halaman refresh saat diganti)
@@ -1751,7 +1767,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
                             st.rerun()
 
         # === TAB 2: TABEL RIWAYAT ===
-        with tab2:
+        elif sub_pinjam == "📋 Riwayat Peminjaman":
             st.subheader("📅 Daftar Peminjaman")
             df_pinjam = load_data("Peminjaman")
             
@@ -1842,6 +1858,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
 
