@@ -1367,66 +1367,66 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
                 st.info("Belum ada data Inventaris Ruangan. Silakan input data di tab 'Pendataan Awal'.")
             else:
             
-            # 1. Pilih Ruangan
-            unique_rooms = df_inv['Kelas/Ruangan'].unique().tolist()
-            selected_room = st.selectbox("Pilih Kelas/Ruangan untuk Audit", unique_rooms)
+                # 1. Pilih Ruangan
+                unique_rooms = df_inv['Kelas/Ruangan'].unique().tolist()
+                selected_room = st.selectbox("Pilih Kelas/Ruangan untuk Audit", unique_rooms)
         
-            # Filter DataFrame berdasarkan ruangan yang dipilih
-            df_room = df_inv[df_inv['Kelas/Ruangan'] == selected_room].reset_index(drop=True)
+                # Filter DataFrame berdasarkan ruangan yang dipilih
+                df_room = df_inv[df_inv['Kelas/Ruangan'] == selected_room].reset_index(drop=True)
         
-            st.markdown(f"#### Data Inventaris Ruangan: **{selected_room}**")
-            st.info("Edit kolom Baik, Rusak Sedang, atau Rusak Berat di bawah ini.")
+                st.markdown(f"#### Data Inventaris Ruangan: **{selected_room}**")
+                st.info("Edit kolom Baik, Rusak Sedang, atau Rusak Berat di bawah ini.")
         
-            # 2. Tampilkan Data Editor
-            editable_df_room = st.data_editor(
-                df_room,
-                use_container_width=True,
-                hide_index=True,
-                key="inventaris_editor",
-                column_config={
-                    "Kelas/Ruangan": st.column_config.TextColumn(disabled=True),
-                    "Nama_Barang": st.column_config.TextColumn(disabled=True),
-                    "Total_Unit": st.column_config.NumberColumn(disabled=True),
-                    # Kolom yang dapat diedit
-                    "Baik": st.column_config.NumberColumn(min_value=0),
-                    "Rusak_Sedang": st.column_config.NumberColumn(min_value=0),
-                    "Rusak_Berat": st.column_config.NumberColumn(min_value=0),
-                    "Tahun_Perolehan": st.column_config.NumberColumn(disabled=True),
-                    "Terakhir_Diupdate": st.column_config.TextColumn(disabled=True)
-                }
-            )
+                # 2. Tampilkan Data Editor
+                editable_df_room = st.data_editor(
+                    df_room,
+                    use_container_width=True,
+                    hide_index=True,
+                    key="inventaris_editor",
+                    column_config={
+                        "Kelas/Ruangan": st.column_config.TextColumn(disabled=True),
+                        "Nama_Barang": st.column_config.TextColumn(disabled=True),
+                        "Total_Unit": st.column_config.NumberColumn(disabled=True),
+                        # Kolom yang dapat diedit
+                        "Baik": st.column_config.NumberColumn(min_value=0),
+                        "Rusak_Sedang": st.column_config.NumberColumn(min_value=0),
+                        "Rusak_Berat": st.column_config.NumberColumn(min_value=0),
+                        "Tahun_Perolehan": st.column_config.NumberColumn(disabled=True),
+                        "Terakhir_Diupdate": st.column_config.TextColumn(disabled=True)
+                    }
+                )
         
-            # 3. Tombol Simpan dan Validasi
-            if st.button("💾 Simpan Hasil Audit", type="primary"):
+                # 3. Tombol Simpan dan Validasi
+                if st.button("💾 Simpan Hasil Audit", type="primary"):
             
-                # --- VALIDASI KRITIS ---
-                total_kondisi = editable_df_room['Baik'] + editable_df_room['Rusak_Sedang'] + editable_df_room['Rusak_Berat']
-                total_unit = editable_df_room['Total_Unit']
+                    # --- VALIDASI KRITIS ---
+                    total_kondisi = editable_df_room['Baik'] + editable_df_room['Rusak_Sedang'] + editable_df_room['Rusak_Berat']
+                    total_unit = editable_df_room['Total_Unit']
             
-                invalid_rows = editable_df_room[total_kondisi > total_unit]
+                    invalid_rows = editable_df_room[total_kondisi > total_unit]
             
-                if not invalid_rows.empty:
-                    st.error("❌ Gagal Menyimpan! Jumlah unit kondisi (Baik+Rusak) melebihi Total Unit untuk item berikut:")
-                    st.dataframe(invalid_rows[['Nama_Barang', 'Total_Unit', 'Baik', 'Rusak_Sedang', 'Rusak_Berat']], hide_index=True)
-                else:
-                    # Update kolom timestamp
-                    editable_df_room['Terakhir_Diupdate'] = pd.to_datetime('today').strftime('%Y-%m-%d %H:%M')
+                    if not invalid_rows.empty:
+                        st.error("❌ Gagal Menyimpan! Jumlah unit kondisi (Baik+Rusak) melebihi Total Unit untuk item berikut:")
+                        st.dataframe(invalid_rows[['Nama_Barang', 'Total_Unit', 'Baik', 'Rusak_Sedang', 'Rusak_Berat']], hide_index=True)
+                    else:
+                        # Update kolom timestamp
+                        editable_df_room['Terakhir_Diupdate'] = pd.to_datetime('today').strftime('%Y-%m-%d %H:%M')
                 
-                    # Gabungkan data yang diedit dengan data ruangan lain yang tidak diedit
-                    df_other_rooms = df_inv[df_inv['Kelas/Ruangan'] != selected_room]
-                    df_final = pd.concat([df_other_rooms, editable_df_room], ignore_index=True)
+                        # Gabungkan data yang diedit dengan data ruangan lain yang tidak diedit
+                        df_other_rooms = df_inv[df_inv['Kelas/Ruangan'] != selected_room]
+                        df_final = pd.concat([df_other_rooms, editable_df_room], ignore_index=True)
                 
-                    # Simpan data gabungan kembali ke Sheet
-                    if update_inventaris_kelas_sheet(df_final):
-                        st.rerun()
+                        # Simpan data gabungan kembali ke Sheet
+                        if update_inventaris_kelas_sheet(df_final):
+                            st.rerun()
 
-            # 4. Tombol Cetak KIK
-            st.divider()
-            st.caption("Cetak Kartu Inventaris Ruangan (KIK) untuk Ruangan ini.")
-            if st.button(f"🖨️ Cetak KIK Ruangan {selected_room}", disabled=df_room.empty):
-                html_output = generate_kik_html(df_room, selected_room)
-                trigger_print_js(html_output)
-                st.success("Tampilan cetak KIK berhasil dimuat. Silakan cetak melalui dialog browser.")
+                # 4. Tombol Cetak KIK
+                st.divider()
+                st.caption("Cetak Kartu Inventaris Ruangan (KIK) untuk Ruangan ini.")
+                if st.button(f"🖨️ Cetak KIK Ruangan {selected_room}", disabled=df_room.empty):
+                    html_output = generate_kik_html(df_room, selected_room)
+                    trigger_print_js(html_output)
+                    st.success("Tampilan cetak KIK berhasil dimuat. Silakan cetak melalui dialog browser.")
 
     elif st.session_state['menu'] == "Gudang (Stok)":
         st.title("📦 Manajemen Gudang (Barang Habis Pakai)")
@@ -1856,6 +1856,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
 
