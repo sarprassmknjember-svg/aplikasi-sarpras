@@ -797,11 +797,11 @@ def main_app():
                                 jam = str(agn.get('JAM', '--:--'))
                                 if jam == "nan" or jam == "None":
                                     jam = "--:--"
-                                objek = str(agn.get('Nama Objek', 'Objek'))[:12]
+                                objek = str(agn.get('Nama Objek', 'Objek'))[:15]
                                 icon = "📦" if "BARANG" in str(agn.get('Kategori','')).upper() else "🏛️"
         
                                 # 1. Gunakan label expander dengan icon dan jam
-                                with st.expander(f"{icon} {jam} {objek}"):
+                                with st.expander(f"{icon} {objek}"):
                                     # 2. Tambahkan CSS 'color: white' agar teks terbaca di background gelap
                                     st.markdown(f"""
                                         <style>
@@ -1927,6 +1927,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
 
