@@ -802,18 +802,19 @@ def main_app():
                                 with st.expander(f"{icon} {jam} {objek}"):
                                     # 2. Tambahkan CSS 'color: white' agar teks terbaca di background gelap
                                     st.markdown(f"""
-                                        <div style="
-                                            font-size: 12px; 
-                                            line-height: 1.4; 
-                                            color: white !important; 
-                                            background-color: rgba(0,0,0,0.2); 
-                                            padding: 8px; 
-                                            border-radius: 5px;
-                                        ">
-                                            <b style="color: white !important;">📍 {agn.get('Nama Objek','')}</b><br>
-                                            <span style="color: white !important;">⏰ Jam: {jam}</span><br>
-                                            <span style="color: white !important;">📝 {agn.get('Kegiatan','')}</span><br>
-                                            <span style="color: white !important;">👤 {agn.get('Peminjam','')}</span>
+                                        <style>
+                                            /* Menargetkan semua teks di dalam markdown ini agar putih */
+                                            .white-text {{
+                                                color: #FFFFFF !important;
+                                                font-size: 13px !important;
+                                                line-height: 1.5;
+                                            }}
+                                        </style>
+                                        <div class="white-text">
+                                            <p style="margin-bottom: 5px;"><b>📍 {agn.get('Nama Objek','')}</b></p>
+                                            <p style="margin: 0;">⏰ Jam: {jam}</p>
+                                            <p style="margin: 0;">📝 {agn.get('Kegiatan','')}</p>
+                                            <p style="margin: 0;">👤 {agn.get('Peminjam','')}</p>
                                         </div>
                                     """, unsafe_allow_html=True)
 
@@ -1924,6 +1925,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
 
