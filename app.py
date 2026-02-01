@@ -1365,7 +1365,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
         
             if df_inv.empty:
                 st.info("Belum ada data Inventaris Ruangan. Silakan input data di tab 'Pendataan Awal'.")
-            else
+            else:
             
             # 1. Pilih Ruangan
             unique_rooms = df_inv['Kelas/Ruangan'].unique().tolist()
@@ -1856,6 +1856,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
 
