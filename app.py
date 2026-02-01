@@ -1574,13 +1574,30 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
             st.subheader("⏱️ Log Transaksi Gudang")
             if not df_stok_all.empty:
                 # Search filter
-                search_q = st.text_input("🔍 Cari transaksi barang...")
-                df_display = df_stok_all.iloc[::-1] # Terbaru di atas
+                search_q = st.text_input("🔍 Cari Data Gudang Habis Pakai")
+                df_display = df_stok_all.iloc[::-1].copy()
                 
                 if search_q:
-                    df_display = df_display[df_display.apply(lambda row: search_q.lower() in row.astype(str).str.lower().values, axis=1)]
+                    keywords = search_q.lower().split()
+                    for kw in keywords:
+                        # Buat 'mask' untuk menyaring baris yang mengandung kata kunci 'kw'
+                        # Mencari di seluruh kolom dalam baris tersebut
+                        mask = df_display.apply(
+                            lambda row: row.astype(str).str.contains(kw, case=False, na=False).any(), 
+                            axis=1
+                        )
+                        # Timpa df_display dengan hasil filter (logika AND antar keyword)
+                        df_display = df_display[mask]
+                st.dataframe(
+                    df_display, 
+                    use_container_width=True, 
+                    hide_index=True
+                )
                 
-                st.dataframe(df_display, use_container_width=True, hide_index=True)
+                # Informasi jika hasil pencarian tidak ditemukan
+                if df_display.empty:
+                    st.warning(f"❌ Tidak ada data yang cocok dengan kata kunci: '{search_q}'")
+                    
             else:
                 st.info("Riwayat transaksi kosong.")
     
@@ -1891,6 +1908,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
 
