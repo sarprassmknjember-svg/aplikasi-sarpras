@@ -1180,7 +1180,13 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
                                 
                                 # 2. LOGIKA UPDATE OTOMATIS KE SHEET ASET (Kolom M / 13)
                                 try:
-                                    # Menggunakan 'client' dari gspread (sesuaikan dengan variabel login Anda)
+                                    # --- TAMBAHKAN BARIS INI ---
+                                    # Memanggil koneksi gspread agar variabel 'client' tersedia
+                                    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+                                    creds = ServiceAccountCredentials.from_json_keyfile_name(AUTH_FILE, scope)
+                                    client = gspread.authorize(creds)
+                                    # ---------------------------
+
                                     sh_aset = client.open_by_url(SHEET_URL).worksheet("Aset")
                                     cell = sh_aset.find(kode_aset_selected)
                                     
@@ -1840,6 +1846,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
 
