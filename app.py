@@ -1361,8 +1361,8 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
         # TAB 2: AUDIT & UPDATE KONDISI
         # =======================================================
         #elif sub_inv == "📋 Lihat Data Kelas":
-            #st.session_state['inventaris_active_tab_index'] = 1
-            #st.subheader("Pembaruan Kondisi Inventaris")
+            st.session_state['inventaris_active_tab_index'] = 1
+            st.subheader("Pembaruan Kondisi Inventaris")
         
             if df_inv.empty:
                 st.info("Belum ada data Inventaris Ruangan. Silakan input data di tab 'Pendataan Awal'.")
@@ -1858,6 +1858,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
 
