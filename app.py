@@ -1672,18 +1672,26 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
                 st.info("Belum ada riwayat renovasi yang tercatat.")
             else:
                 # Filter Pencarian
-                search_renov = st.text_input("🔍 Cari berdasarkan lokasi atau jenis perbaikan...")
+                search_renov = st.text_input("🔍 Cari berdasarkan kata kunci yang diinginkan")
                 
                 # Pembersihan Data & Sorting
                 df_renovasi_display = df_renovasi_all.copy()
+                
                 if 'Waktu_Input' in df_renovasi_display.columns:
                     df_renovasi_display['Waktu_Input'] = pd.to_datetime(df_renovasi_display['Waktu_Input'], errors='coerce')
                     df_renovasi_display = df_renovasi_display.sort_values(by='Waktu_Input', ascending=False)
                 
                 if search_renov:
-                    df_renovasi_display = df_renovasi_display[
-                        df_renovasi_display.apply(lambda row: search_renov.lower() in row.astype(str).str.lower().values, axis=1)
-                    ]
+                    keywords = search_renov.lower().split()
+                    for kw in keywords:
+                        # Cari di semua kolom, baris yang mengandung kata kunci 'kw'
+                        # case=False membuat pencarian tidak peduli huruf besar/kecil
+                        # na=False mencegah error jika ada data kosong
+                        mask = df_renovasi_display.apply(
+                            lambda row: row.astype(str).str.contains(kw, case=False, na=False).any(), 
+                            axis=1
+                        )
+                        df_renovasi_display = df_renovasi_display[mask]
 
                 # Konfigurasi Kolom
                 col_config = {
@@ -1883,6 +1891,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
 
