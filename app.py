@@ -1640,7 +1640,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
         # ==========================================
         # TAB 2: RIWAYAT & TABEL DATA
         # ==========================================
-        elif sub_inv == "🕰️ Riwayat & Galeri Renovasi":
+        elif sub_renov == "🕰️ Riwayat & Galeri Renovasi":
             st.subheader("📋 Log Riwayat Renovasi")
             
             if df_renovasi_all.empty:
@@ -1858,6 +1858,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
 
