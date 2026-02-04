@@ -1504,7 +1504,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
         st.divider()
         
         # --- MUAT DATA ---
-        df_stok_all = load_data("Stok")
+        df_stok_all = load_data(st.session_state.get('active_sheet_stok', 'Stok'))
 
         # ==========================================
         # TAB 1: INPUT TRANSAKSI
@@ -1566,7 +1566,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
                         else:
                             with st.spinner("Menyimpan..."):
                                 row_data = [str(d), final_nama_barang, j, q, s, k]
-                                if save_to_sheet("Stok", [row_data], append_only=True):
+                                if save_to_sheet(st.session_state.get('active_sheet_log', 'Log_Gudang'), [row])
                                     st.success(f"✅ Berhasil mencatat {j} {q} {s} {final_nama_barang}")
                                     st.cache_data.clear()
                                     time.sleep(1)
@@ -1959,46 +1959,11 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
             
             st.session_state["chat_history"].append({"role": "ai", "content": res})
 
-if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
-if not st.session_state['logged_in']: login_page()
-else: main_app()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+if __name__ == "__main__":
+    if 'logged_in' not in st.session_state: 
+        st.session_state['logged_in'] = False
+    
+    if not st.session_state['logged_in']: 
+        login_page()
+    else: 
+        main_app()
