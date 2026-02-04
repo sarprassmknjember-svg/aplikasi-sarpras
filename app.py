@@ -621,12 +621,8 @@ def main_app():
     else:
         # --- JIKA SUDAH LOGIN, BARU TAMPILKAN SIDEBAR ---
         with st.sidebar:
-            # Tambahkan pengecekan keamanan ekstra agar tidak error saat refresh
-            username = st.session_state.get('username', 'User')
-            role = st.session_state.get('role', 'view')
-
-            st.title(f"👤 {username.upper()}")
-            st.caption(f"Role: {role.upper()}")
+            st.title(f"👤 {st.session_state['username'].upper()}")
+            st.caption(f"Role: {st.session_state['role'].upper()}")
             st.divider()
     
             # 1. Menu Navigasi Utama
@@ -656,7 +652,7 @@ def main_app():
                 st.session_state['menu'] = 'Tanya AI'; st.rerun()
 
             # --- KHUSUS ADMIN: TOGGLE MODE RKAS ---
-            if role.lower() == 'admin':
+            if st.session_state['role'].lower() == 'super': 
                 st.divider()
                 st.markdown("### ⚙️ Admin Tools")
                 is_rkas_mode = st.toggle("🧪 Mode Simulasi RKAS", value=False)
@@ -1967,4 +1963,5 @@ if __name__ == "__main__":
         login_page()
     else: 
         main_app()
+
 
