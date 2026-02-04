@@ -1566,7 +1566,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
                         else:
                             with st.spinner("Menyimpan..."):
                                 row_data = [str(d), final_nama_barang, j, q, s, k]
-                                if save_to_sheet(st.session_state.get('active_sheet_log', 'Log_Gudang'), [row])
+                                if save_to_sheet(st.session_state.get('active_sheet_log', 'Log_Gudang'), [row]):
                                     st.success(f"✅ Berhasil mencatat {j} {q} {s} {final_nama_barang}")
                                     st.cache_data.clear()
                                     time.sleep(1)
@@ -1967,3 +1967,4 @@ if __name__ == "__main__":
         login_page()
     else: 
         main_app()
+
