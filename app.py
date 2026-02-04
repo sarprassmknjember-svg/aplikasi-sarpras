@@ -614,66 +614,71 @@ def main_app():
     unique_pejabat_names = ["-- PILIH PENANGGUNG JAWAB --"] + sorted(pejabat_nama_list)
     st.session_state['list_pejabat_names'] = unique_pejabat_names
     
-    # --- SIDEBAR MENU ---
-with st.sidebar:
-    st.title(f"👤 {st.session_state['username'].upper()}")
-    st.caption(f"Role: {st.session_state['role'].upper()}")
-    st.divider()
-    
-    # 1. Menu Navigasi Utama
-    if st.button("📊 Dashboard", use_container_width=True): 
-        st.session_state['menu'] = 'Dashboard'; st.rerun()
-
-    if st.session_state['role'] != 'view':
-        if st.button("📦 Aset Sekolah", use_container_width=True): 
-            st.session_state['menu'] = 'Aset Sekolah'; st.rerun()
-
-    if st.button("🛠️ Pemeliharaan", use_container_width=True): 
-        st.session_state['menu'] = 'Pemeliharaan'; st.rerun()
-            
-    if st.button("🏢 Inventaris Ruangan", use_container_width=True): 
-        st.session_state['menu'] = 'Inventaris Ruangan'; st.rerun()
-
-    if st.button("🏭 Gudang (Stok)", use_container_width=True): 
-        st.session_state['menu'] = 'Gudang (Stok)'; st.rerun()
-
-    if st.button("🔨 Data Renovasi", use_container_width=True): 
-        st.session_state['menu'] = 'Data Renovasi'; st.rerun()
-    
-    if st.button("📆 Peminjaman", use_container_width=True): 
-        st.session_state['menu'] = 'Peminjaman'; st.rerun()
-
-    if st.button("🤖 Tanya AI", use_container_width=True): 
-        st.session_state['menu'] = 'Tanya AI'; st.rerun()
-
-    # ==========================================
-    # 2. KHUSUS ADMIN: TOGGLE MODE RKAS
-    # ==========================================
-    if st.session_state['role'].lower() == 'admin':
-        st.divider()
-        st.markdown("### ⚙️ Admin Tools")
-        
-        # Toggle Switch untuk Mode RKAS
-        is_rkas_mode = st.toggle("🧪 Mode Simulasi RKAS", value=False)
-        
-        if is_rkas_mode:
-            st.warning("⚠️ AKTIF: MODE RKAS")
-            st.session_state['active_sheet_stok'] = "Stok_RKAS"
-            st.session_state['active_sheet_log'] = "Log_Gudang_RKAS"
-        else:
-            st.success("✅ AKTIF: MODE RIIL")
-            st.session_state['active_sheet_stok'] = "Stok"
-            st.session_state['active_sheet_log'] = "Log_Gudang"
+    # --- LOGIKA HALAMAN ---
+    if not st.session_state.get('logged_in'):
+        # Panggil fungsi login Anda di sini
+        login_page() 
     else:
-        # Jika bukan admin, pastikan selalu ke Mode Riil secara otomatis
-        st.session_state['active_sheet_stok'] = "Stok"
-        st.session_state['active_sheet_log'] = "Log_Gudang"
+        # --- JIKA SUDAH LOGIN, BARU TAMPILKAN SIDEBAR ---
+        with st.sidebar:
+            # Tambahkan pengecekan keamanan ekstra agar tidak error saat refresh
+            username = st.session_state.get('username', 'User')
+            role = st.session_state.get('role', 'view')
 
-    st.divider()
-    if st.button("Logout", use_container_width=True):
-        st.session_state['logged_in'] = False
-        for key in list(st.session_state.keys()): del st.session_state[key]
-        st.rerun()
+            st.title(f"👤 {username.upper()}")
+            st.caption(f"Role: {role.upper()}")
+            st.divider()
+    
+            # 1. Menu Navigasi Utama
+            if st.button("📊 Dashboard", use_container_width=True): 
+                st.session_state['menu'] = 'Dashboard'; st.rerun()
+
+            if st.session_state['role'] != 'view':
+                if st.button("📦 Aset Sekolah", use_container_width=True): 
+                    st.session_state['menu'] = 'Aset Sekolah'; st.rerun()
+
+            if st.button("🛠️ Pemeliharaan", use_container_width=True): 
+                st.session_state['menu'] = 'Pemeliharaan'; st.rerun()
+            
+            if st.button("🏢 Inventaris Ruangan", use_container_width=True): 
+                st.session_state['menu'] = 'Inventaris Ruangan'; st.rerun()
+
+            if st.button("🏭 Gudang (Stok)", use_container_width=True): 
+                st.session_state['menu'] = 'Gudang (Stok)'; st.rerun()
+
+            if st.button("🔨 Data Renovasi", use_container_width=True): 
+                st.session_state['menu'] = 'Data Renovasi'; st.rerun()
+    
+            if st.button("📆 Peminjaman", use_container_width=True): 
+                st.session_state['menu'] = 'Peminjaman'; st.rerun()
+
+            if st.button("🤖 Tanya AI", use_container_width=True): 
+                st.session_state['menu'] = 'Tanya AI'; st.rerun()
+
+            # --- KHUSUS ADMIN: TOGGLE MODE RKAS ---
+            if role.lower() == 'admin':
+                st.divider()
+                st.markdown("### ⚙️ Admin Tools")
+                is_rkas_mode = st.toggle("🧪 Mode Simulasi RKAS", value=False)
+            
+                if is_rkas_mode:
+                    st.warning("⚠️ AKTIF: MODE RKAS")
+                    st.session_state['active_sheet_stok'] = "Stok_RKAS"
+                    st.session_state['active_sheet_log'] = "Log_Gudang_RKAS"
+                else:
+                    st.success("✅ AKTIF: MODE RIIL")
+                    st.session_state['active_sheet_stok'] = "Stok"
+                    st.session_state['active_sheet_log'] = "Log_Gudang"
+            else:
+                # Otomatis mode riil untuk non-admin
+                st.session_state['active_sheet_stok'] = "Stok"
+                st.session_state['active_sheet_log'] = "Log_Gudang"
+
+            st.divider()
+            if st.button("Logout", use_container_width=True):
+                st.session_state['logged_in'] = False
+                for key in list(st.session_state.keys()): del st.session_state[key]
+                st.rerun()
 
     # --- TAMPILKAN KONTEN BERDASARKAN SESSION STATE ---
 
@@ -1957,6 +1962,7 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 if 'logged_in' not in st.session_state: st.session_state['logged_in'] = False
 if not st.session_state['logged_in']: login_page()
 else: main_app()
+
 
 
 
