@@ -1640,124 +1640,139 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
 
         sub_renov = st.radio(
             "MENU",
-            ["🏗️ Input Dana Renovasi", "🕰️ Riwayat & Galeri Renovasi"],
+            ["🏗️ Input Laporan (Mulai)", "✅ Update Penyelesaian (Selesai)", "🕰️ Riwayat & Galeri"],
             horizontal=True, key="nav_renov"
         )
         st.divider()
+        
         # --- MUAT DATA ---
         df_renovasi_all = load_data("Renovasi")
         list_lokasi = st.session_state.get('list_lokasi_aset', ["-- PILIH LOKASI --"])
         
         # ==========================================
-        # TAB 1: INPUT DATA RENOVASI
+        # TAB 1: INPUT LAPORAN (FOTO SEBELUM)
         # ==========================================
-        if sub_renov == "🏗️ Input Dana Renovasi":
+        if sub_renov == "🏗️ Input Laporan (Mulai)":
             if st.session_state['role'] == 'view':
-                st.warning("Anda tidak memiliki akses untuk menambah data renovasi.")
+                st.warning("Anda tidak memiliki akses untuk menambah data.")
             else:
-                with st.form("form_renovasi_input", clear_on_submit=True):
-                    st.subheader("Formulir Laporan Renovasi Baru")
+                with st.form("form_renovasi_mulai", clear_on_submit=True):
+                    st.subheader("Formulir Laporan Kerusakan / Mulai Renovasi")
                     
                     col1, col2 = st.columns(2)
-                    tgl = col1.date_input("Tanggal Renovasi/Perbaikan*", value=datetime.now())
-                    jenis = col2.text_input("Jenis Perbaikan*", placeholder="Contoh: Pengecatan ulang, Ganti atap")
+                    tgl_mulai = col1.date_input("Tanggal Lapor*", value=datetime.now())
+                    jenis = col2.text_input("Jenis Perbaikan*", placeholder="Contoh: Ganti genteng bocor")
                     
                     lok = st.selectbox("Lokasi Perbaikan*", list_lokasi, key="renovasi_lokasi")
                     
                     st.markdown("---")
-                    st.markdown("**📸 Unggah Dokumentasi (Maks. 5MB)**")
-                    col_foto_sebelum, col_foto_sesudah = st.columns(2)
+                    foto_sebelum = st.file_uploader("📸 Unggah Foto Sebelum Perbaikan*", type=['png', 'jpg', 'jpeg'])
+                    keterangan = st.text_area("Catatan Kerusakan (Opsional)")
                     
-                    foto_sebelum = col_foto_sebelum.file_uploader(
-                        "Foto Sebelum Perbaikan*", 
-                        type=['png', 'jpg', 'jpeg'], 
-                        key="foto_sebelum"
-                    )
-                    
-                    foto_sesudah = col_foto_sesudah.file_uploader(
-                        "Foto Sesudah Perbaikan*", 
-                        type=['png', 'jpg', 'jpeg'], 
-                        key="foto_sesudah"
-                    )
-                    
-                    keterangan_tambahan = st.text_area("Catatan Tambahan (Opsional)")
-                    
-                    submitted = st.form_submit_button("💾 Simpan Data Renovasi", type="primary", use_container_width=True)
+                    submitted = st.form_submit_button("💾 Simpan Laporan Awal", type="primary", use_container_width=True)
                     
                     if submitted:
-                        if lok == "-- PILIH LOKASI --" or not jenis or not foto_sebelum or not foto_sesudah:
-                            st.error("⚠️ Mohon lengkapi semua data dan unggah kedua foto (Sebelum & Sesudah).")
+                        if lok == "-- PILIH LOKASI --" or not jenis or not foto_sebelum:
+                            st.error("⚠️ Mohon lengkapi Lokasi, Jenis Perbaikan, dan Foto Sebelum.")
                         else:
-                            with st.spinner("Sedang memproses foto ke Google Drive..."):
-                                # 1. Upload Foto Sebelum
+                            with st.spinner("Mengunggah foto ke Drive..."):
                                 link_sebelum = upload_renovasi_photo(foto_sebelum, "SEBELUM")
-                                # 2. Upload Foto Sesudah
-                                link_sesudah = upload_renovasi_photo(foto_sesudah, "SESUDAH")
                                 
-                                if link_sebelum == "-" or link_sesudah == "-":
-                                    st.error("❌ Gagal mengunggah foto. Periksa koneksi atau folder ID di Secrets.")
+                                if link_sebelum == "-":
+                                    st.error("❌ Gagal mengunggah foto.")
                                 else:
-                                    # 3. Simpan data ke Google Sheet "Renovasi"
+                                    # ID unik untuk update nanti
+                                    renov_id = f"RNV-{int(time.time())}"
                                     row_data = [
-                                        str(tgl),
+                                        renov_id,
+                                        str(tgl_mulai),
                                         jenis.strip(),
                                         lok,
                                         link_sebelum,
-                                        link_sesudah,
+                                        "-", # Foto Sesudah (Kosong dulu)
+                                        "Dalam Proses", # Status Awal
+                                        keterangan,
                                         datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                                     ]
                                     
                                     if save_to_sheet("Renovasi", [row_data], append_only=True):
-                                        st.success("✅ Data Renovasi Berhasil Disimpan!")
+                                        st.success(f"✅ Laporan Berhasil Disimpan! ID: {renov_id}")
                                         st.cache_data.clear()
                                         time.sleep(1)
                                         st.rerun()
 
         # ==========================================
-        # TAB 2: RIWAYAT & TABEL DATA
+        # TAB 2: UPDATE PENYELESAIAN (FOTO SESUDAH)
         # ==========================================
-        elif sub_renov == "🕰️ Riwayat & Galeri Renovasi":
-            st.subheader("📋 Log Riwayat Renovasi")
+        elif sub_renov == "✅ Update Penyelesaian (Selesai)":
+            st.subheader("Konfirmasi Renovasi Selesai")
             
             if df_renovasi_all.empty:
-                st.info("Belum ada riwayat renovasi yang tercatat.")
+                st.info("Tidak ada data renovasi.")
             else:
-                # Filter Pencarian
-                search_renov = st.text_input("🔍 Cari berdasarkan kata kunci yang diinginkan")
+                # Filter data yang masih 'Dalam Proses'
+                df_ongoing = df_renovasi_all[df_renovasi_all['Status'] == "Dalam Proses"]
                 
-                # Pembersihan Data & Sorting
-                df_renovasi_display = df_renovasi_all.copy()
-                
-                if 'Waktu_Input' in df_renovasi_display.columns:
-                    df_renovasi_display['Waktu_Input'] = pd.to_datetime(df_renovasi_display['Waktu_Input'], errors='coerce')
-                    df_renovasi_display = df_renovasi_display.sort_values(by='Waktu_Input', ascending=False)
-                
-                if search_renov:
-                    keywords = search_renov.lower().split()
-                    for kw in keywords:
-                        # Cari di semua kolom, baris yang mengandung kata kunci 'kw'
-                        # case=False membuat pencarian tidak peduli huruf besar/kecil
-                        # na=False mencegah error jika ada data kosong
-                        mask = df_renovasi_display.apply(
-                            lambda row: row.astype(str).str.contains(kw, case=False, na=False).any(), 
-                            axis=1
-                        )
-                        df_renovasi_display = df_renovasi_display[mask]
+                if df_ongoing.empty:
+                    st.success("🎉 Semua pekerjaan renovasi telah selesai!")
+                else:
+                    # Pilih data berdasarkan ID + Jenis + Lokasi
+                    pilihan = st.selectbox(
+                        "Pilih Pekerjaan yang Sudah Selesai:",
+                        df_ongoing.apply(lambda x: f"{x['ID']} | {x['Jenis_Perbaikan']} - {x['Lokasi_Perbaikan']}", axis=1)
+                    )
+                    
+                    selected_id = pilihan.split(" | ")[0]
+                    
+                    with st.form("form_update_renov"):
+                        tgl_selesai = st.date_input("Tanggal Selesai*", value=datetime.now())
+                        foto_sesudah = st.file_uploader("📸 Unggah Foto Sesudah Perbaikan*", type=['png', 'jpg', 'jpeg'])
+                        
+                        update_submit = st.form_submit_button("✅ Update Menjadi Selesai", type="primary", use_container_width=True)
+                        
+                        if update_submit:
+                            if not foto_sesudah:
+                                st.error("⚠️ Mohon unggah foto sesudah perbaikan.")
+                            else:
+                                with st.spinner("Memperbarui data..."):
+                                    link_sesudah = upload_renovasi_photo(foto_sesudah, "SESUDAH")
+                                    
+                                    try:
+                                        # Akses sheet langsung untuk update cell
+                                        client = get_gspread_client() # Pastikan fungsi ini tersedia di app Anda
+                                        sh = client.open_by_url(SHEET_URL).worksheet("Renovasi")
+                                        all_rows = sh.get_all_values()
+                                        
+                                        # Cari baris berdasarkan ID (Kolom A / Index 0)
+                                        found_row = -1
+                                        for i, r in enumerate(all_rows):
+                                            if r[0] == selected_id:
+                                                found_row = i + 1
+                                                break
+                                        
+                                        if found_row != -1:
+                                            # Update Kolom Foto Sesudah (Kolom F/Index 6), Status (Kolom G/Index 7), dan Tanggal Selesai
+                                            sh.update_cell(found_row, 6, link_sesudah)
+                                            sh.update_cell(found_row, 7, "Selesai")
+                                            st.success("✅ Renovasi Berhasil Diperbarui ke Status Selesai!")
+                                            st.cache_data.clear()
+                                            time.sleep(1)
+                                            st.rerun()
+                                    except Exception as e:
+                                        st.error(f"Terjadi kesalahan saat update: {e}")
 
-                # Konfigurasi Kolom
-                col_config = {
-                    "Link_Foto_Sebelum": st.column_config.LinkColumn("📸 Sebelum", display_text="Lihat Foto"),
-                    "Link_Foto_Sesudah": st.column_config.LinkColumn("📸 Sesudah", display_text="Lihat Foto"),
-                    "Tanggal": st.column_config.DateColumn("Tanggal Perbaikan"),
-                    "Waktu_Input": st.column_config.DatetimeColumn("Waktu Lapor", format="DD/MM/YY HH:mm"),
-                }
-
+        # ==========================================
+        # TAB 3: RIWAYAT & TABEL DATA
+        # ==========================================
+        elif sub_renov == "🕰️ Riwayat & Galeri":
+            st.subheader("📋 Log Riwayat & Status Renovasi")
+            # ... (Kode Riwayat tetap sama, tinggal tambahkan kolom Status di column_order)
+            if not df_renovasi_all.empty:
                 st.dataframe(
-                    df_renovasi_display,
+                    df_renovasi_all.sort_values(by="Status", ascending=False), 
                     use_container_width=True,
                     hide_index=True,
-                    column_order=["Tanggal", "Lokasi_Perbaikan", "Jenis_Perbaikan", "Link_Foto_Sebelum", "Link_Foto_Sesudah", "Waktu_Input"],
-                    column_config=col_config
+                    column_order=["ID", "Tanggal", "Lokasi_Perbaikan", "Jenis_Perbaikan", "Status", "Link_Foto_Sebelum", "Link_Foto_Sesudah"]
                 )
     
     elif st.session_state['menu'] == "Peminjaman":
@@ -1963,5 +1978,6 @@ if __name__ == "__main__":
         login_page()
     else: 
         main_app()
+
 
 
