@@ -1766,13 +1766,49 @@ Sejak penandatanganan berita acara ini, maka barang tersebut menjadi tanggung ja
         # ==========================================
         elif sub_renov == "🕰️ Riwayat & Galeri":
             st.subheader("📋 Log Riwayat & Status Renovasi")
-            # ... (Kode Riwayat tetap sama, tinggal tambahkan kolom Status di column_order)
-            if not df_renovasi_all.empty:
+            
+            if df_renovasi_all.empty:
+                st.info("Belum ada riwayat renovasi yang tercatat.")
+            else:
+                # Filter Pencarian
+                search_renov = st.text_input("🔍 Cari berdasarkan lokasi atau jenis perbaikan")
+                
+                df_display = df_renovasi_all.copy()
+                
+                # Filter jika ada pencarian
+                if search_renov:
+                    mask = df_display.apply(lambda row: row.astype(str).str.contains(search_renov, case=False).any(), axis=1)
+                    df_display = df_display[mask]
+
+                # --- KONFIGURASI KOLOM AGAR LINK JADI KLIK-ABLE ---
+                col_config = {
+                    "Link_Foto_Sebelum": st.column_config.LinkColumn(
+                        "📸 Sebelum", 
+                        display_text="Lihat Foto" # Mengubah link panjang jadi teks ini
+                    ),
+                    "Link_Foto_Sesudah": st.column_config.LinkColumn(
+                        "📸 Sesudah", 
+                        display_text="Lihat Foto"
+                    ),
+                    "Status": st.column_config.SelectboxColumn(
+                        "Status",
+                        options=["Dalam Proses", "Selesai"],
+                    ),
+                    "Tanggal": st.column_config.DateColumn("Tanggal"),
+                    "Waktu_Input": st.column_config.DatetimeColumn("Waktu Lapor", format="DD/MM/YY HH:mm"),
+                }
+
+                # Menampilkan Dataframe
                 st.dataframe(
-                    df_renovasi_all.sort_values(by="Status", ascending=False), 
+                    df_display,
                     use_container_width=True,
                     hide_index=True,
-                    column_order=["ID", "Tanggal", "Lokasi_Perbaikan", "Jenis_Perbaikan", "Status", "Link_Foto_Sebelum", "Link_Foto_Sesudah"]
+                    # Mengatur urutan kolom yang tampil di layar
+                    column_order=[
+                        "ID", "Tanggal", "Lokasi_Perbaikan", "Jenis_Perbaikan", 
+                        "Status", "Link_Foto_Sebelum", "Link_Foto_Sesudah", "Keterangan"
+                    ],
+                    column_config=col_config
                 )
     
     elif st.session_state['menu'] == "Peminjaman":
@@ -1978,6 +2014,7 @@ if __name__ == "__main__":
         login_page()
     else: 
         main_app()
+
 
 
 
